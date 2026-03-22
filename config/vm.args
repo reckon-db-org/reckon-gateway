@@ -1,0 +1,14 @@
+## Name of the node
+-sname reckon_gateway
+
+## Cookie for distributed Erlang
+-setcookie reckon_gateway_cookie
+
+## Increase process limit
++P 1048576
+
+## Increase port limit
++Q 65536
+
+## Distribution buffer
++zdbbl 32768

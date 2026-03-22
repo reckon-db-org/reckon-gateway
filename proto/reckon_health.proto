@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package reckon.gateway.v1;
+
+option go_package = "github.com/reckon-db-org/reckon-gateway/gen/go/gatewayv1;gatewayv1";
+
+// HealthService provides health checking and cluster diagnostics.
+service HealthService {
+
+  // Quick health check for a specific store.
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // Overall gateway health (all stores).
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // Verify cluster consistency for a store.
+  rpc VerifyClusterConsistency(ClusterCheckRequest) returns (ClusterCheckResponse);
+
+  // Verify membership consensus across cluster nodes.
+  rpc VerifyMembershipConsensus(ClusterCheckRequest) returns (ClusterCheckResponse);
+
+  // Check Raft log consistency.
+  rpc CheckRaftLogConsistency(ClusterCheckRequest) returns (ClusterCheckResponse);
+
+  // Get memory pressure level for a store.
+  rpc GetMemoryLevel(MemoryLevelRequest) returns (MemoryLevelResponse);
+
+  // Get detailed memory statistics for a store.
+  rpc GetMemoryStats(MemoryStatsRequest) returns (MemoryStatsResponse);
+}
+
+// ──────────────────────────────────────────────
+// Requests
+// ──────────────────────────────────────────────
+
+message HealthCheckRequest {
+  string store_id = 1;
+}
+
+message HealthRequest {}
+
+message ClusterCheckRequest {
+  string store_id = 1;
+}
+
+message MemoryLevelRequest {
+  string store_id = 1;
+}
+
+message MemoryStatsRequest {
+  string store_id = 1;
+}
+
+// ──────────────────────────────────────────────
+// Responses
+// ──────────────────────────────────────────────
+
+enum HealthStatus {
+  HEALTH_STATUS_HEALTHY = 0;
+  HEALTH_STATUS_DEGRADED = 1;
+  HEALTH_STATUS_UNHEALTHY = 2;
+}
+
+message HealthCheckResponse {
+  HealthStatus status = 1;
+  map<string, string> details = 2;
+}
+
+message HealthResponse {
+  HealthStatus status = 1;
+  map<string, uint32> stores = 2;
+  uint32 total_workers = 3;
+  string node = 4;
+  int64 timestamp = 5;
+}
+
+enum ClusterStatus {
+  CLUSTER_STATUS_HEALTHY = 0;
+  CLUSTER_STATUS_DEGRADED = 1;
+  CLUSTER_STATUS_SPLIT_BRAIN = 2;
+  CLUSTER_STATUS_NO_QUORUM = 3;
+}
+
+message ClusterCheckResponse {
+  ClusterStatus status = 1;
+  map<string, string> details = 2;
+}
+
+enum MemoryLevel {
+  MEMORY_LEVEL_LOW = 0;
+  MEMORY_LEVEL_NORMAL = 1;
+  MEMORY_LEVEL_HIGH = 2;
+  MEMORY_LEVEL_CRITICAL = 3;
+}
+
+message MemoryLevelResponse {
+  MemoryLevel level = 1;
+}
+
+message MemoryStatsResponse {
+  uint64 used_bytes = 1;
+  uint64 total_bytes = 2;
+  double usage_percent = 3;
+  map<string, uint64> breakdown = 4;
+}

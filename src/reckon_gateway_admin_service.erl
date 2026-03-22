@@ -1,0 +1,192 @@
+%% @doc gRPC AdminService implementation.
+-module(reckon_gateway_admin_service).
+-behaviour(reckon_gateway_v_1_admin_service_bhvr).
+
+-export([
+    %% Store Inspection
+    get_store_stats/2,
+    get_stream_info/2,
+    get_event_type_summary/2,
+    list_stores/2,
+    %% Scavenging
+    scavenge/2,
+    scavenge_matching/2,
+    scavenge_dry_run/2,
+    %% Stream Links
+    create_link/2,
+    delete_link/2,
+    get_link/2,
+    list_links/2,
+    start_link/2,
+    stop_link/2,
+    get_link_info/2
+]).
+
+%%====================================================================
+%% Store Inspection
+%%====================================================================
+
+get_store_stats(Ctx, #{store_id := StoreIdBin}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    case esdb_gater_api:store_stats(StoreId) of
+        {ok, Stats} ->
+            {ok, #{total_streams => maps:get(total_streams, Stats, 0),
+                   total_events => maps:get(total_events, Stats, 0),
+                   total_subscriptions => maps:get(total_subscriptions, Stats, 0),
+                   total_snapshots => maps:get(total_snapshots, Stats, 0),
+                   details => maps_to_strings(Stats)}, Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"13">>, format_error(Reason)}}
+    end.
+
+get_stream_info(Ctx, #{store_id := StoreIdBin, stream_id := StreamId}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    case esdb_gater_api:stream_info(StoreId, StreamId) of
+        {ok, Info} ->
+            {ok, #{stream_id => StreamId,
+                   version => maps:get(version, Info, 0),
+                   event_count => maps:get(event_count, Info, 0),
+                   created_at => maps:get(created_at, Info, 0),
+                   last_event_at => maps:get(last_event_at, Info, 0),
+                   event_types => maps:get(event_types, Info, [])}, Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"5">>, format_error(Reason)}}
+    end.
+
+get_event_type_summary(Ctx, #{store_id := StoreIdBin}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    case esdb_gater_api:event_type_summary(StoreId) of
+        {ok, Summary} ->
+            Entries = [#{event_type => maps:get(event_type, S, <<>>),
+                         count => maps:get(count, S, 0)}
+                       || S <- Summary],
+            {ok, #{entries => Entries}, Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"13">>, format_error(Reason)}}
+    end.
+
+list_stores(Ctx, #{}) ->
+    case esdb_gater_api:list_stores() of
+        {ok, Stores} ->
+            StoreIds = [atom_to_binary(S, utf8) || S <- Stores],
+            {ok, #{store_ids => StoreIds}, Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"13">>, format_error(Reason)}}
+    end.
+
+%%====================================================================
+%% Scavenging
+%%====================================================================
+
+scavenge(Ctx, #{store_id := StoreIdBin, stream_id := StreamId, options := Opts}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    case esdb_gater_api:scavenge(StoreId, StreamId, Opts) of
+        {ok, Result} ->
+            {ok, scavenge_result_to_proto(Result), Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"13">>, format_error(Reason)}}
+    end.
+
+scavenge_matching(Ctx, #{store_id := StoreIdBin, pattern := Pattern, options := Opts}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    case esdb_gater_api:scavenge_matching(StoreId, Pattern, Opts) of
+        {ok, Results} ->
+            ProtoResults = [scavenge_result_to_proto(R) || R <- Results],
+            {ok, #{results => ProtoResults}, Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"13">>, format_error(Reason)}}
+    end.
+
+scavenge_dry_run(Ctx, #{store_id := StoreIdBin, stream_id := StreamId, options := Opts}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    case esdb_gater_api:scavenge_dry_run(StoreId, StreamId, Opts) of
+        {ok, Result} ->
+            {ok, scavenge_result_to_proto(Result), Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"13">>, format_error(Reason)}}
+    end.
+
+%%====================================================================
+%% Stream Links
+%%====================================================================
+
+create_link(Ctx, #{store_id := StoreIdBin} = Req) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    LinkSpec = #{name => maps:get(name, Req, <<>>),
+                 source => maps:get(source, Req, <<>>),
+                 target => maps:get(target, Req, <<>>)},
+    ok = esdb_gater_api:create_link(StoreId, LinkSpec),
+    {ok, #{}, Ctx}.
+
+delete_link(Ctx, #{store_id := StoreIdBin, name := Name}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    ok = esdb_gater_api:delete_link(StoreId, Name),
+    {ok, #{}, Ctx}.
+
+get_link(Ctx, #{store_id := StoreIdBin, name := Name}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    case esdb_gater_api:get_link(StoreId, Name) of
+        {ok, Link} ->
+            {ok, link_to_proto(Link), Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"5">>, format_error(Reason)}}
+    end.
+
+list_links(Ctx, #{store_id := StoreIdBin}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    case esdb_gater_api:list_links(StoreId) of
+        {ok, Links} ->
+            {ok, #{links => [link_to_proto(L) || L <- Links]}, Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"13">>, format_error(Reason)}}
+    end.
+
+start_link(Ctx, #{store_id := StoreIdBin, name := Name}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    ok = esdb_gater_api:start_link(StoreId, Name),
+    {ok, #{}, Ctx}.
+
+stop_link(Ctx, #{store_id := StoreIdBin, name := Name}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    ok = esdb_gater_api:stop_link(StoreId, Name),
+    {ok, #{}, Ctx}.
+
+get_link_info(Ctx, #{store_id := StoreIdBin, name := Name}) ->
+    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
+    case esdb_gater_api:link_info(StoreId, Name) of
+        {ok, Info} ->
+            {ok, #{name => Name,
+                   status => maps:get(status, Info, <<"unknown">>),
+                   events_processed => maps:get(events_processed, Info, 0),
+                   details => maps_to_strings(Info)}, Ctx};
+        {error, Reason} ->
+            {grpc_error, {<<"5">>, format_error(Reason)}}
+    end.
+
+%%====================================================================
+%% Internal
+%%====================================================================
+
+scavenge_result_to_proto(Result) ->
+    #{events_removed => maps:get(events_removed, Result, 0),
+      events_remaining => maps:get(events_remaining, Result, 0),
+      space_reclaimed_bytes => maps:get(space_reclaimed_bytes, Result, 0),
+      details => maps_to_strings(Result)}.
+
+link_to_proto(Link) ->
+    #{name => maps:get(name, Link, <<>>),
+      source => maps:get(source, Link, <<>>),
+      target => maps:get(target, Link, <<>>),
+      options => maps_to_strings(maps:get(options, Link, #{}))}.
+
+maps_to_strings(Map) when is_map(Map) ->
+    maps:fold(
+        fun(K, V, Acc) ->
+            Key = iolist_to_binary(io_lib:format("~p", [K])),
+            Val = iolist_to_binary(io_lib:format("~p", [V])),
+            Acc#{Key => Val}
+        end, #{}, Map);
+maps_to_strings(_) -> #{}.
+
+format_error(Reason) when is_binary(Reason) -> Reason;
+format_error(Reason) -> iolist_to_binary(io_lib:format("~p", [Reason])).
