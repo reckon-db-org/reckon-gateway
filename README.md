@@ -1,6 +1,6 @@
 # ReckonDB gRPC Gateway
 
-gRPC gateway for [ReckonDB](https://github.com/reckon-db-org/reckon-db) — exposes the BEAM-native event store to polyglot clients over gRPC.
+gRPC gateway for [ReckonDB](https://codeberg.org/reckon-db-org/reckon-db) — exposes the BEAM-native event store to polyglot clients over gRPC.
 
 ## Overview
 
