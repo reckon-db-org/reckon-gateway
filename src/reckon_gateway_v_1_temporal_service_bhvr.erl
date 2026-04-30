@@ -7,15 +7,15 @@
 
 -module(reckon_gateway_v_1_temporal_service_bhvr).
 
-%% Unary RPC
--callback read_until(ctx:t(), reckon_temporal_pb:read_until_request()) ->
-    {ok, reckon_temporal_pb:read_until_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback read_until(reckon_temporal_pb:read_until_request(), grpc:metadata())
+    -> {ok, reckon_temporal_pb:read_until_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback read_range(ctx:t(), reckon_temporal_pb:read_range_request()) ->
-    {ok, reckon_temporal_pb:read_range_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback read_range(reckon_temporal_pb:read_range_request(), grpc:metadata())
+    -> {ok, reckon_temporal_pb:read_range_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback version_at(ctx:t(), reckon_temporal_pb:version_at_request()) ->
-    {ok, reckon_temporal_pb:version_at_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback version_at(reckon_temporal_pb:version_at_request(), grpc:metadata())
+    -> {ok, reckon_temporal_pb:version_at_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 

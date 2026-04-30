@@ -1,11 +1,9 @@
-%% @doc gRPC StreamService implementation.
+%% @doc gRPC StreamService implementation (emqx/grpc-erl).
 %%
 %% Delegates all stream operations to esdb_gater_api.
 -module(reckon_gateway_stream_service).
 
 -include_lib("reckon_gater/include/esdb_gater_types.hrl").
-
--behaviour(reckon_gateway_v_1_stream_service_bhvr).
 
 -export([
     append_events/2,
@@ -20,10 +18,10 @@
     read_all_global/2
 ]).
 
-append_events(Ctx, #{store_id := StoreIdBin,
-                     stream_id := StreamId,
-                     expected_version := ExpectedVersion,
-                     events := ProposedEvents}) ->
+append_events(#{store_id := StoreIdBin,
+                stream_id := StreamId,
+                expected_version := ExpectedVersion,
+                events := ProposedEvents}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     Events = [reckon_gateway_convert:proposed_to_event(E, StreamId)
               || E <- ProposedEvents],
@@ -31,151 +29,139 @@ append_events(Ctx, #{store_id := StoreIdBin,
         {ok, NewVersion} ->
             {ok, #{version => NewVersion,
                    position => 0,
-                   count => length(Events)}, Ctx};
-        {error, {wrong_expected_version, Expected, Actual}} ->
-            {grpc_error, {<<"3">>, iolist_to_binary(
-                io_lib:format("wrong expected version: expected ~p, got ~p",
-                              [Expected, Actual]))}};
-        {error, {wrong_expected_version, CurrentVersion}} ->
-            {grpc_error, {<<"3">>, iolist_to_binary(
-                io_lib:format("wrong expected version: current ~p",
-                              [CurrentVersion]))}};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+                   count => length(Events)}, Md};
+        {error, _Reason} ->
+            {error, <<"3">>}
     end.
 
-read_stream_forward(Ctx, #{store_id := StoreIdBin,
-                           stream_id := StreamId,
-                           start_version := StartVersion,
-                           count := Count}) ->
+read_stream_forward(#{store_id := StoreIdBin,
+                      stream_id := StreamId,
+                      start_version := StartVersion,
+                      count := Count}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SafeCount = safe_count(Count),
     case esdb_gater_api:stream_forward(StoreId, StreamId, StartVersion, SafeCount) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
-            {ok, #{events => Recorded}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"5">>, format_error(Reason)}}
+            {ok, #{events => Recorded}, Md};
+        {error, _Reason} ->
+            {error, <<"5">>}
     end.
 
-read_stream_backward(Ctx, #{store_id := StoreIdBin,
-                            stream_id := StreamId,
-                            start_version := StartVersion,
-                            count := Count}) ->
+read_stream_backward(#{store_id := StoreIdBin,
+                       stream_id := StreamId,
+                       start_version := StartVersion,
+                       count := Count}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SafeCount = safe_count(Count),
     case esdb_gater_api:stream_backward(StoreId, StreamId, StartVersion, SafeCount) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
-            {ok, #{events => Recorded}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"5">>, format_error(Reason)}}
+            {ok, #{events => Recorded}, Md};
+        {error, _Reason} ->
+            {error, <<"5">>}
     end.
 
-%% Server-streaming: sends events one at a time.
-%% grpcbox server-streaming callback: (Request, Stream) -> ok
-stream_events_forward(#{store_id := StoreIdBin,
-                        stream_id := StreamId,
-                        start_version := StartVersion,
-                        count := Count}, Stream) ->
+%% Server-streaming: emqx/grpc-erl calls Fun(Stream, Metadata)
+stream_events_forward(Stream, _Md) ->
+    {more, [Request], Stream1} = grpc_stream:recv(Stream),
+    #{store_id := StoreIdBin,
+      stream_id := StreamId,
+      start_version := StartVersion,
+      count := Count} = Request,
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:stream_forward(StoreId, StreamId, StartVersion, Count) of
+    SafeCount = safe_count(Count),
+    case esdb_gater_api:stream_forward(StoreId, StreamId, StartVersion, SafeCount) of
         {ok, Events} ->
             lists:foreach(
                 fun(E) ->
-                    Recorded = reckon_gateway_convert:event_to_recorded(E),
-                    grpcbox_stream:send(Recorded, Stream)
+                    grpc_stream:reply(Stream1,
+                        reckon_gateway_convert:event_to_recorded(E))
                 end, Events),
-            ok;
-        {error, Reason} ->
-            {grpc_error, {<<"5">>, format_error(Reason)}}
+            {ok, Stream1};
+        {error, _Reason} ->
+            {<<"5">>, <<"stream read failed">>, Stream1}
     end.
 
-get_stream_version(Ctx, #{store_id := StoreIdBin,
-                          stream_id := StreamId}) ->
+get_stream_version(#{store_id := StoreIdBin,
+                     stream_id := StreamId}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case esdb_gater_api:get_version(StoreId, StreamId) of
         {ok, Version} ->
-            {ok, #{version => Version}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"5">>, format_error(Reason)}}
+            {ok, #{version => Version}, Md};
+        {error, _Reason} ->
+            {error, <<"5">>}
     end.
 
-list_streams(Ctx, #{store_id := StoreIdBin}) ->
+list_streams(#{store_id := StoreIdBin}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case esdb_gater_api:get_streams(StoreId) of
         {ok, Streams} ->
-            {ok, #{stream_ids => Streams}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+            {ok, #{stream_ids => Streams}, Md};
+        {error, _Reason} ->
+            {error, <<"13">>}
     end.
 
-delete_stream(Ctx, #{store_id := StoreIdBin,
-                     stream_id := StreamId}) ->
+delete_stream(#{store_id := StoreIdBin,
+                stream_id := StreamId}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case esdb_gater_api:delete_stream(StoreId, StreamId) of
         ok ->
-            {ok, #{}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+            {ok, #{}, Md};
+        {error, _Reason} ->
+            {error, <<"13">>}
     end.
 
-read_by_event_types(Ctx, #{store_id := StoreIdBin,
-                           event_types := EventTypes,
-                           batch_size := BatchSize}) ->
+read_by_event_types(#{store_id := StoreIdBin,
+                      event_types := EventTypes,
+                      batch_size := BatchSize}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    BS = case BatchSize of 0 -> 1000; _ -> BatchSize end,
+    BS = safe_count(BatchSize),
     case esdb_gater_api:read_by_event_types(StoreId, EventTypes, BS) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
-            {ok, #{events => Recorded}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+            {ok, #{events => Recorded}, Md};
+        {error, _Reason} ->
+            {error, <<"13">>}
     end.
 
-read_by_tags(Ctx, #{store_id := StoreIdBin,
-                    tags := Tags,
-                    match := Match,
-                    batch_size := BatchSize}) ->
+read_by_tags(#{store_id := StoreIdBin,
+               tags := Tags,
+               match := Match,
+               batch_size := BatchSize}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     MatchAtom = case Match of
         'TAG_MATCH_ALL' -> all;
         _ -> any
     end,
-    Opts = #{match => MatchAtom,
-             batch_size => case BatchSize of 0 -> 1000; _ -> BatchSize end},
+    Opts = #{match => MatchAtom, batch_size => safe_count(BatchSize)},
     case esdb_gater_api:read_by_tags(StoreId, Tags, Opts) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
-            {ok, #{events => Recorded}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+            {ok, #{events => Recorded}, Md};
+        {error, _Reason} ->
+            {error, <<"13">>}
     end.
 
-read_all_global(Ctx, #{store_id := StoreIdBin,
-                       offset := Offset,
-                       limit := Limit}) ->
+read_all_global(#{store_id := StoreIdBin,
+                  offset := Offset,
+                  limit := Limit}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     L = safe_count(Limit),
     case esdb_gater_api:read_all_global(StoreId, Offset, L) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
-            {ok, #{events => Recorded}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+            {ok, #{events => Recorded}, Md};
+        {error, _Reason} ->
+            {error, <<"13">>}
     end.
 
 %%====================================================================
 %% Internal
 %%====================================================================
 
-%% Cap read count to prevent OOM on unbounded reads.
-%% Clients wanting more should paginate.
 -define(MAX_READ_COUNT, 10000).
 
 safe_count(0) -> ?MAX_READ_COUNT;
 safe_count(N) when N > ?MAX_READ_COUNT -> ?MAX_READ_COUNT;
 safe_count(N) -> N.
-
-format_error(Reason) when is_binary(Reason) -> Reason;
-format_error(Reason) -> iolist_to_binary(io_lib:format("~p", [Reason])).

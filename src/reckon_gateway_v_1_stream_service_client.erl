@@ -10,196 +10,210 @@
 -compile(export_all).
 -compile(nowarn_export_all).
 
--include_lib("grpcbox/include/grpcbox.hrl").
-
--define(is_ctx(Ctx), is_tuple(Ctx) andalso element(1, Ctx) =:= ctx).
+-include_lib("grpc/include/grpc.hrl").
 
 -define(SERVICE, 'reckon.gateway.v1.StreamService').
 -define(PROTO_MODULE, 'reckon_streams_pb').
--define(MARSHAL_FUN(T), fun(I) -> ?PROTO_MODULE:encode_msg(I, T) end).
--define(UNMARSHAL_FUN(T), fun(I) -> ?PROTO_MODULE:decode_msg(I, T) end).
--define(DEF(Input, Output, MessageType), #grpcbox_def{service=?SERVICE,
-                                                      message_type=MessageType,
-                                                      marshal_fun=?MARSHAL_FUN(Input),
-                                                      unmarshal_fun=?UNMARSHAL_FUN(Output)}).
+-define(MARSHAL(T), fun(I) -> ?PROTO_MODULE:encode_msg(I, T) end).
+-define(UNMARSHAL(T), fun(I) -> ?PROTO_MODULE:decode_msg(I, T) end).
+-define(DEF(Path, Req, Resp, MessageType),
+        #{path => Path,
+          service =>?SERVICE,
+          message_type => MessageType,
+          marshal => ?MARSHAL(Req),
+          unmarshal => ?UNMARSHAL(Resp)}).
 
-%% @doc Unary RPC
--spec append_events(reckon_streams_pb:append_events_request()) ->
-    {ok, reckon_streams_pb:append_events_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-append_events(Input) ->
-    append_events(ctx:new(), Input, #{}).
+-spec append_events(reckon_streams_pb:append_events_request())
+    -> {ok, reckon_streams_pb:append_events_response(), grpc:metadata()}
+     | {error, term()}.
+append_events(Req) ->
+    append_events(Req, #{}, #{}).
 
--spec append_events(ctx:t() | reckon_streams_pb:append_events_request(), reckon_streams_pb:append_events_request() | grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:append_events_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-append_events(Ctx, Input) when ?is_ctx(Ctx) ->
-    append_events(Ctx, Input, #{});
-append_events(Input, Options) ->
-    append_events(ctx:new(), Input, Options).
+-spec append_events(reckon_streams_pb:append_events_request(), grpc:options())
+    -> {ok, reckon_streams_pb:append_events_response(), grpc:metadata()}
+     | {error, term()}.
+append_events(Req, Options) ->
+    append_events(Req, #{}, Options).
 
--spec append_events(ctx:t(), reckon_streams_pb:append_events_request(), grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:append_events_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-append_events(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.StreamService/AppendEvents">>, Input, ?DEF(append_events_request, append_events_response, <<"reckon.gateway.v1.AppendEventsRequest">>), Options).
+-spec append_events(reckon_streams_pb:append_events_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:append_events_response(), grpc:metadata()}
+     | {error, term()}.
+append_events(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/AppendEvents">>,
+                           append_events_request, append_events_response, <<"reckon.gateway.v1.AppendEventsRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec read_stream_forward(reckon_streams_pb:read_stream_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_stream_forward(Input) ->
-    read_stream_forward(ctx:new(), Input, #{}).
+-spec read_stream_forward(reckon_streams_pb:read_stream_request())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_stream_forward(Req) ->
+    read_stream_forward(Req, #{}, #{}).
 
--spec read_stream_forward(ctx:t() | reckon_streams_pb:read_stream_request(), reckon_streams_pb:read_stream_request() | grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_stream_forward(Ctx, Input) when ?is_ctx(Ctx) ->
-    read_stream_forward(Ctx, Input, #{});
-read_stream_forward(Input, Options) ->
-    read_stream_forward(ctx:new(), Input, Options).
+-spec read_stream_forward(reckon_streams_pb:read_stream_request(), grpc:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_stream_forward(Req, Options) ->
+    read_stream_forward(Req, #{}, Options).
 
--spec read_stream_forward(ctx:t(), reckon_streams_pb:read_stream_request(), grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_stream_forward(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.StreamService/ReadStreamForward">>, Input, ?DEF(read_stream_request, read_stream_response, <<"reckon.gateway.v1.ReadStreamRequest">>), Options).
+-spec read_stream_forward(reckon_streams_pb:read_stream_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_stream_forward(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/ReadStreamForward">>,
+                           read_stream_request, read_stream_response, <<"reckon.gateway.v1.ReadStreamRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec read_stream_backward(reckon_streams_pb:read_stream_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_stream_backward(Input) ->
-    read_stream_backward(ctx:new(), Input, #{}).
+-spec read_stream_backward(reckon_streams_pb:read_stream_request())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_stream_backward(Req) ->
+    read_stream_backward(Req, #{}, #{}).
 
--spec read_stream_backward(ctx:t() | reckon_streams_pb:read_stream_request(), reckon_streams_pb:read_stream_request() | grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_stream_backward(Ctx, Input) when ?is_ctx(Ctx) ->
-    read_stream_backward(Ctx, Input, #{});
-read_stream_backward(Input, Options) ->
-    read_stream_backward(ctx:new(), Input, Options).
+-spec read_stream_backward(reckon_streams_pb:read_stream_request(), grpc:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_stream_backward(Req, Options) ->
+    read_stream_backward(Req, #{}, Options).
 
--spec read_stream_backward(ctx:t(), reckon_streams_pb:read_stream_request(), grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_stream_backward(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.StreamService/ReadStreamBackward">>, Input, ?DEF(read_stream_request, read_stream_response, <<"reckon.gateway.v1.ReadStreamRequest">>), Options).
+-spec read_stream_backward(reckon_streams_pb:read_stream_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_stream_backward(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/ReadStreamBackward">>,
+                           read_stream_request, read_stream_response, <<"reckon.gateway.v1.ReadStreamRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc 
--spec stream_events_forward(reckon_streams_pb:read_stream_request()) ->
-    {ok, grpcbox_client:stream()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-stream_events_forward(Input) ->
-    stream_events_forward(ctx:new(), Input, #{}).
+-spec stream_events_forward(grpc_client:options())
+    -> {ok, grpc_client:grpcstream()}
+     | {error, term()}.
+stream_events_forward(Options) ->
+    stream_events_forward(#{}, Options).
 
--spec stream_events_forward(ctx:t() | reckon_streams_pb:read_stream_request(), reckon_streams_pb:read_stream_request() | grpcbox_client:options()) ->
-    {ok, grpcbox_client:stream()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-stream_events_forward(Ctx, Input) when ?is_ctx(Ctx) ->
-    stream_events_forward(Ctx, Input, #{});
-stream_events_forward(Input, Options) ->
-    stream_events_forward(ctx:new(), Input, Options).
+-spec stream_events_forward(grpc:metadata(), grpc_client:options())
+    -> {ok, grpc_client:grpcstream()}
+     | {error, term()}.
+stream_events_forward(Metadata, Options) ->
+    grpc_client:open(?DEF(<<"/reckon.gateway.v1.StreamService/StreamEventsForward">>,
+                          read_stream_request, recorded_event, <<"reckon.gateway.v1.ReadStreamRequest">>),
+                     Metadata, Options).
 
--spec stream_events_forward(ctx:t(), reckon_streams_pb:read_stream_request(), grpcbox_client:options()) ->
-    {ok, grpcbox_client:stream()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-stream_events_forward(Ctx, Input, Options) ->
-    grpcbox_client:stream(Ctx, <<"/reckon.gateway.v1.StreamService/StreamEventsForward">>, Input, ?DEF(read_stream_request, recorded_event, <<"reckon.gateway.v1.ReadStreamRequest">>), Options).
+-spec get_stream_version(reckon_streams_pb:get_stream_version_request())
+    -> {ok, reckon_streams_pb:get_stream_version_response(), grpc:metadata()}
+     | {error, term()}.
+get_stream_version(Req) ->
+    get_stream_version(Req, #{}, #{}).
 
-%% @doc Unary RPC
--spec get_stream_version(reckon_streams_pb:get_stream_version_request()) ->
-    {ok, reckon_streams_pb:get_stream_version_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_stream_version(Input) ->
-    get_stream_version(ctx:new(), Input, #{}).
+-spec get_stream_version(reckon_streams_pb:get_stream_version_request(), grpc:options())
+    -> {ok, reckon_streams_pb:get_stream_version_response(), grpc:metadata()}
+     | {error, term()}.
+get_stream_version(Req, Options) ->
+    get_stream_version(Req, #{}, Options).
 
--spec get_stream_version(ctx:t() | reckon_streams_pb:get_stream_version_request(), reckon_streams_pb:get_stream_version_request() | grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:get_stream_version_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_stream_version(Ctx, Input) when ?is_ctx(Ctx) ->
-    get_stream_version(Ctx, Input, #{});
-get_stream_version(Input, Options) ->
-    get_stream_version(ctx:new(), Input, Options).
+-spec get_stream_version(reckon_streams_pb:get_stream_version_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:get_stream_version_response(), grpc:metadata()}
+     | {error, term()}.
+get_stream_version(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/GetStreamVersion">>,
+                           get_stream_version_request, get_stream_version_response, <<"reckon.gateway.v1.GetStreamVersionRequest">>),
+                      Req, Metadata, Options).
 
--spec get_stream_version(ctx:t(), reckon_streams_pb:get_stream_version_request(), grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:get_stream_version_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_stream_version(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.StreamService/GetStreamVersion">>, Input, ?DEF(get_stream_version_request, get_stream_version_response, <<"reckon.gateway.v1.GetStreamVersionRequest">>), Options).
+-spec list_streams(reckon_streams_pb:list_streams_request())
+    -> {ok, reckon_streams_pb:list_streams_response(), grpc:metadata()}
+     | {error, term()}.
+list_streams(Req) ->
+    list_streams(Req, #{}, #{}).
 
-%% @doc Unary RPC
--spec list_streams(reckon_streams_pb:list_streams_request()) ->
-    {ok, reckon_streams_pb:list_streams_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-list_streams(Input) ->
-    list_streams(ctx:new(), Input, #{}).
+-spec list_streams(reckon_streams_pb:list_streams_request(), grpc:options())
+    -> {ok, reckon_streams_pb:list_streams_response(), grpc:metadata()}
+     | {error, term()}.
+list_streams(Req, Options) ->
+    list_streams(Req, #{}, Options).
 
--spec list_streams(ctx:t() | reckon_streams_pb:list_streams_request(), reckon_streams_pb:list_streams_request() | grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:list_streams_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-list_streams(Ctx, Input) when ?is_ctx(Ctx) ->
-    list_streams(Ctx, Input, #{});
-list_streams(Input, Options) ->
-    list_streams(ctx:new(), Input, Options).
+-spec list_streams(reckon_streams_pb:list_streams_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:list_streams_response(), grpc:metadata()}
+     | {error, term()}.
+list_streams(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/ListStreams">>,
+                           list_streams_request, list_streams_response, <<"reckon.gateway.v1.ListStreamsRequest">>),
+                      Req, Metadata, Options).
 
--spec list_streams(ctx:t(), reckon_streams_pb:list_streams_request(), grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:list_streams_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-list_streams(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.StreamService/ListStreams">>, Input, ?DEF(list_streams_request, list_streams_response, <<"reckon.gateway.v1.ListStreamsRequest">>), Options).
+-spec delete_stream(reckon_streams_pb:delete_stream_request())
+    -> {ok, reckon_streams_pb:delete_stream_response(), grpc:metadata()}
+     | {error, term()}.
+delete_stream(Req) ->
+    delete_stream(Req, #{}, #{}).
 
-%% @doc Unary RPC
--spec delete_stream(reckon_streams_pb:delete_stream_request()) ->
-    {ok, reckon_streams_pb:delete_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-delete_stream(Input) ->
-    delete_stream(ctx:new(), Input, #{}).
+-spec delete_stream(reckon_streams_pb:delete_stream_request(), grpc:options())
+    -> {ok, reckon_streams_pb:delete_stream_response(), grpc:metadata()}
+     | {error, term()}.
+delete_stream(Req, Options) ->
+    delete_stream(Req, #{}, Options).
 
--spec delete_stream(ctx:t() | reckon_streams_pb:delete_stream_request(), reckon_streams_pb:delete_stream_request() | grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:delete_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-delete_stream(Ctx, Input) when ?is_ctx(Ctx) ->
-    delete_stream(Ctx, Input, #{});
-delete_stream(Input, Options) ->
-    delete_stream(ctx:new(), Input, Options).
+-spec delete_stream(reckon_streams_pb:delete_stream_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:delete_stream_response(), grpc:metadata()}
+     | {error, term()}.
+delete_stream(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/DeleteStream">>,
+                           delete_stream_request, delete_stream_response, <<"reckon.gateway.v1.DeleteStreamRequest">>),
+                      Req, Metadata, Options).
 
--spec delete_stream(ctx:t(), reckon_streams_pb:delete_stream_request(), grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:delete_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-delete_stream(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.StreamService/DeleteStream">>, Input, ?DEF(delete_stream_request, delete_stream_response, <<"reckon.gateway.v1.DeleteStreamRequest">>), Options).
+-spec read_by_event_types(reckon_streams_pb:read_by_event_types_request())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_by_event_types(Req) ->
+    read_by_event_types(Req, #{}, #{}).
 
-%% @doc Unary RPC
--spec read_by_event_types(reckon_streams_pb:read_by_event_types_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_by_event_types(Input) ->
-    read_by_event_types(ctx:new(), Input, #{}).
+-spec read_by_event_types(reckon_streams_pb:read_by_event_types_request(), grpc:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_by_event_types(Req, Options) ->
+    read_by_event_types(Req, #{}, Options).
 
--spec read_by_event_types(ctx:t() | reckon_streams_pb:read_by_event_types_request(), reckon_streams_pb:read_by_event_types_request() | grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_by_event_types(Ctx, Input) when ?is_ctx(Ctx) ->
-    read_by_event_types(Ctx, Input, #{});
-read_by_event_types(Input, Options) ->
-    read_by_event_types(ctx:new(), Input, Options).
+-spec read_by_event_types(reckon_streams_pb:read_by_event_types_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_by_event_types(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/ReadByEventTypes">>,
+                           read_by_event_types_request, read_stream_response, <<"reckon.gateway.v1.ReadByEventTypesRequest">>),
+                      Req, Metadata, Options).
 
--spec read_by_event_types(ctx:t(), reckon_streams_pb:read_by_event_types_request(), grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_by_event_types(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.StreamService/ReadByEventTypes">>, Input, ?DEF(read_by_event_types_request, read_stream_response, <<"reckon.gateway.v1.ReadByEventTypesRequest">>), Options).
+-spec read_by_tags(reckon_streams_pb:read_by_tags_request())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_by_tags(Req) ->
+    read_by_tags(Req, #{}, #{}).
 
-%% @doc Unary RPC
--spec read_by_tags(reckon_streams_pb:read_by_tags_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_by_tags(Input) ->
-    read_by_tags(ctx:new(), Input, #{}).
+-spec read_by_tags(reckon_streams_pb:read_by_tags_request(), grpc:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_by_tags(Req, Options) ->
+    read_by_tags(Req, #{}, Options).
 
--spec read_by_tags(ctx:t() | reckon_streams_pb:read_by_tags_request(), reckon_streams_pb:read_by_tags_request() | grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_by_tags(Ctx, Input) when ?is_ctx(Ctx) ->
-    read_by_tags(Ctx, Input, #{});
-read_by_tags(Input, Options) ->
-    read_by_tags(ctx:new(), Input, Options).
+-spec read_by_tags(reckon_streams_pb:read_by_tags_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_by_tags(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/ReadByTags">>,
+                           read_by_tags_request, read_stream_response, <<"reckon.gateway.v1.ReadByTagsRequest">>),
+                      Req, Metadata, Options).
 
--spec read_by_tags(ctx:t(), reckon_streams_pb:read_by_tags_request(), grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_by_tags(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.StreamService/ReadByTags">>, Input, ?DEF(read_by_tags_request, read_stream_response, <<"reckon.gateway.v1.ReadByTagsRequest">>), Options).
+-spec read_all_global(reckon_streams_pb:read_all_global_request())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_all_global(Req) ->
+    read_all_global(Req, #{}, #{}).
 
-%% @doc Unary RPC
--spec read_all_global(reckon_streams_pb:read_all_global_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_all_global(Input) ->
-    read_all_global(ctx:new(), Input, #{}).
+-spec read_all_global(reckon_streams_pb:read_all_global_request(), grpc:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_all_global(Req, Options) ->
+    read_all_global(Req, #{}, Options).
 
--spec read_all_global(ctx:t() | reckon_streams_pb:read_all_global_request(), reckon_streams_pb:read_all_global_request() | grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_all_global(Ctx, Input) when ?is_ctx(Ctx) ->
-    read_all_global(Ctx, Input, #{});
-read_all_global(Input, Options) ->
-    read_all_global(ctx:new(), Input, Options).
-
--spec read_all_global(ctx:t(), reckon_streams_pb:read_all_global_request(), grpcbox_client:options()) ->
-    {ok, reckon_streams_pb:read_stream_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_all_global(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.StreamService/ReadAllGlobal">>, Input, ?DEF(read_all_global_request, read_stream_response, <<"reckon.gateway.v1.ReadAllGlobalRequest">>), Options).
+-spec read_all_global(reckon_streams_pb:read_all_global_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_all_global(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/ReadAllGlobal">>,
+                           read_all_global_request, read_stream_response, <<"reckon.gateway.v1.ReadAllGlobalRequest">>),
+                      Req, Metadata, Options).
 

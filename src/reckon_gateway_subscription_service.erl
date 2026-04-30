@@ -3,8 +3,6 @@
 
 -include_lib("reckon_gater/include/esdb_gater_types.hrl").
 
--behaviour(reckon_gateway_v_1_subscription_service_bhvr).
-
 -export([
     subscribe/2,
     ack_event/2,
@@ -16,13 +14,14 @@
 ]).
 
 %% Server-streaming: streams events to the subscriber.
-%% grpcbox server-streaming callback: (Request, Stream) -> ok
-subscribe(#{store_id := StoreIdBin,
-            type := Type,
-            selector := Selector,
-            subscription_name := Name,
-            start_from := StartFrom,
-            pool_size := PoolSize}, Stream) ->
+%% grpc-erl server-streaming callback: (Stream, Md) -> {ok, Stream}
+subscribe(Stream, _Md) ->
+    {_, [#{store_id := StoreIdBin,
+           type := Type,
+           selector := Selector,
+           subscription_name := Name,
+           start_from := StartFrom,
+           pool_size := PoolSize}], Stream1} = grpc_stream:recv(Stream),
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SubType = reckon_gateway_convert:subscription_type(Type),
     _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
@@ -31,75 +30,74 @@ subscribe(#{store_id := StoreIdBin,
     ok = esdb_gater_api:save_subscription(
         StoreId, SubType, Selector, Name, StartFrom, Self),
     try
-        stream_events_loop(Stream, StoreId, Name)
+        stream_events_loop(Stream1, StoreId, Name)
     after
         %% Always clean up the subscription when the stream ends
         esdb_gater_api:remove_subscription(StoreId, SubType, Selector, Name)
-    end,
-    ok.
+    end.
 
-ack_event(Ctx, #{store_id := StoreIdBin,
-                 stream_id := StreamId,
-                 subscription_name := _Name,
-                 event_number := EventNumber}) ->
+ack_event(#{store_id := StoreIdBin,
+            stream_id := StreamId,
+            subscription_name := _Name,
+            event_number := EventNumber}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     AckMap = #{event_number => EventNumber},
     ok = esdb_gater_api:ack_event(StoreId, StreamId, self(), AckMap),
-    {ok, #{}, Ctx}.
+    {ok, #{}, Md}.
 
-create_subscription(Ctx, #{store_id := StoreIdBin,
-                           type := Type,
-                           selector := Selector,
-                           subscription_name := Name,
-                           start_from := StartFrom,
-                           pool_size := PoolSize}) ->
+create_subscription(#{store_id := StoreIdBin,
+                      type := Type,
+                      selector := Selector,
+                      subscription_name := Name,
+                      start_from := StartFrom,
+                      pool_size := PoolSize}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SubType = reckon_gateway_convert:subscription_type(Type),
     _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
     ok = esdb_gater_api:save_subscription(
         StoreId, SubType, Selector, Name, StartFrom, undefined),
     SubId = iolist_to_binary([atom_to_binary(StoreId), <<":">>, Name]),
-    {ok, #{subscription_id => SubId}, Ctx}.
+    {ok, #{subscription_id => SubId}, Md}.
 
-remove_subscription(Ctx, #{store_id := StoreIdBin,
-                           type := Type,
-                           selector := Selector,
-                           subscription_name := Name}) ->
+remove_subscription(#{store_id := StoreIdBin,
+                      type := Type,
+                      selector := Selector,
+                      subscription_name := Name}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SubType = reckon_gateway_convert:subscription_type(Type),
     ok = esdb_gater_api:remove_subscription(StoreId, SubType, Selector, Name),
-    {ok, #{}, Ctx}.
+    {ok, #{}, Md}.
 
-list_subscriptions(Ctx, #{store_id := StoreIdBin}) ->
+list_subscriptions(#{store_id := StoreIdBin}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case esdb_gater_api:get_subscriptions(StoreId) of
         {ok, Subs} ->
             ProtoSubs = [reckon_gateway_convert:subscription_to_proto(S) || S <- Subs],
-            {ok, #{subscriptions => ProtoSubs}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+            {ok, #{subscriptions => ProtoSubs}, Md};
+        {error, _Reason} ->
+            {error, <<"13">>}
     end.
 
-get_subscription(Ctx, #{store_id := StoreIdBin,
-                        subscription_name := Name}) ->
+get_subscription(#{store_id := StoreIdBin,
+                   subscription_name := Name}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case esdb_gater_api:get_subscription(StoreId, Name) of
         {ok, Sub} ->
-            {ok, reckon_gateway_convert:subscription_to_proto(Sub), Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"5">>, format_error(Reason)}}
+            {ok, reckon_gateway_convert:subscription_to_proto(Sub), Md};
+        {error, _Reason} ->
+            {error, <<"5">>}
     end.
 
-get_subscription_lag(Ctx, #{store_id := StoreIdBin,
-                            subscription_name := Name}) ->
+get_subscription_lag(#{store_id := StoreIdBin,
+                       subscription_name := Name}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case esdb_gater_api:subscription_lag(StoreId, Name) of
         {ok, LagInfo} ->
             {ok, #{lag => maps:get(lag, LagInfo, 0),
                    current_checkpoint => maps:get(checkpoint, LagInfo, 0),
-                   latest_version => maps:get(latest_version, LagInfo, 0)}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+                   latest_version => maps:get(latest_version, LagInfo, 0)}, Md};
+        {error, _Reason} ->
+            {error, <<"13">>}
     end.
 
 %%====================================================================
@@ -109,20 +107,18 @@ get_subscription_lag(Ctx, #{store_id := StoreIdBin,
 stream_events_loop(Stream, StoreId, Name) ->
     receive
         {events, Events} when is_list(Events) ->
-            lists:foreach(
-                fun(Event) ->
+            Stream1 = lists:foldl(
+                fun(Event, S) ->
                     Recorded = reckon_gateway_convert:event_to_recorded(Event),
                     Msg = #{event => Recorded, checkpoint => Event#event.version},
-                    grpcbox_stream:send(Msg, Stream)
+                    grpc_stream:reply(S, Msg)
                 end,
+                Stream,
                 Events),
-            stream_events_loop(Stream, StoreId, Name);
+            stream_events_loop(Stream1, StoreId, Name);
         stop ->
-            ok;
+            {ok, Stream};
         {'EXIT', _Pid, _Reason} ->
-            %% Parent (h2_stream) died — client disconnected
-            ok
+            %% Parent died — client disconnected
+            {ok, Stream}
     end.
-
-format_error(Reason) when is_binary(Reason) -> Reason;
-format_error(Reason) -> iolist_to_binary(io_lib:format("~p", [Reason])).

@@ -10,70 +10,76 @@
 -compile(export_all).
 -compile(nowarn_export_all).
 
--include_lib("grpcbox/include/grpcbox.hrl").
-
--define(is_ctx(Ctx), is_tuple(Ctx) andalso element(1, Ctx) =:= ctx).
+-include_lib("grpc/include/grpc.hrl").
 
 -define(SERVICE, 'reckon.gateway.v1.TemporalService').
 -define(PROTO_MODULE, 'reckon_temporal_pb').
--define(MARSHAL_FUN(T), fun(I) -> ?PROTO_MODULE:encode_msg(I, T) end).
--define(UNMARSHAL_FUN(T), fun(I) -> ?PROTO_MODULE:decode_msg(I, T) end).
--define(DEF(Input, Output, MessageType), #grpcbox_def{service=?SERVICE,
-                                                      message_type=MessageType,
-                                                      marshal_fun=?MARSHAL_FUN(Input),
-                                                      unmarshal_fun=?UNMARSHAL_FUN(Output)}).
+-define(MARSHAL(T), fun(I) -> ?PROTO_MODULE:encode_msg(I, T) end).
+-define(UNMARSHAL(T), fun(I) -> ?PROTO_MODULE:decode_msg(I, T) end).
+-define(DEF(Path, Req, Resp, MessageType),
+        #{path => Path,
+          service =>?SERVICE,
+          message_type => MessageType,
+          marshal => ?MARSHAL(Req),
+          unmarshal => ?UNMARSHAL(Resp)}).
 
-%% @doc Unary RPC
--spec read_until(reckon_temporal_pb:read_until_request()) ->
-    {ok, reckon_temporal_pb:read_until_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_until(Input) ->
-    read_until(ctx:new(), Input, #{}).
+-spec read_until(reckon_temporal_pb:read_until_request())
+    -> {ok, reckon_temporal_pb:read_until_response(), grpc:metadata()}
+     | {error, term()}.
+read_until(Req) ->
+    read_until(Req, #{}, #{}).
 
--spec read_until(ctx:t() | reckon_temporal_pb:read_until_request(), reckon_temporal_pb:read_until_request() | grpcbox_client:options()) ->
-    {ok, reckon_temporal_pb:read_until_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_until(Ctx, Input) when ?is_ctx(Ctx) ->
-    read_until(Ctx, Input, #{});
-read_until(Input, Options) ->
-    read_until(ctx:new(), Input, Options).
+-spec read_until(reckon_temporal_pb:read_until_request(), grpc:options())
+    -> {ok, reckon_temporal_pb:read_until_response(), grpc:metadata()}
+     | {error, term()}.
+read_until(Req, Options) ->
+    read_until(Req, #{}, Options).
 
--spec read_until(ctx:t(), reckon_temporal_pb:read_until_request(), grpcbox_client:options()) ->
-    {ok, reckon_temporal_pb:read_until_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_until(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.TemporalService/ReadUntil">>, Input, ?DEF(read_until_request, read_until_response, <<"reckon.gateway.v1.ReadUntilRequest">>), Options).
+-spec read_until(reckon_temporal_pb:read_until_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_temporal_pb:read_until_response(), grpc:metadata()}
+     | {error, term()}.
+read_until(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.TemporalService/ReadUntil">>,
+                           read_until_request, read_until_response, <<"reckon.gateway.v1.ReadUntilRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec read_range(reckon_temporal_pb:read_range_request()) ->
-    {ok, reckon_temporal_pb:read_range_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_range(Input) ->
-    read_range(ctx:new(), Input, #{}).
+-spec read_range(reckon_temporal_pb:read_range_request())
+    -> {ok, reckon_temporal_pb:read_range_response(), grpc:metadata()}
+     | {error, term()}.
+read_range(Req) ->
+    read_range(Req, #{}, #{}).
 
--spec read_range(ctx:t() | reckon_temporal_pb:read_range_request(), reckon_temporal_pb:read_range_request() | grpcbox_client:options()) ->
-    {ok, reckon_temporal_pb:read_range_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_range(Ctx, Input) when ?is_ctx(Ctx) ->
-    read_range(Ctx, Input, #{});
-read_range(Input, Options) ->
-    read_range(ctx:new(), Input, Options).
+-spec read_range(reckon_temporal_pb:read_range_request(), grpc:options())
+    -> {ok, reckon_temporal_pb:read_range_response(), grpc:metadata()}
+     | {error, term()}.
+read_range(Req, Options) ->
+    read_range(Req, #{}, Options).
 
--spec read_range(ctx:t(), reckon_temporal_pb:read_range_request(), grpcbox_client:options()) ->
-    {ok, reckon_temporal_pb:read_range_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-read_range(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.TemporalService/ReadRange">>, Input, ?DEF(read_range_request, read_range_response, <<"reckon.gateway.v1.ReadRangeRequest">>), Options).
+-spec read_range(reckon_temporal_pb:read_range_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_temporal_pb:read_range_response(), grpc:metadata()}
+     | {error, term()}.
+read_range(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.TemporalService/ReadRange">>,
+                           read_range_request, read_range_response, <<"reckon.gateway.v1.ReadRangeRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec version_at(reckon_temporal_pb:version_at_request()) ->
-    {ok, reckon_temporal_pb:version_at_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-version_at(Input) ->
-    version_at(ctx:new(), Input, #{}).
+-spec version_at(reckon_temporal_pb:version_at_request())
+    -> {ok, reckon_temporal_pb:version_at_response(), grpc:metadata()}
+     | {error, term()}.
+version_at(Req) ->
+    version_at(Req, #{}, #{}).
 
--spec version_at(ctx:t() | reckon_temporal_pb:version_at_request(), reckon_temporal_pb:version_at_request() | grpcbox_client:options()) ->
-    {ok, reckon_temporal_pb:version_at_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-version_at(Ctx, Input) when ?is_ctx(Ctx) ->
-    version_at(Ctx, Input, #{});
-version_at(Input, Options) ->
-    version_at(ctx:new(), Input, Options).
+-spec version_at(reckon_temporal_pb:version_at_request(), grpc:options())
+    -> {ok, reckon_temporal_pb:version_at_response(), grpc:metadata()}
+     | {error, term()}.
+version_at(Req, Options) ->
+    version_at(Req, #{}, Options).
 
--spec version_at(ctx:t(), reckon_temporal_pb:version_at_request(), grpcbox_client:options()) ->
-    {ok, reckon_temporal_pb:version_at_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-version_at(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.TemporalService/VersionAt">>, Input, ?DEF(version_at_request, version_at_response, <<"reckon.gateway.v1.VersionAtRequest">>), Options).
+-spec version_at(reckon_temporal_pb:version_at_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_temporal_pb:version_at_response(), grpc:metadata()}
+     | {error, term()}.
+version_at(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.TemporalService/VersionAt">>,
+                           version_at_request, version_at_response, <<"reckon.gateway.v1.VersionAtRequest">>),
+                      Req, Metadata, Options).
 

@@ -7,59 +7,59 @@
 
 -module(reckon_gateway_v_1_admin_service_bhvr).
 
-%% Unary RPC
--callback get_store_stats(ctx:t(), reckon_admin_pb:store_stats_request()) ->
-    {ok, reckon_admin_pb:store_stats_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_store_stats(reckon_admin_pb:store_stats_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:store_stats_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_stream_info(ctx:t(), reckon_admin_pb:stream_info_request()) ->
-    {ok, reckon_admin_pb:stream_info_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_stream_info(reckon_admin_pb:stream_info_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:stream_info_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_event_type_summary(ctx:t(), reckon_admin_pb:event_type_summary_request()) ->
-    {ok, reckon_admin_pb:event_type_summary_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_event_type_summary(reckon_admin_pb:event_type_summary_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:event_type_summary_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback list_stores(ctx:t(), reckon_admin_pb:list_stores_request()) ->
-    {ok, reckon_admin_pb:list_stores_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback list_stores(reckon_admin_pb:list_stores_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:list_stores_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback scavenge(ctx:t(), reckon_admin_pb:scavenge_request()) ->
-    {ok, reckon_admin_pb:scavenge_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback scavenge(reckon_admin_pb:scavenge_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback scavenge_matching(ctx:t(), reckon_admin_pb:scavenge_matching_request()) ->
-    {ok, reckon_admin_pb:scavenge_matching_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback scavenge_matching(reckon_admin_pb:scavenge_matching_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:scavenge_matching_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback scavenge_dry_run(ctx:t(), reckon_admin_pb:scavenge_request()) ->
-    {ok, reckon_admin_pb:scavenge_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback scavenge_dry_run(reckon_admin_pb:scavenge_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback create_link(ctx:t(), reckon_admin_pb:create_link_request()) ->
-    {ok, reckon_admin_pb:create_link_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback create_link(reckon_admin_pb:create_link_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:create_link_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback delete_link(ctx:t(), reckon_admin_pb:delete_link_request()) ->
-    {ok, reckon_admin_pb:delete_link_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback delete_link(reckon_admin_pb:delete_link_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:delete_link_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_link(ctx:t(), reckon_admin_pb:get_link_request()) ->
-    {ok, reckon_admin_pb:link_info(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_link(reckon_admin_pb:get_link_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:link_info(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback list_links(ctx:t(), reckon_admin_pb:list_links_request()) ->
-    {ok, reckon_admin_pb:list_links_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback list_links(reckon_admin_pb:list_links_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:list_links_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback start_link(ctx:t(), reckon_admin_pb:start_link_request()) ->
-    {ok, reckon_admin_pb:start_link_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback start_link(reckon_admin_pb:start_link_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:start_link_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback stop_link(ctx:t(), reckon_admin_pb:stop_link_request()) ->
-    {ok, reckon_admin_pb:stop_link_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback stop_link(reckon_admin_pb:stop_link_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:stop_link_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_link_info(ctx:t(), reckon_admin_pb:get_link_request()) ->
-    {ok, reckon_admin_pb:link_runtime_info(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_link_info(reckon_admin_pb:get_link_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:link_runtime_info(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 

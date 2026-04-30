@@ -7,27 +7,27 @@
 
 -module(reckon_gateway_v_1_schema_service_bhvr).
 
-%% Unary RPC
--callback register_schema(ctx:t(), reckon_schema_pb:register_schema_request()) ->
-    {ok, reckon_schema_pb:register_schema_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback register_schema(reckon_schema_pb:register_schema_request(), grpc:metadata())
+    -> {ok, reckon_schema_pb:register_schema_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback unregister_schema(ctx:t(), reckon_schema_pb:unregister_schema_request()) ->
-    {ok, reckon_schema_pb:unregister_schema_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback unregister_schema(reckon_schema_pb:unregister_schema_request(), grpc:metadata())
+    -> {ok, reckon_schema_pb:unregister_schema_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_schema(ctx:t(), reckon_schema_pb:get_schema_request()) ->
-    {ok, reckon_schema_pb:get_schema_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_schema(reckon_schema_pb:get_schema_request(), grpc:metadata())
+    -> {ok, reckon_schema_pb:get_schema_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback list_schemas(ctx:t(), reckon_schema_pb:list_schemas_request()) ->
-    {ok, reckon_schema_pb:list_schemas_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback list_schemas(reckon_schema_pb:list_schemas_request(), grpc:metadata())
+    -> {ok, reckon_schema_pb:list_schemas_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_schema_version(ctx:t(), reckon_schema_pb:get_schema_version_request()) ->
-    {ok, reckon_schema_pb:get_schema_version_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_schema_version(reckon_schema_pb:get_schema_version_request(), grpc:metadata())
+    -> {ok, reckon_schema_pb:get_schema_version_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback upcast_events(ctx:t(), reckon_schema_pb:upcast_events_request()) ->
-    {ok, reckon_schema_pb:upcast_events_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback upcast_events(reckon_schema_pb:upcast_events_request(), grpc:metadata())
+    -> {ok, reckon_schema_pb:upcast_events_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 

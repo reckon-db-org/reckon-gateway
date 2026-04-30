@@ -7,31 +7,31 @@
 
 -module(reckon_gateway_v_1_health_service_bhvr).
 
-%% Unary RPC
--callback check(ctx:t(), reckon_health_pb:health_check_request()) ->
-    {ok, reckon_health_pb:health_check_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback check(reckon_health_pb:health_check_request(), grpc:metadata())
+    -> {ok, reckon_health_pb:health_check_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback health(ctx:t(), reckon_health_pb:health_request()) ->
-    {ok, reckon_health_pb:health_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback health(reckon_health_pb:health_request(), grpc:metadata())
+    -> {ok, reckon_health_pb:health_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback verify_cluster_consistency(ctx:t(), reckon_health_pb:cluster_check_request()) ->
-    {ok, reckon_health_pb:cluster_check_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback verify_cluster_consistency(reckon_health_pb:cluster_check_request(), grpc:metadata())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback verify_membership_consensus(ctx:t(), reckon_health_pb:cluster_check_request()) ->
-    {ok, reckon_health_pb:cluster_check_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback verify_membership_consensus(reckon_health_pb:cluster_check_request(), grpc:metadata())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback check_raft_log_consistency(ctx:t(), reckon_health_pb:cluster_check_request()) ->
-    {ok, reckon_health_pb:cluster_check_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback check_raft_log_consistency(reckon_health_pb:cluster_check_request(), grpc:metadata())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_memory_level(ctx:t(), reckon_health_pb:memory_level_request()) ->
-    {ok, reckon_health_pb:memory_level_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_memory_level(reckon_health_pb:memory_level_request(), grpc:metadata())
+    -> {ok, reckon_health_pb:memory_level_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_memory_stats(ctx:t(), reckon_health_pb:memory_stats_request()) ->
-    {ok, reckon_health_pb:memory_stats_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_memory_stats(reckon_health_pb:memory_stats_request(), grpc:metadata())
+    -> {ok, reckon_health_pb:memory_stats_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 

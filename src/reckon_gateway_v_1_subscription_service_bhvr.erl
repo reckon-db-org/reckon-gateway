@@ -7,31 +7,30 @@
 
 -module(reckon_gateway_v_1_subscription_service_bhvr).
 
-%% 
--callback subscribe(reckon_subscriptions_pb:subscribe_request(), grpcbox_stream:t()) ->
-    ok | grpcbox_stream:grpc_error_response().
+-callback subscribe(grpc_stream:stream(), grpc:metadata())
+    -> {ok, grpc_stream:stream()}.
 
-%% Unary RPC
--callback ack_event(ctx:t(), reckon_subscriptions_pb:ack_event_request()) ->
-    {ok, reckon_subscriptions_pb:ack_event_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback ack_event(reckon_subscriptions_pb:ack_event_request(), grpc:metadata())
+    -> {ok, reckon_subscriptions_pb:ack_event_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback create_subscription(ctx:t(), reckon_subscriptions_pb:create_subscription_request()) ->
-    {ok, reckon_subscriptions_pb:create_subscription_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback create_subscription(reckon_subscriptions_pb:create_subscription_request(), grpc:metadata())
+    -> {ok, reckon_subscriptions_pb:create_subscription_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback remove_subscription(ctx:t(), reckon_subscriptions_pb:remove_subscription_request()) ->
-    {ok, reckon_subscriptions_pb:remove_subscription_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback remove_subscription(reckon_subscriptions_pb:remove_subscription_request(), grpc:metadata())
+    -> {ok, reckon_subscriptions_pb:remove_subscription_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback list_subscriptions(ctx:t(), reckon_subscriptions_pb:list_subscriptions_request()) ->
-    {ok, reckon_subscriptions_pb:list_subscriptions_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback list_subscriptions(reckon_subscriptions_pb:list_subscriptions_request(), grpc:metadata())
+    -> {ok, reckon_subscriptions_pb:list_subscriptions_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_subscription(ctx:t(), reckon_subscriptions_pb:get_subscription_request()) ->
-    {ok, reckon_subscriptions_pb:subscription_info(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_subscription(reckon_subscriptions_pb:get_subscription_request(), grpc:metadata())
+    -> {ok, reckon_subscriptions_pb:subscription_info(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback get_subscription_lag(ctx:t(), reckon_subscriptions_pb:get_subscription_lag_request()) ->
-    {ok, reckon_subscriptions_pb:get_subscription_lag_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_subscription_lag(reckon_subscriptions_pb:get_subscription_lag_request(), grpc:metadata())
+    -> {ok, reckon_subscriptions_pb:get_subscription_lag_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 

@@ -7,43 +7,42 @@
 
 -module(reckon_gateway_v_1_stream_service_bhvr).
 
-%% Unary RPC
--callback append_events(ctx:t(), reckon_streams_pb:append_events_request()) ->
-    {ok, reckon_streams_pb:append_events_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback append_events(reckon_streams_pb:append_events_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:append_events_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback read_stream_forward(ctx:t(), reckon_streams_pb:read_stream_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback read_stream_forward(reckon_streams_pb:read_stream_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback read_stream_backward(ctx:t(), reckon_streams_pb:read_stream_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback read_stream_backward(reckon_streams_pb:read_stream_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% 
--callback stream_events_forward(reckon_streams_pb:read_stream_request(), grpcbox_stream:t()) ->
-    ok | grpcbox_stream:grpc_error_response().
+-callback stream_events_forward(grpc_stream:stream(), grpc:metadata())
+    -> {ok, grpc_stream:stream()}.
 
-%% Unary RPC
--callback get_stream_version(ctx:t(), reckon_streams_pb:get_stream_version_request()) ->
-    {ok, reckon_streams_pb:get_stream_version_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback get_stream_version(reckon_streams_pb:get_stream_version_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:get_stream_version_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback list_streams(ctx:t(), reckon_streams_pb:list_streams_request()) ->
-    {ok, reckon_streams_pb:list_streams_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback list_streams(reckon_streams_pb:list_streams_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:list_streams_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback delete_stream(ctx:t(), reckon_streams_pb:delete_stream_request()) ->
-    {ok, reckon_streams_pb:delete_stream_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback delete_stream(reckon_streams_pb:delete_stream_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:delete_stream_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback read_by_event_types(ctx:t(), reckon_streams_pb:read_by_event_types_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback read_by_event_types(reckon_streams_pb:read_by_event_types_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback read_by_tags(ctx:t(), reckon_streams_pb:read_by_tags_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback read_by_tags(reckon_streams_pb:read_by_tags_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 
-%% Unary RPC
--callback read_all_global(ctx:t(), reckon_streams_pb:read_all_global_request()) ->
-    {ok, reckon_streams_pb:read_stream_response(), ctx:t()} | grpcbox_stream:grpc_error_response().
+-callback read_all_global(reckon_streams_pb:read_all_global_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
 

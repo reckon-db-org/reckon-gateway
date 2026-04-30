@@ -10,142 +10,156 @@
 -compile(export_all).
 -compile(nowarn_export_all).
 
--include_lib("grpcbox/include/grpcbox.hrl").
-
--define(is_ctx(Ctx), is_tuple(Ctx) andalso element(1, Ctx) =:= ctx).
+-include_lib("grpc/include/grpc.hrl").
 
 -define(SERVICE, 'reckon.gateway.v1.HealthService').
 -define(PROTO_MODULE, 'reckon_health_pb').
--define(MARSHAL_FUN(T), fun(I) -> ?PROTO_MODULE:encode_msg(I, T) end).
--define(UNMARSHAL_FUN(T), fun(I) -> ?PROTO_MODULE:decode_msg(I, T) end).
--define(DEF(Input, Output, MessageType), #grpcbox_def{service=?SERVICE,
-                                                      message_type=MessageType,
-                                                      marshal_fun=?MARSHAL_FUN(Input),
-                                                      unmarshal_fun=?UNMARSHAL_FUN(Output)}).
+-define(MARSHAL(T), fun(I) -> ?PROTO_MODULE:encode_msg(I, T) end).
+-define(UNMARSHAL(T), fun(I) -> ?PROTO_MODULE:decode_msg(I, T) end).
+-define(DEF(Path, Req, Resp, MessageType),
+        #{path => Path,
+          service =>?SERVICE,
+          message_type => MessageType,
+          marshal => ?MARSHAL(Req),
+          unmarshal => ?UNMARSHAL(Resp)}).
 
-%% @doc Unary RPC
--spec check(reckon_health_pb:health_check_request()) ->
-    {ok, reckon_health_pb:health_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-check(Input) ->
-    check(ctx:new(), Input, #{}).
+-spec check(reckon_health_pb:health_check_request())
+    -> {ok, reckon_health_pb:health_check_response(), grpc:metadata()}
+     | {error, term()}.
+check(Req) ->
+    check(Req, #{}, #{}).
 
--spec check(ctx:t() | reckon_health_pb:health_check_request(), reckon_health_pb:health_check_request() | grpcbox_client:options()) ->
-    {ok, reckon_health_pb:health_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-check(Ctx, Input) when ?is_ctx(Ctx) ->
-    check(Ctx, Input, #{});
-check(Input, Options) ->
-    check(ctx:new(), Input, Options).
+-spec check(reckon_health_pb:health_check_request(), grpc:options())
+    -> {ok, reckon_health_pb:health_check_response(), grpc:metadata()}
+     | {error, term()}.
+check(Req, Options) ->
+    check(Req, #{}, Options).
 
--spec check(ctx:t(), reckon_health_pb:health_check_request(), grpcbox_client:options()) ->
-    {ok, reckon_health_pb:health_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-check(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.HealthService/Check">>, Input, ?DEF(health_check_request, health_check_response, <<"reckon.gateway.v1.HealthCheckRequest">>), Options).
+-spec check(reckon_health_pb:health_check_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_health_pb:health_check_response(), grpc:metadata()}
+     | {error, term()}.
+check(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.HealthService/Check">>,
+                           health_check_request, health_check_response, <<"reckon.gateway.v1.HealthCheckRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec health(reckon_health_pb:health_request()) ->
-    {ok, reckon_health_pb:health_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-health(Input) ->
-    health(ctx:new(), Input, #{}).
+-spec health(reckon_health_pb:health_request())
+    -> {ok, reckon_health_pb:health_response(), grpc:metadata()}
+     | {error, term()}.
+health(Req) ->
+    health(Req, #{}, #{}).
 
--spec health(ctx:t() | reckon_health_pb:health_request(), reckon_health_pb:health_request() | grpcbox_client:options()) ->
-    {ok, reckon_health_pb:health_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-health(Ctx, Input) when ?is_ctx(Ctx) ->
-    health(Ctx, Input, #{});
-health(Input, Options) ->
-    health(ctx:new(), Input, Options).
+-spec health(reckon_health_pb:health_request(), grpc:options())
+    -> {ok, reckon_health_pb:health_response(), grpc:metadata()}
+     | {error, term()}.
+health(Req, Options) ->
+    health(Req, #{}, Options).
 
--spec health(ctx:t(), reckon_health_pb:health_request(), grpcbox_client:options()) ->
-    {ok, reckon_health_pb:health_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-health(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.HealthService/Health">>, Input, ?DEF(health_request, health_response, <<"reckon.gateway.v1.HealthRequest">>), Options).
+-spec health(reckon_health_pb:health_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_health_pb:health_response(), grpc:metadata()}
+     | {error, term()}.
+health(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.HealthService/Health">>,
+                           health_request, health_response, <<"reckon.gateway.v1.HealthRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec verify_cluster_consistency(reckon_health_pb:cluster_check_request()) ->
-    {ok, reckon_health_pb:cluster_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-verify_cluster_consistency(Input) ->
-    verify_cluster_consistency(ctx:new(), Input, #{}).
+-spec verify_cluster_consistency(reckon_health_pb:cluster_check_request())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, term()}.
+verify_cluster_consistency(Req) ->
+    verify_cluster_consistency(Req, #{}, #{}).
 
--spec verify_cluster_consistency(ctx:t() | reckon_health_pb:cluster_check_request(), reckon_health_pb:cluster_check_request() | grpcbox_client:options()) ->
-    {ok, reckon_health_pb:cluster_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-verify_cluster_consistency(Ctx, Input) when ?is_ctx(Ctx) ->
-    verify_cluster_consistency(Ctx, Input, #{});
-verify_cluster_consistency(Input, Options) ->
-    verify_cluster_consistency(ctx:new(), Input, Options).
+-spec verify_cluster_consistency(reckon_health_pb:cluster_check_request(), grpc:options())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, term()}.
+verify_cluster_consistency(Req, Options) ->
+    verify_cluster_consistency(Req, #{}, Options).
 
--spec verify_cluster_consistency(ctx:t(), reckon_health_pb:cluster_check_request(), grpcbox_client:options()) ->
-    {ok, reckon_health_pb:cluster_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-verify_cluster_consistency(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.HealthService/VerifyClusterConsistency">>, Input, ?DEF(cluster_check_request, cluster_check_response, <<"reckon.gateway.v1.ClusterCheckRequest">>), Options).
+-spec verify_cluster_consistency(reckon_health_pb:cluster_check_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, term()}.
+verify_cluster_consistency(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.HealthService/VerifyClusterConsistency">>,
+                           cluster_check_request, cluster_check_response, <<"reckon.gateway.v1.ClusterCheckRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec verify_membership_consensus(reckon_health_pb:cluster_check_request()) ->
-    {ok, reckon_health_pb:cluster_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-verify_membership_consensus(Input) ->
-    verify_membership_consensus(ctx:new(), Input, #{}).
+-spec verify_membership_consensus(reckon_health_pb:cluster_check_request())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, term()}.
+verify_membership_consensus(Req) ->
+    verify_membership_consensus(Req, #{}, #{}).
 
--spec verify_membership_consensus(ctx:t() | reckon_health_pb:cluster_check_request(), reckon_health_pb:cluster_check_request() | grpcbox_client:options()) ->
-    {ok, reckon_health_pb:cluster_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-verify_membership_consensus(Ctx, Input) when ?is_ctx(Ctx) ->
-    verify_membership_consensus(Ctx, Input, #{});
-verify_membership_consensus(Input, Options) ->
-    verify_membership_consensus(ctx:new(), Input, Options).
+-spec verify_membership_consensus(reckon_health_pb:cluster_check_request(), grpc:options())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, term()}.
+verify_membership_consensus(Req, Options) ->
+    verify_membership_consensus(Req, #{}, Options).
 
--spec verify_membership_consensus(ctx:t(), reckon_health_pb:cluster_check_request(), grpcbox_client:options()) ->
-    {ok, reckon_health_pb:cluster_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-verify_membership_consensus(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.HealthService/VerifyMembershipConsensus">>, Input, ?DEF(cluster_check_request, cluster_check_response, <<"reckon.gateway.v1.ClusterCheckRequest">>), Options).
+-spec verify_membership_consensus(reckon_health_pb:cluster_check_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, term()}.
+verify_membership_consensus(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.HealthService/VerifyMembershipConsensus">>,
+                           cluster_check_request, cluster_check_response, <<"reckon.gateway.v1.ClusterCheckRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec check_raft_log_consistency(reckon_health_pb:cluster_check_request()) ->
-    {ok, reckon_health_pb:cluster_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-check_raft_log_consistency(Input) ->
-    check_raft_log_consistency(ctx:new(), Input, #{}).
+-spec check_raft_log_consistency(reckon_health_pb:cluster_check_request())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, term()}.
+check_raft_log_consistency(Req) ->
+    check_raft_log_consistency(Req, #{}, #{}).
 
--spec check_raft_log_consistency(ctx:t() | reckon_health_pb:cluster_check_request(), reckon_health_pb:cluster_check_request() | grpcbox_client:options()) ->
-    {ok, reckon_health_pb:cluster_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-check_raft_log_consistency(Ctx, Input) when ?is_ctx(Ctx) ->
-    check_raft_log_consistency(Ctx, Input, #{});
-check_raft_log_consistency(Input, Options) ->
-    check_raft_log_consistency(ctx:new(), Input, Options).
+-spec check_raft_log_consistency(reckon_health_pb:cluster_check_request(), grpc:options())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, term()}.
+check_raft_log_consistency(Req, Options) ->
+    check_raft_log_consistency(Req, #{}, Options).
 
--spec check_raft_log_consistency(ctx:t(), reckon_health_pb:cluster_check_request(), grpcbox_client:options()) ->
-    {ok, reckon_health_pb:cluster_check_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-check_raft_log_consistency(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.HealthService/CheckRaftLogConsistency">>, Input, ?DEF(cluster_check_request, cluster_check_response, <<"reckon.gateway.v1.ClusterCheckRequest">>), Options).
+-spec check_raft_log_consistency(reckon_health_pb:cluster_check_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_health_pb:cluster_check_response(), grpc:metadata()}
+     | {error, term()}.
+check_raft_log_consistency(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.HealthService/CheckRaftLogConsistency">>,
+                           cluster_check_request, cluster_check_response, <<"reckon.gateway.v1.ClusterCheckRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec get_memory_level(reckon_health_pb:memory_level_request()) ->
-    {ok, reckon_health_pb:memory_level_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_memory_level(Input) ->
-    get_memory_level(ctx:new(), Input, #{}).
+-spec get_memory_level(reckon_health_pb:memory_level_request())
+    -> {ok, reckon_health_pb:memory_level_response(), grpc:metadata()}
+     | {error, term()}.
+get_memory_level(Req) ->
+    get_memory_level(Req, #{}, #{}).
 
--spec get_memory_level(ctx:t() | reckon_health_pb:memory_level_request(), reckon_health_pb:memory_level_request() | grpcbox_client:options()) ->
-    {ok, reckon_health_pb:memory_level_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_memory_level(Ctx, Input) when ?is_ctx(Ctx) ->
-    get_memory_level(Ctx, Input, #{});
-get_memory_level(Input, Options) ->
-    get_memory_level(ctx:new(), Input, Options).
+-spec get_memory_level(reckon_health_pb:memory_level_request(), grpc:options())
+    -> {ok, reckon_health_pb:memory_level_response(), grpc:metadata()}
+     | {error, term()}.
+get_memory_level(Req, Options) ->
+    get_memory_level(Req, #{}, Options).
 
--spec get_memory_level(ctx:t(), reckon_health_pb:memory_level_request(), grpcbox_client:options()) ->
-    {ok, reckon_health_pb:memory_level_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_memory_level(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.HealthService/GetMemoryLevel">>, Input, ?DEF(memory_level_request, memory_level_response, <<"reckon.gateway.v1.MemoryLevelRequest">>), Options).
+-spec get_memory_level(reckon_health_pb:memory_level_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_health_pb:memory_level_response(), grpc:metadata()}
+     | {error, term()}.
+get_memory_level(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.HealthService/GetMemoryLevel">>,
+                           memory_level_request, memory_level_response, <<"reckon.gateway.v1.MemoryLevelRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec get_memory_stats(reckon_health_pb:memory_stats_request()) ->
-    {ok, reckon_health_pb:memory_stats_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_memory_stats(Input) ->
-    get_memory_stats(ctx:new(), Input, #{}).
+-spec get_memory_stats(reckon_health_pb:memory_stats_request())
+    -> {ok, reckon_health_pb:memory_stats_response(), grpc:metadata()}
+     | {error, term()}.
+get_memory_stats(Req) ->
+    get_memory_stats(Req, #{}, #{}).
 
--spec get_memory_stats(ctx:t() | reckon_health_pb:memory_stats_request(), reckon_health_pb:memory_stats_request() | grpcbox_client:options()) ->
-    {ok, reckon_health_pb:memory_stats_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_memory_stats(Ctx, Input) when ?is_ctx(Ctx) ->
-    get_memory_stats(Ctx, Input, #{});
-get_memory_stats(Input, Options) ->
-    get_memory_stats(ctx:new(), Input, Options).
+-spec get_memory_stats(reckon_health_pb:memory_stats_request(), grpc:options())
+    -> {ok, reckon_health_pb:memory_stats_response(), grpc:metadata()}
+     | {error, term()}.
+get_memory_stats(Req, Options) ->
+    get_memory_stats(Req, #{}, Options).
 
--spec get_memory_stats(ctx:t(), reckon_health_pb:memory_stats_request(), grpcbox_client:options()) ->
-    {ok, reckon_health_pb:memory_stats_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_memory_stats(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.HealthService/GetMemoryStats">>, Input, ?DEF(memory_stats_request, memory_stats_response, <<"reckon.gateway.v1.MemoryStatsRequest">>), Options).
+-spec get_memory_stats(reckon_health_pb:memory_stats_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_health_pb:memory_stats_response(), grpc:metadata()}
+     | {error, term()}.
+get_memory_stats(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.HealthService/GetMemoryStats">>,
+                           memory_stats_request, memory_stats_response, <<"reckon.gateway.v1.MemoryStatsRequest">>),
+                      Req, Metadata, Options).
 

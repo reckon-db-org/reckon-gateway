@@ -10,268 +10,296 @@
 -compile(export_all).
 -compile(nowarn_export_all).
 
--include_lib("grpcbox/include/grpcbox.hrl").
-
--define(is_ctx(Ctx), is_tuple(Ctx) andalso element(1, Ctx) =:= ctx).
+-include_lib("grpc/include/grpc.hrl").
 
 -define(SERVICE, 'reckon.gateway.v1.AdminService').
 -define(PROTO_MODULE, 'reckon_admin_pb').
--define(MARSHAL_FUN(T), fun(I) -> ?PROTO_MODULE:encode_msg(I, T) end).
--define(UNMARSHAL_FUN(T), fun(I) -> ?PROTO_MODULE:decode_msg(I, T) end).
--define(DEF(Input, Output, MessageType), #grpcbox_def{service=?SERVICE,
-                                                      message_type=MessageType,
-                                                      marshal_fun=?MARSHAL_FUN(Input),
-                                                      unmarshal_fun=?UNMARSHAL_FUN(Output)}).
+-define(MARSHAL(T), fun(I) -> ?PROTO_MODULE:encode_msg(I, T) end).
+-define(UNMARSHAL(T), fun(I) -> ?PROTO_MODULE:decode_msg(I, T) end).
+-define(DEF(Path, Req, Resp, MessageType),
+        #{path => Path,
+          service =>?SERVICE,
+          message_type => MessageType,
+          marshal => ?MARSHAL(Req),
+          unmarshal => ?UNMARSHAL(Resp)}).
 
-%% @doc Unary RPC
--spec get_store_stats(reckon_admin_pb:store_stats_request()) ->
-    {ok, reckon_admin_pb:store_stats_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_store_stats(Input) ->
-    get_store_stats(ctx:new(), Input, #{}).
+-spec get_store_stats(reckon_admin_pb:store_stats_request())
+    -> {ok, reckon_admin_pb:store_stats_response(), grpc:metadata()}
+     | {error, term()}.
+get_store_stats(Req) ->
+    get_store_stats(Req, #{}, #{}).
 
--spec get_store_stats(ctx:t() | reckon_admin_pb:store_stats_request(), reckon_admin_pb:store_stats_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:store_stats_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_store_stats(Ctx, Input) when ?is_ctx(Ctx) ->
-    get_store_stats(Ctx, Input, #{});
-get_store_stats(Input, Options) ->
-    get_store_stats(ctx:new(), Input, Options).
+-spec get_store_stats(reckon_admin_pb:store_stats_request(), grpc:options())
+    -> {ok, reckon_admin_pb:store_stats_response(), grpc:metadata()}
+     | {error, term()}.
+get_store_stats(Req, Options) ->
+    get_store_stats(Req, #{}, Options).
 
--spec get_store_stats(ctx:t(), reckon_admin_pb:store_stats_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:store_stats_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_store_stats(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/GetStoreStats">>, Input, ?DEF(store_stats_request, store_stats_response, <<"reckon.gateway.v1.StoreStatsRequest">>), Options).
+-spec get_store_stats(reckon_admin_pb:store_stats_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:store_stats_response(), grpc:metadata()}
+     | {error, term()}.
+get_store_stats(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/GetStoreStats">>,
+                           store_stats_request, store_stats_response, <<"reckon.gateway.v1.StoreStatsRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec get_stream_info(reckon_admin_pb:stream_info_request()) ->
-    {ok, reckon_admin_pb:stream_info_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_stream_info(Input) ->
-    get_stream_info(ctx:new(), Input, #{}).
+-spec get_stream_info(reckon_admin_pb:stream_info_request())
+    -> {ok, reckon_admin_pb:stream_info_response(), grpc:metadata()}
+     | {error, term()}.
+get_stream_info(Req) ->
+    get_stream_info(Req, #{}, #{}).
 
--spec get_stream_info(ctx:t() | reckon_admin_pb:stream_info_request(), reckon_admin_pb:stream_info_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:stream_info_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_stream_info(Ctx, Input) when ?is_ctx(Ctx) ->
-    get_stream_info(Ctx, Input, #{});
-get_stream_info(Input, Options) ->
-    get_stream_info(ctx:new(), Input, Options).
+-spec get_stream_info(reckon_admin_pb:stream_info_request(), grpc:options())
+    -> {ok, reckon_admin_pb:stream_info_response(), grpc:metadata()}
+     | {error, term()}.
+get_stream_info(Req, Options) ->
+    get_stream_info(Req, #{}, Options).
 
--spec get_stream_info(ctx:t(), reckon_admin_pb:stream_info_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:stream_info_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_stream_info(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/GetStreamInfo">>, Input, ?DEF(stream_info_request, stream_info_response, <<"reckon.gateway.v1.StreamInfoRequest">>), Options).
+-spec get_stream_info(reckon_admin_pb:stream_info_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:stream_info_response(), grpc:metadata()}
+     | {error, term()}.
+get_stream_info(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/GetStreamInfo">>,
+                           stream_info_request, stream_info_response, <<"reckon.gateway.v1.StreamInfoRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec get_event_type_summary(reckon_admin_pb:event_type_summary_request()) ->
-    {ok, reckon_admin_pb:event_type_summary_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_event_type_summary(Input) ->
-    get_event_type_summary(ctx:new(), Input, #{}).
+-spec get_event_type_summary(reckon_admin_pb:event_type_summary_request())
+    -> {ok, reckon_admin_pb:event_type_summary_response(), grpc:metadata()}
+     | {error, term()}.
+get_event_type_summary(Req) ->
+    get_event_type_summary(Req, #{}, #{}).
 
--spec get_event_type_summary(ctx:t() | reckon_admin_pb:event_type_summary_request(), reckon_admin_pb:event_type_summary_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:event_type_summary_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_event_type_summary(Ctx, Input) when ?is_ctx(Ctx) ->
-    get_event_type_summary(Ctx, Input, #{});
-get_event_type_summary(Input, Options) ->
-    get_event_type_summary(ctx:new(), Input, Options).
+-spec get_event_type_summary(reckon_admin_pb:event_type_summary_request(), grpc:options())
+    -> {ok, reckon_admin_pb:event_type_summary_response(), grpc:metadata()}
+     | {error, term()}.
+get_event_type_summary(Req, Options) ->
+    get_event_type_summary(Req, #{}, Options).
 
--spec get_event_type_summary(ctx:t(), reckon_admin_pb:event_type_summary_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:event_type_summary_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_event_type_summary(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/GetEventTypeSummary">>, Input, ?DEF(event_type_summary_request, event_type_summary_response, <<"reckon.gateway.v1.EventTypeSummaryRequest">>), Options).
+-spec get_event_type_summary(reckon_admin_pb:event_type_summary_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:event_type_summary_response(), grpc:metadata()}
+     | {error, term()}.
+get_event_type_summary(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/GetEventTypeSummary">>,
+                           event_type_summary_request, event_type_summary_response, <<"reckon.gateway.v1.EventTypeSummaryRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec list_stores(reckon_admin_pb:list_stores_request()) ->
-    {ok, reckon_admin_pb:list_stores_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-list_stores(Input) ->
-    list_stores(ctx:new(), Input, #{}).
+-spec list_stores(reckon_admin_pb:list_stores_request())
+    -> {ok, reckon_admin_pb:list_stores_response(), grpc:metadata()}
+     | {error, term()}.
+list_stores(Req) ->
+    list_stores(Req, #{}, #{}).
 
--spec list_stores(ctx:t() | reckon_admin_pb:list_stores_request(), reckon_admin_pb:list_stores_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:list_stores_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-list_stores(Ctx, Input) when ?is_ctx(Ctx) ->
-    list_stores(Ctx, Input, #{});
-list_stores(Input, Options) ->
-    list_stores(ctx:new(), Input, Options).
+-spec list_stores(reckon_admin_pb:list_stores_request(), grpc:options())
+    -> {ok, reckon_admin_pb:list_stores_response(), grpc:metadata()}
+     | {error, term()}.
+list_stores(Req, Options) ->
+    list_stores(Req, #{}, Options).
 
--spec list_stores(ctx:t(), reckon_admin_pb:list_stores_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:list_stores_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-list_stores(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/ListStores">>, Input, ?DEF(list_stores_request, list_stores_response, <<"reckon.gateway.v1.ListStoresRequest">>), Options).
+-spec list_stores(reckon_admin_pb:list_stores_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:list_stores_response(), grpc:metadata()}
+     | {error, term()}.
+list_stores(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/ListStores">>,
+                           list_stores_request, list_stores_response, <<"reckon.gateway.v1.ListStoresRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec scavenge(reckon_admin_pb:scavenge_request()) ->
-    {ok, reckon_admin_pb:scavenge_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-scavenge(Input) ->
-    scavenge(ctx:new(), Input, #{}).
+-spec scavenge(reckon_admin_pb:scavenge_request())
+    -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
+     | {error, term()}.
+scavenge(Req) ->
+    scavenge(Req, #{}, #{}).
 
--spec scavenge(ctx:t() | reckon_admin_pb:scavenge_request(), reckon_admin_pb:scavenge_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:scavenge_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-scavenge(Ctx, Input) when ?is_ctx(Ctx) ->
-    scavenge(Ctx, Input, #{});
-scavenge(Input, Options) ->
-    scavenge(ctx:new(), Input, Options).
+-spec scavenge(reckon_admin_pb:scavenge_request(), grpc:options())
+    -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
+     | {error, term()}.
+scavenge(Req, Options) ->
+    scavenge(Req, #{}, Options).
 
--spec scavenge(ctx:t(), reckon_admin_pb:scavenge_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:scavenge_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-scavenge(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/Scavenge">>, Input, ?DEF(scavenge_request, scavenge_response, <<"reckon.gateway.v1.ScavengeRequest">>), Options).
+-spec scavenge(reckon_admin_pb:scavenge_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
+     | {error, term()}.
+scavenge(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/Scavenge">>,
+                           scavenge_request, scavenge_response, <<"reckon.gateway.v1.ScavengeRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec scavenge_matching(reckon_admin_pb:scavenge_matching_request()) ->
-    {ok, reckon_admin_pb:scavenge_matching_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-scavenge_matching(Input) ->
-    scavenge_matching(ctx:new(), Input, #{}).
+-spec scavenge_matching(reckon_admin_pb:scavenge_matching_request())
+    -> {ok, reckon_admin_pb:scavenge_matching_response(), grpc:metadata()}
+     | {error, term()}.
+scavenge_matching(Req) ->
+    scavenge_matching(Req, #{}, #{}).
 
--spec scavenge_matching(ctx:t() | reckon_admin_pb:scavenge_matching_request(), reckon_admin_pb:scavenge_matching_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:scavenge_matching_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-scavenge_matching(Ctx, Input) when ?is_ctx(Ctx) ->
-    scavenge_matching(Ctx, Input, #{});
-scavenge_matching(Input, Options) ->
-    scavenge_matching(ctx:new(), Input, Options).
+-spec scavenge_matching(reckon_admin_pb:scavenge_matching_request(), grpc:options())
+    -> {ok, reckon_admin_pb:scavenge_matching_response(), grpc:metadata()}
+     | {error, term()}.
+scavenge_matching(Req, Options) ->
+    scavenge_matching(Req, #{}, Options).
 
--spec scavenge_matching(ctx:t(), reckon_admin_pb:scavenge_matching_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:scavenge_matching_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-scavenge_matching(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/ScavengeMatching">>, Input, ?DEF(scavenge_matching_request, scavenge_matching_response, <<"reckon.gateway.v1.ScavengeMatchingRequest">>), Options).
+-spec scavenge_matching(reckon_admin_pb:scavenge_matching_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:scavenge_matching_response(), grpc:metadata()}
+     | {error, term()}.
+scavenge_matching(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/ScavengeMatching">>,
+                           scavenge_matching_request, scavenge_matching_response, <<"reckon.gateway.v1.ScavengeMatchingRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec scavenge_dry_run(reckon_admin_pb:scavenge_request()) ->
-    {ok, reckon_admin_pb:scavenge_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-scavenge_dry_run(Input) ->
-    scavenge_dry_run(ctx:new(), Input, #{}).
+-spec scavenge_dry_run(reckon_admin_pb:scavenge_request())
+    -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
+     | {error, term()}.
+scavenge_dry_run(Req) ->
+    scavenge_dry_run(Req, #{}, #{}).
 
--spec scavenge_dry_run(ctx:t() | reckon_admin_pb:scavenge_request(), reckon_admin_pb:scavenge_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:scavenge_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-scavenge_dry_run(Ctx, Input) when ?is_ctx(Ctx) ->
-    scavenge_dry_run(Ctx, Input, #{});
-scavenge_dry_run(Input, Options) ->
-    scavenge_dry_run(ctx:new(), Input, Options).
+-spec scavenge_dry_run(reckon_admin_pb:scavenge_request(), grpc:options())
+    -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
+     | {error, term()}.
+scavenge_dry_run(Req, Options) ->
+    scavenge_dry_run(Req, #{}, Options).
 
--spec scavenge_dry_run(ctx:t(), reckon_admin_pb:scavenge_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:scavenge_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-scavenge_dry_run(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/ScavengeDryRun">>, Input, ?DEF(scavenge_request, scavenge_response, <<"reckon.gateway.v1.ScavengeRequest">>), Options).
+-spec scavenge_dry_run(reckon_admin_pb:scavenge_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
+     | {error, term()}.
+scavenge_dry_run(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/ScavengeDryRun">>,
+                           scavenge_request, scavenge_response, <<"reckon.gateway.v1.ScavengeRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec create_link(reckon_admin_pb:create_link_request()) ->
-    {ok, reckon_admin_pb:create_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-create_link(Input) ->
-    create_link(ctx:new(), Input, #{}).
+-spec create_link(reckon_admin_pb:create_link_request())
+    -> {ok, reckon_admin_pb:create_link_response(), grpc:metadata()}
+     | {error, term()}.
+create_link(Req) ->
+    create_link(Req, #{}, #{}).
 
--spec create_link(ctx:t() | reckon_admin_pb:create_link_request(), reckon_admin_pb:create_link_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:create_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-create_link(Ctx, Input) when ?is_ctx(Ctx) ->
-    create_link(Ctx, Input, #{});
-create_link(Input, Options) ->
-    create_link(ctx:new(), Input, Options).
+-spec create_link(reckon_admin_pb:create_link_request(), grpc:options())
+    -> {ok, reckon_admin_pb:create_link_response(), grpc:metadata()}
+     | {error, term()}.
+create_link(Req, Options) ->
+    create_link(Req, #{}, Options).
 
--spec create_link(ctx:t(), reckon_admin_pb:create_link_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:create_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-create_link(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/CreateLink">>, Input, ?DEF(create_link_request, create_link_response, <<"reckon.gateway.v1.CreateLinkRequest">>), Options).
+-spec create_link(reckon_admin_pb:create_link_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:create_link_response(), grpc:metadata()}
+     | {error, term()}.
+create_link(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/CreateLink">>,
+                           create_link_request, create_link_response, <<"reckon.gateway.v1.CreateLinkRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec delete_link(reckon_admin_pb:delete_link_request()) ->
-    {ok, reckon_admin_pb:delete_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-delete_link(Input) ->
-    delete_link(ctx:new(), Input, #{}).
+-spec delete_link(reckon_admin_pb:delete_link_request())
+    -> {ok, reckon_admin_pb:delete_link_response(), grpc:metadata()}
+     | {error, term()}.
+delete_link(Req) ->
+    delete_link(Req, #{}, #{}).
 
--spec delete_link(ctx:t() | reckon_admin_pb:delete_link_request(), reckon_admin_pb:delete_link_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:delete_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-delete_link(Ctx, Input) when ?is_ctx(Ctx) ->
-    delete_link(Ctx, Input, #{});
-delete_link(Input, Options) ->
-    delete_link(ctx:new(), Input, Options).
+-spec delete_link(reckon_admin_pb:delete_link_request(), grpc:options())
+    -> {ok, reckon_admin_pb:delete_link_response(), grpc:metadata()}
+     | {error, term()}.
+delete_link(Req, Options) ->
+    delete_link(Req, #{}, Options).
 
--spec delete_link(ctx:t(), reckon_admin_pb:delete_link_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:delete_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-delete_link(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/DeleteLink">>, Input, ?DEF(delete_link_request, delete_link_response, <<"reckon.gateway.v1.DeleteLinkRequest">>), Options).
+-spec delete_link(reckon_admin_pb:delete_link_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:delete_link_response(), grpc:metadata()}
+     | {error, term()}.
+delete_link(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/DeleteLink">>,
+                           delete_link_request, delete_link_response, <<"reckon.gateway.v1.DeleteLinkRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec get_link(reckon_admin_pb:get_link_request()) ->
-    {ok, reckon_admin_pb:link_info(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_link(Input) ->
-    get_link(ctx:new(), Input, #{}).
+-spec get_link(reckon_admin_pb:get_link_request())
+    -> {ok, reckon_admin_pb:link_info(), grpc:metadata()}
+     | {error, term()}.
+get_link(Req) ->
+    get_link(Req, #{}, #{}).
 
--spec get_link(ctx:t() | reckon_admin_pb:get_link_request(), reckon_admin_pb:get_link_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:link_info(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_link(Ctx, Input) when ?is_ctx(Ctx) ->
-    get_link(Ctx, Input, #{});
-get_link(Input, Options) ->
-    get_link(ctx:new(), Input, Options).
+-spec get_link(reckon_admin_pb:get_link_request(), grpc:options())
+    -> {ok, reckon_admin_pb:link_info(), grpc:metadata()}
+     | {error, term()}.
+get_link(Req, Options) ->
+    get_link(Req, #{}, Options).
 
--spec get_link(ctx:t(), reckon_admin_pb:get_link_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:link_info(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_link(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/GetLink">>, Input, ?DEF(get_link_request, link_info, <<"reckon.gateway.v1.GetLinkRequest">>), Options).
+-spec get_link(reckon_admin_pb:get_link_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:link_info(), grpc:metadata()}
+     | {error, term()}.
+get_link(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/GetLink">>,
+                           get_link_request, link_info, <<"reckon.gateway.v1.GetLinkRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec list_links(reckon_admin_pb:list_links_request()) ->
-    {ok, reckon_admin_pb:list_links_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-list_links(Input) ->
-    list_links(ctx:new(), Input, #{}).
+-spec list_links(reckon_admin_pb:list_links_request())
+    -> {ok, reckon_admin_pb:list_links_response(), grpc:metadata()}
+     | {error, term()}.
+list_links(Req) ->
+    list_links(Req, #{}, #{}).
 
--spec list_links(ctx:t() | reckon_admin_pb:list_links_request(), reckon_admin_pb:list_links_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:list_links_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-list_links(Ctx, Input) when ?is_ctx(Ctx) ->
-    list_links(Ctx, Input, #{});
-list_links(Input, Options) ->
-    list_links(ctx:new(), Input, Options).
+-spec list_links(reckon_admin_pb:list_links_request(), grpc:options())
+    -> {ok, reckon_admin_pb:list_links_response(), grpc:metadata()}
+     | {error, term()}.
+list_links(Req, Options) ->
+    list_links(Req, #{}, Options).
 
--spec list_links(ctx:t(), reckon_admin_pb:list_links_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:list_links_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-list_links(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/ListLinks">>, Input, ?DEF(list_links_request, list_links_response, <<"reckon.gateway.v1.ListLinksRequest">>), Options).
+-spec list_links(reckon_admin_pb:list_links_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:list_links_response(), grpc:metadata()}
+     | {error, term()}.
+list_links(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/ListLinks">>,
+                           list_links_request, list_links_response, <<"reckon.gateway.v1.ListLinksRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec start_link(reckon_admin_pb:start_link_request()) ->
-    {ok, reckon_admin_pb:start_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-start_link(Input) ->
-    start_link(ctx:new(), Input, #{}).
+-spec start_link(reckon_admin_pb:start_link_request())
+    -> {ok, reckon_admin_pb:start_link_response(), grpc:metadata()}
+     | {error, term()}.
+start_link(Req) ->
+    start_link(Req, #{}, #{}).
 
--spec start_link(ctx:t() | reckon_admin_pb:start_link_request(), reckon_admin_pb:start_link_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:start_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-start_link(Ctx, Input) when ?is_ctx(Ctx) ->
-    start_link(Ctx, Input, #{});
-start_link(Input, Options) ->
-    start_link(ctx:new(), Input, Options).
+-spec start_link(reckon_admin_pb:start_link_request(), grpc:options())
+    -> {ok, reckon_admin_pb:start_link_response(), grpc:metadata()}
+     | {error, term()}.
+start_link(Req, Options) ->
+    start_link(Req, #{}, Options).
 
--spec start_link(ctx:t(), reckon_admin_pb:start_link_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:start_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-start_link(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/StartLink">>, Input, ?DEF(start_link_request, start_link_response, <<"reckon.gateway.v1.StartLinkRequest">>), Options).
+-spec start_link(reckon_admin_pb:start_link_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:start_link_response(), grpc:metadata()}
+     | {error, term()}.
+start_link(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/StartLink">>,
+                           start_link_request, start_link_response, <<"reckon.gateway.v1.StartLinkRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec stop_link(reckon_admin_pb:stop_link_request()) ->
-    {ok, reckon_admin_pb:stop_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-stop_link(Input) ->
-    stop_link(ctx:new(), Input, #{}).
+-spec stop_link(reckon_admin_pb:stop_link_request())
+    -> {ok, reckon_admin_pb:stop_link_response(), grpc:metadata()}
+     | {error, term()}.
+stop_link(Req) ->
+    stop_link(Req, #{}, #{}).
 
--spec stop_link(ctx:t() | reckon_admin_pb:stop_link_request(), reckon_admin_pb:stop_link_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:stop_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-stop_link(Ctx, Input) when ?is_ctx(Ctx) ->
-    stop_link(Ctx, Input, #{});
-stop_link(Input, Options) ->
-    stop_link(ctx:new(), Input, Options).
+-spec stop_link(reckon_admin_pb:stop_link_request(), grpc:options())
+    -> {ok, reckon_admin_pb:stop_link_response(), grpc:metadata()}
+     | {error, term()}.
+stop_link(Req, Options) ->
+    stop_link(Req, #{}, Options).
 
--spec stop_link(ctx:t(), reckon_admin_pb:stop_link_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:stop_link_response(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-stop_link(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/StopLink">>, Input, ?DEF(stop_link_request, stop_link_response, <<"reckon.gateway.v1.StopLinkRequest">>), Options).
+-spec stop_link(reckon_admin_pb:stop_link_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:stop_link_response(), grpc:metadata()}
+     | {error, term()}.
+stop_link(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/StopLink">>,
+                           stop_link_request, stop_link_response, <<"reckon.gateway.v1.StopLinkRequest">>),
+                      Req, Metadata, Options).
 
-%% @doc Unary RPC
--spec get_link_info(reckon_admin_pb:get_link_request()) ->
-    {ok, reckon_admin_pb:link_runtime_info(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_link_info(Input) ->
-    get_link_info(ctx:new(), Input, #{}).
+-spec get_link_info(reckon_admin_pb:get_link_request())
+    -> {ok, reckon_admin_pb:link_runtime_info(), grpc:metadata()}
+     | {error, term()}.
+get_link_info(Req) ->
+    get_link_info(Req, #{}, #{}).
 
--spec get_link_info(ctx:t() | reckon_admin_pb:get_link_request(), reckon_admin_pb:get_link_request() | grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:link_runtime_info(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_link_info(Ctx, Input) when ?is_ctx(Ctx) ->
-    get_link_info(Ctx, Input, #{});
-get_link_info(Input, Options) ->
-    get_link_info(ctx:new(), Input, Options).
+-spec get_link_info(reckon_admin_pb:get_link_request(), grpc:options())
+    -> {ok, reckon_admin_pb:link_runtime_info(), grpc:metadata()}
+     | {error, term()}.
+get_link_info(Req, Options) ->
+    get_link_info(Req, #{}, Options).
 
--spec get_link_info(ctx:t(), reckon_admin_pb:get_link_request(), grpcbox_client:options()) ->
-    {ok, reckon_admin_pb:link_runtime_info(), grpcbox:metadata()} | grpcbox_stream:grpc_error_response() | {error, any()}.
-get_link_info(Ctx, Input, Options) ->
-    grpcbox_client:unary(Ctx, <<"/reckon.gateway.v1.AdminService/GetLinkInfo">>, Input, ?DEF(get_link_request, link_runtime_info, <<"reckon.gateway.v1.GetLinkRequest">>), Options).
+-spec get_link_info(reckon_admin_pb:get_link_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:link_runtime_info(), grpc:metadata()}
+     | {error, term()}.
+get_link_info(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/GetLinkInfo">>,
+                           get_link_request, link_runtime_info, <<"reckon.gateway.v1.GetLinkRequest">>),
+                      Req, Metadata, Options).
 

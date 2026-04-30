@@ -1,6 +1,5 @@
 %% @doc gRPC SchemaService implementation.
 -module(reckon_gateway_schema_service).
--behaviour(reckon_gateway_v_1_schema_service_bhvr).
 
 -export([
     register_schema/2,
@@ -11,33 +10,33 @@
     upcast_events/2
 ]).
 
-register_schema(Ctx, #{store_id := StoreIdBin,
-                       event_type := EventType,
-                       schema := SchemaBytes}) ->
+register_schema(#{store_id := StoreIdBin,
+                  event_type := EventType,
+                  schema := SchemaBytes}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     Schema = json:decode(SchemaBytes),
     ok = esdb_gater_api:register_schema(StoreId, EventType, Schema),
-    {ok, #{}, Ctx}.
+    {ok, #{}, Md}.
 
-unregister_schema(Ctx, #{store_id := StoreIdBin,
-                         event_type := EventType}) ->
+unregister_schema(#{store_id := StoreIdBin,
+                    event_type := EventType}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     ok = esdb_gater_api:unregister_schema(StoreId, EventType),
-    {ok, #{}, Ctx}.
+    {ok, #{}, Md}.
 
-get_schema(Ctx, #{store_id := StoreIdBin,
-                  event_type := EventType}) ->
+get_schema(#{store_id := StoreIdBin,
+             event_type := EventType}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case esdb_gater_api:get_schema(StoreId, EventType) of
         {ok, Schema} ->
             {ok, #{event_type => EventType,
                    schema => json:encode(Schema),
-                   version => maps:get(version, Schema, 1)}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"5">>, format_error(Reason)}}
+                   version => maps:get(version, Schema, 1)}, Md};
+        {error, _Reason} ->
+            {error, <<"5">>}
     end.
 
-list_schemas(Ctx, #{store_id := StoreIdBin}) ->
+list_schemas(#{store_id := StoreIdBin}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case esdb_gater_api:list_schemas(StoreId) of
         {ok, Schemas} ->
@@ -45,32 +44,32 @@ list_schemas(Ctx, #{store_id := StoreIdBin}) ->
                               schema => json:encode(S),
                               version => maps:get(version, S, 1)}
                             || S <- Schemas],
-            {ok, #{schemas => ProtoSchemas}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+            {ok, #{schemas => ProtoSchemas}, Md};
+        {error, _Reason} ->
+            {error, <<"13">>}
     end.
 
-get_schema_version(Ctx, #{store_id := StoreIdBin,
-                          event_type := EventType}) ->
+get_schema_version(#{store_id := StoreIdBin,
+                     event_type := EventType}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case esdb_gater_api:get_schema_version(StoreId, EventType) of
         {ok, Version} ->
-            {ok, #{version => Version}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"5">>, format_error(Reason)}}
+            {ok, #{version => Version}, Md};
+        {error, _Reason} ->
+            {error, <<"5">>}
     end.
 
-upcast_events(Ctx, #{store_id := StoreIdBin,
-                     events := Events}) ->
+upcast_events(#{store_id := StoreIdBin,
+                events := Events}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     %% Convert proto events to gater events, upcast, convert back
     GaterEvents = [proto_to_gater_event(E) || E <- Events],
     case esdb_gater_api:upcast_events(StoreId, GaterEvents) of
         {ok, Upcasted} ->
             ProtoEvents = [reckon_gateway_convert:event_to_recorded(E) || E <- Upcasted],
-            {ok, #{events => ProtoEvents}, Ctx};
-        {error, Reason} ->
-            {grpc_error, {<<"13">>, format_error(Reason)}}
+            {ok, #{events => ProtoEvents}, Md};
+        {error, _Reason} ->
+            {error, <<"13">>}
     end.
 
 %%====================================================================
@@ -85,6 +84,3 @@ proto_to_gater_event(#{event_type := Type, data := Data} = E) ->
           <<>> -> #{};
           M -> json:decode(M)
       end}.
-
-format_error(Reason) when is_binary(Reason) -> Reason;
-format_error(Reason) -> iolist_to_binary(io_lib:format("~p", [Reason])).
