@@ -12,7 +12,7 @@ read_until(#{store_id := StoreIdBin,
         0 -> #{};
         BS -> #{batch_size => BS}
     end,
-    case esdb_gater_api:read_until(StoreId, StreamId, Timestamp, Opts) of
+    case reckon_gater_api:read_until(StoreId, StreamId, Timestamp, Opts) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
             {ok, #{events => Recorded}, Md};
@@ -30,7 +30,7 @@ read_range(#{store_id := StoreIdBin,
         0 -> #{};
         BS -> #{batch_size => BS}
     end,
-    case esdb_gater_api:read_range(StoreId, StreamId, From, To, Opts) of
+    case reckon_gater_api:read_range(StoreId, StreamId, From, To, Opts) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
             {ok, #{events => Recorded}, Md};
@@ -42,7 +42,7 @@ version_at(#{store_id := StoreIdBin,
              stream_id := StreamId,
              timestamp := Timestamp}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:version_at(StoreId, StreamId, Timestamp) of
+    case reckon_gater_api:version_at(StoreId, StreamId, Timestamp) of
         {ok, Version} ->
             {ok, #{version => Version}, Md};
         {error, _Reason} ->

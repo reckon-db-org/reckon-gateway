@@ -107,9 +107,22 @@
         breakdown               => #{unicode:chardata() => non_neg_integer()} % = 4
        }.
 
--export_type(['health_check_request'/0, 'health_request'/0, 'cluster_check_request'/0, 'memory_level_request'/0, 'memory_stats_request'/0, 'health_check_response'/0, 'health_response'/0, 'cluster_check_response'/0, 'memory_level_response'/0, 'memory_stats_response'/0]).
--type '$msg_name'() :: health_check_request | health_request | cluster_check_request | memory_level_request | memory_stats_request | health_check_response | health_response | cluster_check_response | memory_level_response | memory_stats_response.
--type '$msg'() :: health_check_request() | health_request() | cluster_check_request() | memory_level_request() | memory_stats_request() | health_check_response() | health_response() | cluster_check_response() | memory_level_response() | memory_stats_response().
+-type get_server_info_request() ::
+      #{store_id                => unicode:chardata() % = 1, optional
+       }.
+
+-type server_info_response() ::
+      #{reckon_db_version       => unicode:chardata(), % = 1, optional
+        reckon_gateway_version  => unicode:chardata(), % = 2, optional
+        integrity_algo          => unicode:chardata(), % = 3, optional
+        integrity_enabled       => boolean() | 0 | 1, % = 4, optional
+        hmac_key_id             => non_neg_integer(), % = 5, optional, 32 bits
+        api_compatibility_version => unicode:chardata() % = 6, optional
+       }.
+
+-export_type(['health_check_request'/0, 'health_request'/0, 'cluster_check_request'/0, 'memory_level_request'/0, 'memory_stats_request'/0, 'health_check_response'/0, 'health_response'/0, 'cluster_check_response'/0, 'memory_level_response'/0, 'memory_stats_response'/0, 'get_server_info_request'/0, 'server_info_response'/0]).
+-type '$msg_name'() :: health_check_request | health_request | cluster_check_request | memory_level_request | memory_stats_request | health_check_response | health_response | cluster_check_response | memory_level_response | memory_stats_response | get_server_info_request | server_info_response.
+-type '$msg'() :: health_check_request() | health_request() | cluster_check_request() | memory_level_request() | memory_stats_request() | health_check_response() | health_response() | cluster_check_response() | memory_level_response() | memory_stats_response() | get_server_info_request() | server_info_response().
 -export_type(['$msg_name'/0, '$msg'/0]).
 
 -if(?OTP_RELEASE >= 24).
@@ -138,7 +151,9 @@ encode_msg(Msg, MsgName, Opts) ->
         health_response -> encode_msg_health_response(id(Msg, TrUserData), TrUserData);
         cluster_check_response -> encode_msg_cluster_check_response(id(Msg, TrUserData), TrUserData);
         memory_level_response -> encode_msg_memory_level_response(id(Msg, TrUserData), TrUserData);
-        memory_stats_response -> encode_msg_memory_stats_response(id(Msg, TrUserData), TrUserData)
+        memory_stats_response -> encode_msg_memory_stats_response(id(Msg, TrUserData), TrUserData);
+        get_server_info_request -> encode_msg_get_server_info_request(id(Msg, TrUserData), TrUserData);
+        server_info_response -> encode_msg_server_info_response(id(Msg, TrUserData), TrUserData)
     end.
 
 
@@ -366,6 +381,91 @@ encode_msg_memory_stats_response(#{} = M, Bin, TrUserData) ->
         _ -> B3
     end.
 
+encode_msg_get_server_info_request(Msg, TrUserData) -> encode_msg_get_server_info_request(Msg, <<>>, TrUserData).
+
+
+encode_msg_get_server_info_request(#{} = M, Bin, TrUserData) ->
+    case M of
+        #{store_id := F1} ->
+            begin
+                TrF1 = id(F1, TrUserData),
+                case is_empty_string(TrF1) of
+                    true -> Bin;
+                    false -> e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData)
+                end
+            end;
+        _ -> Bin
+    end.
+
+encode_msg_server_info_response(Msg, TrUserData) -> encode_msg_server_info_response(Msg, <<>>, TrUserData).
+
+
+encode_msg_server_info_response(#{} = M, Bin, TrUserData) ->
+    B1 = case M of
+             #{reckon_db_version := F1} ->
+                 begin
+                     TrF1 = id(F1, TrUserData),
+                     case is_empty_string(TrF1) of
+                         true -> Bin;
+                         false -> e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData)
+                     end
+                 end;
+             _ -> Bin
+         end,
+    B2 = case M of
+             #{reckon_gateway_version := F2} ->
+                 begin
+                     TrF2 = id(F2, TrUserData),
+                     case is_empty_string(TrF2) of
+                         true -> B1;
+                         false -> e_type_string(TrF2, <<B1/binary, 18>>, TrUserData)
+                     end
+                 end;
+             _ -> B1
+         end,
+    B3 = case M of
+             #{integrity_algo := F3} ->
+                 begin
+                     TrF3 = id(F3, TrUserData),
+                     case is_empty_string(TrF3) of
+                         true -> B2;
+                         false -> e_type_string(TrF3, <<B2/binary, 26>>, TrUserData)
+                     end
+                 end;
+             _ -> B2
+         end,
+    B4 = case M of
+             #{integrity_enabled := F4} ->
+                 begin
+                     TrF4 = id(F4, TrUserData),
+                     if TrF4 =:= false -> B3;
+                        true -> e_type_bool(TrF4, <<B3/binary, 32>>, TrUserData)
+                     end
+                 end;
+             _ -> B3
+         end,
+    B5 = case M of
+             #{hmac_key_id := F5} ->
+                 begin
+                     TrF5 = id(F5, TrUserData),
+                     if TrF5 =:= 0 -> B4;
+                        true -> e_varint(TrF5, <<B4/binary, 40>>, TrUserData)
+                     end
+                 end;
+             _ -> B4
+         end,
+    case M of
+        #{api_compatibility_version := F6} ->
+            begin
+                TrF6 = id(F6, TrUserData),
+                case is_empty_string(TrF6) of
+                    true -> B5;
+                    false -> e_type_string(TrF6, <<B5/binary, 50>>, TrUserData)
+                end
+            end;
+        _ -> B5
+    end.
+
 e_mfield_health_check_response_details(Msg, Bin, TrUserData) ->
     SubBin = 'encode_msg_map<string,string>'(Msg, <<>>, TrUserData),
     Bin2 = e_varint(byte_size(SubBin), Bin),
@@ -586,7 +686,9 @@ decode_msg_2_doit(health_check_response, Bin, TrUserData) -> id(decode_msg_healt
 decode_msg_2_doit(health_response, Bin, TrUserData) -> id(decode_msg_health_response(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(cluster_check_response, Bin, TrUserData) -> id(decode_msg_cluster_check_response(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(memory_level_response, Bin, TrUserData) -> id(decode_msg_memory_level_response(Bin, TrUserData), TrUserData);
-decode_msg_2_doit(memory_stats_response, Bin, TrUserData) -> id(decode_msg_memory_stats_response(Bin, TrUserData), TrUserData).
+decode_msg_2_doit(memory_stats_response, Bin, TrUserData) -> id(decode_msg_memory_stats_response(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(get_server_info_request, Bin, TrUserData) -> id(decode_msg_get_server_info_request(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(server_info_response, Bin, TrUserData) -> id(decode_msg_server_info_response(Bin, TrUserData), TrUserData).
 
 
 
@@ -1086,6 +1188,139 @@ skip_32_memory_stats_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3
 
 skip_64_memory_stats_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_memory_stats_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
 
+decode_msg_get_server_info_request(Bin, TrUserData) -> dfp_read_field_def_get_server_info_request(Bin, 0, 0, 0, id(<<>>, TrUserData), TrUserData).
+
+dfp_read_field_def_get_server_info_request(<<10, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> d_field_get_server_info_request_store_id(Rest, Z1, Z2, F, F@_1, TrUserData);
+dfp_read_field_def_get_server_info_request(<<>>, 0, 0, _, F@_1, _) -> #{store_id => F@_1};
+dfp_read_field_def_get_server_info_request(Other, Z1, Z2, F, F@_1, TrUserData) -> dg_read_field_def_get_server_info_request(Other, Z1, Z2, F, F@_1, TrUserData).
+
+dg_read_field_def_get_server_info_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 32 - 7 -> dg_read_field_def_get_server_info_request(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+dg_read_field_def_get_server_info_request(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        10 -> d_field_get_server_info_request_store_id(Rest, 0, 0, 0, F@_1, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_get_server_info_request(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                1 -> skip_64_get_server_info_request(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                2 -> skip_length_delimited_get_server_info_request(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                3 -> skip_group_get_server_info_request(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                5 -> skip_32_get_server_info_request(Rest, 0, 0, Key bsr 3, F@_1, TrUserData)
+            end
+    end;
+dg_read_field_def_get_server_info_request(<<>>, 0, 0, _, F@_1, _) -> #{store_id => F@_1}.
+
+d_field_get_server_info_request_store_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 57 -> d_field_get_server_info_request_store_id(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+d_field_get_server_info_request_store_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_get_server_info_request(RestF, 0, 0, F, NewFValue, TrUserData).
+
+skip_varint_get_server_info_request(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> skip_varint_get_server_info_request(Rest, Z1, Z2, F, F@_1, TrUserData);
+skip_varint_get_server_info_request(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_get_server_info_request(Rest, Z1, Z2, F, F@_1, TrUserData).
+
+skip_length_delimited_get_server_info_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 57 -> skip_length_delimited_get_server_info_request(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+skip_length_delimited_get_server_info_request(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_get_server_info_request(Rest2, 0, 0, F, F@_1, TrUserData).
+
+skip_group_get_server_info_request(Bin, _, Z2, FNum, F@_1, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_get_server_info_request(Rest, 0, Z2, FNum, F@_1, TrUserData).
+
+skip_32_get_server_info_request(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_get_server_info_request(Rest, Z1, Z2, F, F@_1, TrUserData).
+
+skip_64_get_server_info_request(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_get_server_info_request(Rest, Z1, Z2, F, F@_1, TrUserData).
+
+decode_msg_server_info_response(Bin, TrUserData) -> dfp_read_field_def_server_info_response(Bin, 0, 0, 0, id(<<>>, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(false, TrUserData), id(0, TrUserData), id(<<>>, TrUserData), TrUserData).
+
+dfp_read_field_def_server_info_response(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_server_info_response_reckon_db_version(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_server_info_response(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_server_info_response_reckon_gateway_version(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_server_info_response(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_server_info_response_integrity_algo(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_server_info_response(<<32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_server_info_response_integrity_enabled(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_server_info_response(<<40, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_server_info_response_hmac_key_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_server_info_response(<<50, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_server_info_response_api_compatibility_version(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_server_info_response(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, _) ->
+    #{reckon_db_version => F@_1, reckon_gateway_version => F@_2, integrity_algo => F@_3, integrity_enabled => F@_4, hmac_key_id => F@_5, api_compatibility_version => F@_6};
+dfp_read_field_def_server_info_response(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dg_read_field_def_server_info_response(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+dg_read_field_def_server_info_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 32 - 7 ->
+    dg_read_field_def_server_info_response(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dg_read_field_def_server_info_response(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        10 -> d_field_server_info_response_reckon_db_version(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        18 -> d_field_server_info_response_reckon_gateway_version(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        26 -> d_field_server_info_response_integrity_algo(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        32 -> d_field_server_info_response_integrity_enabled(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        40 -> d_field_server_info_response_hmac_key_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        50 -> d_field_server_info_response_api_compatibility_version(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_server_info_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                1 -> skip_64_server_info_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                2 -> skip_length_delimited_server_info_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                3 -> skip_group_server_info_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                5 -> skip_32_server_info_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData)
+            end
+    end;
+dg_read_field_def_server_info_response(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, _) ->
+    #{reckon_db_version => F@_1, reckon_gateway_version => F@_2, integrity_algo => F@_3, integrity_enabled => F@_4, hmac_key_id => F@_5, api_compatibility_version => F@_6}.
+
+d_field_server_info_response_reckon_db_version(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_server_info_response_reckon_db_version(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_server_info_response_reckon_db_version(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_server_info_response(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+d_field_server_info_response_reckon_gateway_version(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_server_info_response_reckon_gateway_version(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_server_info_response_reckon_gateway_version(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_server_info_response(RestF, 0, 0, F, F@_1, NewFValue, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+d_field_server_info_response_integrity_algo(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_server_info_response_integrity_algo(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_server_info_response_integrity_algo(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, F@_6, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_server_info_response(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, F@_6, TrUserData).
+
+d_field_server_info_response_integrity_enabled(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_server_info_response_integrity_enabled(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_server_info_response_integrity_enabled(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, F@_6, TrUserData) ->
+    {NewFValue, RestF} = {id(X bsl N + Acc =/= 0, TrUserData), Rest},
+    dfp_read_field_def_server_info_response(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, F@_6, TrUserData).
+
+d_field_server_info_response_hmac_key_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_server_info_response_hmac_key_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_server_info_response_hmac_key_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, TrUserData) ->
+    {NewFValue, RestF} = {id((X bsl N + Acc) band 4294967295, TrUserData), Rest},
+    dfp_read_field_def_server_info_response(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, NewFValue, F@_6, TrUserData).
+
+d_field_server_info_response_api_compatibility_version(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_server_info_response_api_compatibility_version(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_server_info_response_api_compatibility_version(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, _, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_server_info_response(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, NewFValue, TrUserData).
+
+skip_varint_server_info_response(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> skip_varint_server_info_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+skip_varint_server_info_response(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_server_info_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+skip_length_delimited_server_info_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    skip_length_delimited_server_info_response(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+skip_length_delimited_server_info_response(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_server_info_response(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+skip_group_server_info_response(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_server_info_response(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+skip_32_server_info_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_server_info_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+skip_64_server_info_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_server_info_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
 'decode_msg_map<string,uint64>'(Bin, TrUserData) -> 'dfp_read_field_def_map<string,uint64>'(Bin, 0, 0, 0, id(<<>>, TrUserData), id(0, TrUserData), TrUserData).
 
 'dfp_read_field_def_map<string,uint64>'(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, TrUserData) -> 'd_field_map<string,uint64>_key'(Rest, Z1, Z2, F, F@_1, F@_2, TrUserData);
@@ -1328,7 +1563,9 @@ merge_msgs(Prev, New, MsgName, Opts) ->
         health_response -> merge_msg_health_response(Prev, New, TrUserData);
         cluster_check_response -> merge_msg_cluster_check_response(Prev, New, TrUserData);
         memory_level_response -> merge_msg_memory_level_response(Prev, New, TrUserData);
-        memory_stats_response -> merge_msg_memory_stats_response(Prev, New, TrUserData)
+        memory_stats_response -> merge_msg_memory_stats_response(Prev, New, TrUserData);
+        get_server_info_request -> merge_msg_get_server_info_request(Prev, New, TrUserData);
+        server_info_response -> merge_msg_server_info_response(Prev, New, TrUserData)
     end.
 
 -compile({nowarn_unused_function,merge_msg_health_check_request/3}).
@@ -1464,6 +1701,49 @@ merge_msg_memory_stats_response(PMsg, NMsg, TrUserData) ->
         {_, _} -> S4
     end.
 
+-compile({nowarn_unused_function,merge_msg_get_server_info_request/3}).
+merge_msg_get_server_info_request(PMsg, NMsg, _) ->
+    S1 = #{},
+    case {PMsg, NMsg} of
+        {_, #{store_id := NFstore_id}} -> S1#{store_id => NFstore_id};
+        {#{store_id := PFstore_id}, _} -> S1#{store_id => PFstore_id};
+        _ -> S1
+    end.
+
+-compile({nowarn_unused_function,merge_msg_server_info_response/3}).
+merge_msg_server_info_response(PMsg, NMsg, _) ->
+    S1 = #{},
+    S2 = case {PMsg, NMsg} of
+             {_, #{reckon_db_version := NFreckon_db_version}} -> S1#{reckon_db_version => NFreckon_db_version};
+             {#{reckon_db_version := PFreckon_db_version}, _} -> S1#{reckon_db_version => PFreckon_db_version};
+             _ -> S1
+         end,
+    S3 = case {PMsg, NMsg} of
+             {_, #{reckon_gateway_version := NFreckon_gateway_version}} -> S2#{reckon_gateway_version => NFreckon_gateway_version};
+             {#{reckon_gateway_version := PFreckon_gateway_version}, _} -> S2#{reckon_gateway_version => PFreckon_gateway_version};
+             _ -> S2
+         end,
+    S4 = case {PMsg, NMsg} of
+             {_, #{integrity_algo := NFintegrity_algo}} -> S3#{integrity_algo => NFintegrity_algo};
+             {#{integrity_algo := PFintegrity_algo}, _} -> S3#{integrity_algo => PFintegrity_algo};
+             _ -> S3
+         end,
+    S5 = case {PMsg, NMsg} of
+             {_, #{integrity_enabled := NFintegrity_enabled}} -> S4#{integrity_enabled => NFintegrity_enabled};
+             {#{integrity_enabled := PFintegrity_enabled}, _} -> S4#{integrity_enabled => PFintegrity_enabled};
+             _ -> S4
+         end,
+    S6 = case {PMsg, NMsg} of
+             {_, #{hmac_key_id := NFhmac_key_id}} -> S5#{hmac_key_id => NFhmac_key_id};
+             {#{hmac_key_id := PFhmac_key_id}, _} -> S5#{hmac_key_id => PFhmac_key_id};
+             _ -> S5
+         end,
+    case {PMsg, NMsg} of
+        {_, #{api_compatibility_version := NFapi_compatibility_version}} -> S6#{api_compatibility_version => NFapi_compatibility_version};
+        {#{api_compatibility_version := PFapi_compatibility_version}, _} -> S6#{api_compatibility_version => PFapi_compatibility_version};
+        _ -> S6
+    end.
+
 
 verify_msg(Msg, MsgName) when is_atom(MsgName) -> verify_msg(Msg, MsgName, []).
 
@@ -1480,6 +1760,8 @@ verify_msg(Msg, MsgName, Opts) ->
         cluster_check_response -> v_msg_cluster_check_response(Msg, [MsgName], TrUserData);
         memory_level_response -> v_msg_memory_level_response(Msg, [MsgName], TrUserData);
         memory_stats_response -> v_msg_memory_stats_response(Msg, [MsgName], TrUserData);
+        get_server_info_request -> v_msg_get_server_info_request(Msg, [MsgName], TrUserData);
+        server_info_response -> v_msg_server_info_response(Msg, [MsgName], TrUserData);
         _ -> mk_type_error(not_a_known_message, Msg, [])
     end.
 
@@ -1672,6 +1954,61 @@ v_msg_memory_stats_response(#{} = M, Path, TrUserData) ->
 v_msg_memory_stats_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), memory_stats_response}, M, Path);
 v_msg_memory_stats_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, memory_stats_response}, X, Path).
 
+-compile({nowarn_unused_function,v_msg_get_server_info_request/3}).
+-dialyzer({nowarn_function,v_msg_get_server_info_request/3}).
+v_msg_get_server_info_request(#{} = M, Path, TrUserData) ->
+    case M of
+        #{store_id := F1} -> v_type_string(F1, [store_id | Path], TrUserData);
+        _ -> ok
+    end,
+    lists:foreach(fun (store_id) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_get_server_info_request(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), get_server_info_request}, M, Path);
+v_msg_get_server_info_request(X, Path, _TrUserData) -> mk_type_error({expected_msg, get_server_info_request}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_server_info_response/3}).
+-dialyzer({nowarn_function,v_msg_server_info_response/3}).
+v_msg_server_info_response(#{} = M, Path, TrUserData) ->
+    case M of
+        #{reckon_db_version := F1} -> v_type_string(F1, [reckon_db_version | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{reckon_gateway_version := F2} -> v_type_string(F2, [reckon_gateway_version | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{integrity_algo := F3} -> v_type_string(F3, [integrity_algo | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{integrity_enabled := F4} -> v_type_bool(F4, [integrity_enabled | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{hmac_key_id := F5} -> v_type_uint32(F5, [hmac_key_id | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{api_compatibility_version := F6} -> v_type_string(F6, [api_compatibility_version | Path], TrUserData);
+        _ -> ok
+    end,
+    lists:foreach(fun (reckon_db_version) -> ok;
+                      (reckon_gateway_version) -> ok;
+                      (integrity_algo) -> ok;
+                      (integrity_enabled) -> ok;
+                      (hmac_key_id) -> ok;
+                      (api_compatibility_version) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_server_info_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), server_info_response}, M, Path);
+v_msg_server_info_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, server_info_response}, X, Path).
+
 -compile({nowarn_unused_function,'v_enum_reckon.gateway.v1.HealthStatus'/3}).
 -dialyzer({nowarn_function,'v_enum_reckon.gateway.v1.HealthStatus'/3}).
 'v_enum_reckon.gateway.v1.HealthStatus'('HEALTH_STATUS_HEALTHY', _Path, _TrUserData) -> ok;
@@ -1715,6 +2052,14 @@ v_type_uint32(X, Path, _TrUserData) -> mk_type_error({bad_integer, uint32, unsig
 v_type_uint64(N, _Path, _TrUserData) when is_integer(N), 0 =< N, N =< 18446744073709551615 -> ok;
 v_type_uint64(N, Path, _TrUserData) when is_integer(N) -> mk_type_error({value_out_of_range, uint64, unsigned, 64}, N, Path);
 v_type_uint64(X, Path, _TrUserData) -> mk_type_error({bad_integer, uint64, unsigned, 64}, X, Path).
+
+-compile({nowarn_unused_function,v_type_bool/3}).
+-dialyzer({nowarn_function,v_type_bool/3}).
+v_type_bool(false, _Path, _TrUserData) -> ok;
+v_type_bool(true, _Path, _TrUserData) -> ok;
+v_type_bool(0, _Path, _TrUserData) -> ok;
+v_type_bool(1, _Path, _TrUserData) -> ok;
+v_type_bool(X, Path, _TrUserData) -> mk_type_error(bad_boolean_value, X, Path).
 
 -compile({nowarn_unused_function,v_type_double/3}).
 -dialyzer({nowarn_function,v_type_double/3}).
@@ -1910,16 +2255,48 @@ get_msg_defs() ->
       [#{name => used_bytes, fnum => 1, rnum => 2, type => uint64, occurrence => optional, opts => []},
        #{name => total_bytes, fnum => 2, rnum => 3, type => uint64, occurrence => optional, opts => []},
        #{name => usage_percent, fnum => 3, rnum => 4, type => double, occurrence => optional, opts => []},
-       #{name => breakdown, fnum => 4, rnum => 5, type => {map, string, uint64}, occurrence => repeated, opts => []}]}].
+       #{name => breakdown, fnum => 4, rnum => 5, type => {map, string, uint64}, occurrence => repeated, opts => []}]},
+     {{msg, get_server_info_request}, [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []}]},
+     {{msg, server_info_response},
+      [#{name => reckon_db_version, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+       #{name => reckon_gateway_version, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
+       #{name => integrity_algo, fnum => 3, rnum => 4, type => string, occurrence => optional, opts => []},
+       #{name => integrity_enabled, fnum => 4, rnum => 5, type => bool, occurrence => optional, opts => []},
+       #{name => hmac_key_id, fnum => 5, rnum => 6, type => uint32, occurrence => optional, opts => []},
+       #{name => api_compatibility_version, fnum => 6, rnum => 7, type => string, occurrence => optional, opts => []}]}].
 
 
-get_msg_names() -> [health_check_request, health_request, cluster_check_request, memory_level_request, memory_stats_request, health_check_response, health_response, cluster_check_response, memory_level_response, memory_stats_response].
+get_msg_names() ->
+    [health_check_request,
+     health_request,
+     cluster_check_request,
+     memory_level_request,
+     memory_stats_request,
+     health_check_response,
+     health_response,
+     cluster_check_response,
+     memory_level_response,
+     memory_stats_response,
+     get_server_info_request,
+     server_info_response].
 
 
 get_group_names() -> [].
 
 
-get_msg_or_group_names() -> [health_check_request, health_request, cluster_check_request, memory_level_request, memory_stats_request, health_check_response, health_response, cluster_check_response, memory_level_response, memory_stats_response].
+get_msg_or_group_names() ->
+    [health_check_request,
+     health_request,
+     cluster_check_request,
+     memory_level_request,
+     memory_stats_request,
+     health_check_response,
+     health_response,
+     cluster_check_response,
+     memory_level_response,
+     memory_stats_response,
+     get_server_info_request,
+     server_info_response].
 
 
 get_enum_names() -> ['reckon.gateway.v1.HealthStatus', 'reckon.gateway.v1.ClusterStatus', 'reckon.gateway.v1.MemoryLevel'].
@@ -1960,6 +2337,14 @@ find_msg_def(memory_stats_response) ->
      #{name => total_bytes, fnum => 2, rnum => 3, type => uint64, occurrence => optional, opts => []},
      #{name => usage_percent, fnum => 3, rnum => 4, type => double, occurrence => optional, opts => []},
      #{name => breakdown, fnum => 4, rnum => 5, type => {map, string, uint64}, occurrence => repeated, opts => []}];
+find_msg_def(get_server_info_request) -> [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []}];
+find_msg_def(server_info_response) ->
+    [#{name => reckon_db_version, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+     #{name => reckon_gateway_version, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
+     #{name => integrity_algo, fnum => 3, rnum => 4, type => string, occurrence => optional, opts => []},
+     #{name => integrity_enabled, fnum => 4, rnum => 5, type => bool, occurrence => optional, opts => []},
+     #{name => hmac_key_id, fnum => 5, rnum => 6, type => uint32, occurrence => optional, opts => []},
+     #{name => api_compatibility_version, fnum => 6, rnum => 7, type => string, occurrence => optional, opts => []}];
 find_msg_def(_) -> error.
 
 
@@ -2022,11 +2407,12 @@ get_service_def('reckon.gateway.v1.HealthService') ->
       #{name => 'VerifyMembershipConsensus', input => cluster_check_request, output => cluster_check_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'CheckRaftLogConsistency', input => cluster_check_request, output => cluster_check_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'GetMemoryLevel', input => memory_level_request, output => memory_level_response, input_stream => false, output_stream => false, opts => []},
-      #{name => 'GetMemoryStats', input => memory_stats_request, output => memory_stats_response, input_stream => false, output_stream => false, opts => []}]};
+      #{name => 'GetMemoryStats', input => memory_stats_request, output => memory_stats_response, input_stream => false, output_stream => false, opts => []},
+      #{name => 'GetServerInfo', input => get_server_info_request, output => server_info_response, input_stream => false, output_stream => false, opts => []}]};
 get_service_def(_) -> error.
 
 
-get_rpc_names('reckon.gateway.v1.HealthService') -> ['Check', 'Health', 'VerifyClusterConsistency', 'VerifyMembershipConsensus', 'CheckRaftLogConsistency', 'GetMemoryLevel', 'GetMemoryStats'];
+get_rpc_names('reckon.gateway.v1.HealthService') -> ['Check', 'Health', 'VerifyClusterConsistency', 'VerifyMembershipConsensus', 'CheckRaftLogConsistency', 'GetMemoryLevel', 'GetMemoryStats', 'GetServerInfo'];
 get_rpc_names(_) -> error.
 
 
@@ -2041,6 +2427,7 @@ find_rpc_def(_, _) -> error.
 'find_rpc_def_reckon.gateway.v1.HealthService'('CheckRaftLogConsistency') -> #{name => 'CheckRaftLogConsistency', input => cluster_check_request, output => cluster_check_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.HealthService'('GetMemoryLevel') -> #{name => 'GetMemoryLevel', input => memory_level_request, output => memory_level_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.HealthService'('GetMemoryStats') -> #{name => 'GetMemoryStats', input => memory_stats_request, output => memory_stats_response, input_stream => false, output_stream => false, opts => []};
+'find_rpc_def_reckon.gateway.v1.HealthService'('GetServerInfo') -> #{name => 'GetServerInfo', input => get_server_info_request, output => server_info_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.HealthService'(_) -> error.
 
 
@@ -2073,6 +2460,7 @@ fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.HealthService">>, <<"VerifyM
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.HealthService">>, <<"CheckRaftLogConsistency">>) -> {'reckon.gateway.v1.HealthService', 'CheckRaftLogConsistency'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.HealthService">>, <<"GetMemoryLevel">>) -> {'reckon.gateway.v1.HealthService', 'GetMemoryLevel'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.HealthService">>, <<"GetMemoryStats">>) -> {'reckon.gateway.v1.HealthService', 'GetMemoryStats'};
+fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.HealthService">>, <<"GetServerInfo">>) -> {'reckon.gateway.v1.HealthService', 'GetServerInfo'};
 fqbins_to_service_and_rpc_name(S, R) -> error({gpb_error, {badservice_or_rpc, {S, R}}}).
 
 
@@ -2086,6 +2474,7 @@ service_and_rpc_name_to_fqbins('reckon.gateway.v1.HealthService', 'VerifyMembers
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.HealthService', 'CheckRaftLogConsistency') -> {<<"reckon.gateway.v1.HealthService">>, <<"CheckRaftLogConsistency">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.HealthService', 'GetMemoryLevel') -> {<<"reckon.gateway.v1.HealthService">>, <<"GetMemoryLevel">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.HealthService', 'GetMemoryStats') -> {<<"reckon.gateway.v1.HealthService">>, <<"GetMemoryStats">>};
+service_and_rpc_name_to_fqbins('reckon.gateway.v1.HealthService', 'GetServerInfo') -> {<<"reckon.gateway.v1.HealthService">>, <<"GetServerInfo">>};
 service_and_rpc_name_to_fqbins(S, R) -> error({gpb_error, {badservice_or_rpc, {S, R}}}).
 
 
@@ -2099,6 +2488,8 @@ fqbin_to_msg_name(<<"reckon.gateway.v1.HealthResponse">>) -> health_response;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ClusterCheckResponse">>) -> cluster_check_response;
 fqbin_to_msg_name(<<"reckon.gateway.v1.MemoryLevelResponse">>) -> memory_level_response;
 fqbin_to_msg_name(<<"reckon.gateway.v1.MemoryStatsResponse">>) -> memory_stats_response;
+fqbin_to_msg_name(<<"reckon.gateway.v1.GetServerInfoRequest">>) -> get_server_info_request;
+fqbin_to_msg_name(<<"reckon.gateway.v1.ServerInfoResponse">>) -> server_info_response;
 fqbin_to_msg_name(E) -> error({gpb_error, {badmsg, E}}).
 
 
@@ -2112,6 +2503,8 @@ msg_name_to_fqbin(health_response) -> <<"reckon.gateway.v1.HealthResponse">>;
 msg_name_to_fqbin(cluster_check_response) -> <<"reckon.gateway.v1.ClusterCheckResponse">>;
 msg_name_to_fqbin(memory_level_response) -> <<"reckon.gateway.v1.MemoryLevelResponse">>;
 msg_name_to_fqbin(memory_stats_response) -> <<"reckon.gateway.v1.MemoryStatsResponse">>;
+msg_name_to_fqbin(get_server_info_request) -> <<"reckon.gateway.v1.GetServerInfoRequest">>;
+msg_name_to_fqbin(server_info_response) -> <<"reckon.gateway.v1.ServerInfoResponse">>;
 msg_name_to_fqbin(E) -> error({gpb_error, {badmsg, E}}).
 
 
@@ -2155,7 +2548,18 @@ get_all_proto_names() -> ["reckon_health"].
 
 
 get_msg_containment("reckon_health") ->
-    [cluster_check_request, cluster_check_response, health_check_request, health_check_response, health_request, health_response, memory_level_request, memory_level_response, memory_stats_request, memory_stats_response];
+    [cluster_check_request,
+     cluster_check_response,
+     get_server_info_request,
+     health_check_request,
+     health_check_response,
+     health_request,
+     health_response,
+     memory_level_request,
+     memory_level_response,
+     memory_stats_request,
+     memory_stats_response,
+     server_info_response];
 get_msg_containment(P) -> error({gpb_error, {badproto, P}}).
 
 
@@ -2174,7 +2578,8 @@ get_rpc_containment("reckon_health") ->
      {'reckon.gateway.v1.HealthService', 'VerifyMembershipConsensus'},
      {'reckon.gateway.v1.HealthService', 'CheckRaftLogConsistency'},
      {'reckon.gateway.v1.HealthService', 'GetMemoryLevel'},
-     {'reckon.gateway.v1.HealthService', 'GetMemoryStats'}];
+     {'reckon.gateway.v1.HealthService', 'GetMemoryStats'},
+     {'reckon.gateway.v1.HealthService', 'GetServerInfo'}];
 get_rpc_containment(P) -> error({gpb_error, {badproto, P}}).
 
 
@@ -2186,7 +2591,9 @@ get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.MemoryStatsRequest">>) -> "r
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.MemoryLevelRequest">>) -> "reckon_health";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.HealthRequest">>) -> "reckon_health";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.HealthCheckRequest">>) -> "reckon_health";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.GetServerInfoRequest">>) -> "reckon_health";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ClusterCheckRequest">>) -> "reckon_health";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ServerInfoResponse">>) -> "reckon_health";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.MemoryStatsResponse">>) -> "reckon_health";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.MemoryLevelResponse">>) -> "reckon_health";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.HealthResponse">>) -> "reckon_health";

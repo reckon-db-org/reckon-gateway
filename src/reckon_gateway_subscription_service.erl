@@ -1,7 +1,7 @@
 %% @doc gRPC SubscriptionService implementation.
 -module(reckon_gateway_subscription_service).
 
--include_lib("reckon_gater/include/esdb_gater_types.hrl").
+-include_lib("reckon_gater/include/reckon_gater_types.hrl").
 
 -export([
     subscribe/2,
@@ -27,13 +27,13 @@ subscribe(Stream, _Md) ->
     _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
     Self = self(),
     process_flag(trap_exit, true),
-    ok = esdb_gater_api:save_subscription(
+    ok = reckon_gater_api:save_subscription(
         StoreId, SubType, Selector, Name, StartFrom, Self),
     try
         stream_events_loop(Stream1, StoreId, Name)
     after
         %% Always clean up the subscription when the stream ends
-        esdb_gater_api:remove_subscription(StoreId, SubType, Selector, Name)
+        reckon_gater_api:remove_subscription(StoreId, SubType, Selector, Name)
     end.
 
 ack_event(#{store_id := StoreIdBin,
@@ -42,7 +42,7 @@ ack_event(#{store_id := StoreIdBin,
             event_number := EventNumber}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     AckMap = #{event_number => EventNumber},
-    ok = esdb_gater_api:ack_event(StoreId, StreamId, self(), AckMap),
+    ok = reckon_gater_api:ack_event(StoreId, StreamId, self(), AckMap),
     {ok, #{}, Md}.
 
 create_subscription(#{store_id := StoreIdBin,
@@ -54,7 +54,7 @@ create_subscription(#{store_id := StoreIdBin,
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SubType = reckon_gateway_convert:subscription_type(Type),
     _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
-    ok = esdb_gater_api:save_subscription(
+    ok = reckon_gater_api:save_subscription(
         StoreId, SubType, Selector, Name, StartFrom, undefined),
     SubId = iolist_to_binary([atom_to_binary(StoreId), <<":">>, Name]),
     {ok, #{subscription_id => SubId}, Md}.
@@ -65,12 +65,12 @@ remove_subscription(#{store_id := StoreIdBin,
                       subscription_name := Name}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SubType = reckon_gateway_convert:subscription_type(Type),
-    ok = esdb_gater_api:remove_subscription(StoreId, SubType, Selector, Name),
+    ok = reckon_gater_api:remove_subscription(StoreId, SubType, Selector, Name),
     {ok, #{}, Md}.
 
 list_subscriptions(#{store_id := StoreIdBin}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:get_subscriptions(StoreId) of
+    case reckon_gater_api:get_subscriptions(StoreId) of
         {ok, Subs} ->
             ProtoSubs = [reckon_gateway_convert:subscription_to_proto(S) || S <- Subs],
             {ok, #{subscriptions => ProtoSubs}, Md};
@@ -81,7 +81,7 @@ list_subscriptions(#{store_id := StoreIdBin}, Md) ->
 get_subscription(#{store_id := StoreIdBin,
                    subscription_name := Name}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:get_subscription(StoreId, Name) of
+    case reckon_gater_api:get_subscription(StoreId, Name) of
         {ok, Sub} ->
             {ok, reckon_gateway_convert:subscription_to_proto(Sub), Md};
         {error, _Reason} ->
@@ -91,7 +91,7 @@ get_subscription(#{store_id := StoreIdBin,
 get_subscription_lag(#{store_id := StoreIdBin,
                        subscription_name := Name}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:subscription_lag(StoreId, Name) of
+    case reckon_gater_api:subscription_lag(StoreId, Name) of
         {ok, LagInfo} ->
             {ok, #{lag => maps:get(lag, LagInfo, 0),
                    current_checkpoint => maps:get(checkpoint, LagInfo, 0),

@@ -1,9 +1,9 @@
 %% @doc gRPC StreamService implementation (emqx/grpc-erl).
 %%
-%% Delegates all stream operations to esdb_gater_api.
+%% Delegates all stream operations to reckon_gater_api.
 -module(reckon_gateway_stream_service).
 
--include_lib("reckon_gater/include/esdb_gater_types.hrl").
+-include_lib("reckon_gater/include/reckon_gater_types.hrl").
 
 -export([
     append_events/2,
@@ -25,7 +25,7 @@ append_events(#{store_id := StoreIdBin,
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     Events = [reckon_gateway_convert:proposed_to_event(E, StreamId)
               || E <- ProposedEvents],
-    case esdb_gater_api:append_events(StoreId, StreamId, ExpectedVersion, Events) of
+    case reckon_gater_api:append_events(StoreId, StreamId, ExpectedVersion, Events) of
         {ok, NewVersion} ->
             {ok, #{version => NewVersion,
                    position => 0,
@@ -40,7 +40,7 @@ read_stream_forward(#{store_id := StoreIdBin,
                       count := Count}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SafeCount = safe_count(Count),
-    case esdb_gater_api:stream_forward(StoreId, StreamId, StartVersion, SafeCount) of
+    case reckon_gater_api:stream_forward(StoreId, StreamId, StartVersion, SafeCount) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
             {ok, #{events => Recorded}, Md};
@@ -54,7 +54,7 @@ read_stream_backward(#{store_id := StoreIdBin,
                        count := Count}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SafeCount = safe_count(Count),
-    case esdb_gater_api:stream_backward(StoreId, StreamId, StartVersion, SafeCount) of
+    case reckon_gater_api:stream_backward(StoreId, StreamId, StartVersion, SafeCount) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
             {ok, #{events => Recorded}, Md};
@@ -71,7 +71,7 @@ stream_events_forward(Stream, _Md) ->
       count := Count} = Request,
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     SafeCount = safe_count(Count),
-    case esdb_gater_api:stream_forward(StoreId, StreamId, StartVersion, SafeCount) of
+    case reckon_gater_api:stream_forward(StoreId, StreamId, StartVersion, SafeCount) of
         {ok, Events} ->
             lists:foreach(
                 fun(E) ->
@@ -86,7 +86,7 @@ stream_events_forward(Stream, _Md) ->
 get_stream_version(#{store_id := StoreIdBin,
                      stream_id := StreamId}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:get_version(StoreId, StreamId) of
+    case reckon_gater_api:get_version(StoreId, StreamId) of
         {ok, Version} ->
             {ok, #{version => Version}, Md};
         {error, _Reason} ->
@@ -95,7 +95,7 @@ get_stream_version(#{store_id := StoreIdBin,
 
 list_streams(#{store_id := StoreIdBin}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:get_streams(StoreId) of
+    case reckon_gater_api:get_streams(StoreId) of
         {ok, Streams} ->
             {ok, #{stream_ids => Streams}, Md};
         {error, _Reason} ->
@@ -105,7 +105,7 @@ list_streams(#{store_id := StoreIdBin}, Md) ->
 delete_stream(#{store_id := StoreIdBin,
                 stream_id := StreamId}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:delete_stream(StoreId, StreamId) of
+    case reckon_gater_api:delete_stream(StoreId, StreamId) of
         ok ->
             {ok, #{}, Md};
         {error, _Reason} ->
@@ -117,7 +117,7 @@ read_by_event_types(#{store_id := StoreIdBin,
                       batch_size := BatchSize}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     BS = safe_count(BatchSize),
-    case esdb_gater_api:read_by_event_types(StoreId, EventTypes, BS) of
+    case reckon_gater_api:read_by_event_types(StoreId, EventTypes, BS) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
             {ok, #{events => Recorded}, Md};
@@ -135,7 +135,7 @@ read_by_tags(#{store_id := StoreIdBin,
         _ -> any
     end,
     Opts = #{match => MatchAtom, batch_size => safe_count(BatchSize)},
-    case esdb_gater_api:read_by_tags(StoreId, Tags, Opts) of
+    case reckon_gater_api:read_by_tags(StoreId, Tags, Opts) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
             {ok, #{events => Recorded}, Md};
@@ -148,7 +148,7 @@ read_all_global(#{store_id := StoreIdBin,
                   limit := Limit}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     L = safe_count(Limit),
-    case esdb_gater_api:read_all_global(StoreId, Offset, L) of
+    case reckon_gater_api:read_all_global(StoreId, Offset, L) of
         {ok, Events} ->
             Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
             {ok, #{events => Recorded}, Md};

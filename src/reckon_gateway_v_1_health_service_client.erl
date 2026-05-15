@@ -163,3 +163,23 @@ get_memory_stats(Req, Metadata, Options) ->
                            memory_stats_request, memory_stats_response, <<"reckon.gateway.v1.MemoryStatsRequest">>),
                       Req, Metadata, Options).
 
+-spec get_server_info(reckon_health_pb:get_server_info_request())
+    -> {ok, reckon_health_pb:server_info_response(), grpc:metadata()}
+     | {error, term()}.
+get_server_info(Req) ->
+    get_server_info(Req, #{}, #{}).
+
+-spec get_server_info(reckon_health_pb:get_server_info_request(), grpc:options())
+    -> {ok, reckon_health_pb:server_info_response(), grpc:metadata()}
+     | {error, term()}.
+get_server_info(Req, Options) ->
+    get_server_info(Req, #{}, Options).
+
+-spec get_server_info(reckon_health_pb:get_server_info_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_health_pb:server_info_response(), grpc:metadata()}
+     | {error, term()}.
+get_server_info(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.HealthService/GetServerInfo">>,
+                           get_server_info_request, server_info_response, <<"reckon.gateway.v1.GetServerInfoRequest">>),
+                      Req, Metadata, Options).
+

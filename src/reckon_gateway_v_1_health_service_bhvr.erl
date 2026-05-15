@@ -35,3 +35,7 @@
     -> {ok, reckon_health_pb:memory_stats_response(), grpc:metadata()}
      | {error, grpc_stream:error_response()}.
 
+-callback get_server_info(reckon_health_pb:get_server_info_request(), grpc:metadata())
+    -> {ok, reckon_health_pb:server_info_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
+

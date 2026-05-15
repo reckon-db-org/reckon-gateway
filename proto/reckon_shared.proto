@@ -45,6 +45,23 @@ message RecordedEvent {
   int64 epoch_us = 9;
   string data_content_type = 10;
   string metadata_content_type = 11;
+
+  // Tamper-resistance fields (added in reckon-gateway 0.2.0,
+  // corresponding to reckon-db / reckon-gater 2.1.0).
+  //
+  // SHA-256 chain hash linking this event back to its predecessor
+  // in the same stream. Empty bytes for legacy events written
+  // before integrity was enabled for the stream. Polyglot clients
+  // can verify chain continuity with their own SHA-256 implementation
+  // by walking the events they receive — no shared secret required.
+  //
+  // The corresponding HMAC field on the storage side is NEVER
+  // transmitted: it is a symmetric secret bound to the per-store
+  // HMAC key, and leaking it to gateway clients would defeat its
+  // purpose. External authenticity (verifiable without the HMAC
+  // key) is a future reckon-gateway feature backed by Ed25519
+  // signatures.
+  bytes prev_event_hash = 12;
 }
 
 // ──────────────────────────────────────────────
@@ -57,6 +74,19 @@ message SnapshotRecord {
   bytes data = 3;
   bytes metadata = 4;
   int64 timestamp = 5;
+
+  // Tamper-resistance fields (added in reckon-gateway 0.2.0).
+  //
+  // SHA-256 chain hash of the event at this snapshot's `version`,
+  // captured at snapshot-save time. On the client side, this lets
+  // a consumer verify that the snapshot has not been tampered with
+  // and that the underlying stream has not been mutated AFTER the
+  // snapshot was taken (by recomputing the chain hash at `version`
+  // from the events).
+  //
+  // Empty bytes for legacy snapshots written before integrity was
+  // enabled on the store.
+  bytes anchor_hash = 6;
 }
 
 // ──────────────────────────────────────────────

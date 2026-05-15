@@ -1,7 +1,7 @@
 %% @doc gRPC SnapshotService implementation.
 -module(reckon_gateway_snapshot_service).
 
--include_lib("reckon_gater/include/esdb_gater_types.hrl").
+-include_lib("reckon_gater/include/reckon_gater_types.hrl").
 
 -export([
     record_snapshot/2,
@@ -23,7 +23,7 @@ record_snapshot(#{store_id := StoreIdBin,
         metadata => json:decode(Metadata),
         version => Version
     },
-    ok = esdb_gater_api:record_snapshot(
+    ok = reckon_gater_api:record_snapshot(
         StoreId, SourceUuid, StreamUuid, Version, SnapshotRecord),
     {ok, #{}, Md}.
 
@@ -32,7 +32,7 @@ read_snapshot(#{store_id := StoreIdBin,
                 stream_uuid := StreamUuid,
                 version := Version}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:read_snapshot(StoreId, SourceUuid, StreamUuid, Version) of
+    case reckon_gater_api:read_snapshot(StoreId, SourceUuid, StreamUuid, Version) of
         {ok, Snapshot} ->
             {ok, reckon_gateway_convert:snapshot_to_proto(Snapshot), Md};
         {error, _Reason} ->
@@ -44,14 +44,14 @@ delete_snapshot(#{store_id := StoreIdBin,
                   stream_uuid := StreamUuid,
                   version := Version}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    ok = esdb_gater_api:delete_snapshot(StoreId, SourceUuid, StreamUuid, Version),
+    ok = reckon_gater_api:delete_snapshot(StoreId, SourceUuid, StreamUuid, Version),
     {ok, #{}, Md}.
 
 list_snapshots(#{store_id := StoreIdBin,
                  source_uuid := SourceUuid,
                  stream_uuid := StreamUuid}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:list_snapshots(StoreId, SourceUuid, StreamUuid) of
+    case reckon_gater_api:list_snapshots(StoreId, SourceUuid, StreamUuid) of
         {ok, Snapshots} ->
             ProtoSnapshots = [reckon_gateway_convert:snapshot_to_proto(S) || S <- Snapshots],
             {ok, #{snapshots => ProtoSnapshots}, Md};
@@ -61,7 +61,7 @@ list_snapshots(#{store_id := StoreIdBin,
 
 list_all_snapshots(#{store_id := StoreIdBin}, Md) ->
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case esdb_gater_api:list_all_snapshots(StoreId) of
+    case reckon_gater_api:list_all_snapshots(StoreId) of
         {ok, Snapshots} ->
             ProtoSnapshots = [reckon_gateway_convert:snapshot_to_proto(S) || S <- Snapshots],
             {ok, #{snapshots => ProtoSnapshots}, Md};

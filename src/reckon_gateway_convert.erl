@@ -4,7 +4,7 @@
 %% protocol (e.g., from gRPC to REST) only requires replacing this module.
 -module(reckon_gateway_convert).
 
--include_lib("reckon_gater/include/esdb_gater_types.hrl").
+-include_lib("reckon_gater/include/reckon_gater_types.hrl").
 
 -export([
     %% Proto → Gater
@@ -72,6 +72,16 @@ subscription_type(5) -> tags.
 %%====================================================================
 
 %% @doc Convert a gater #event{} record to a RecordedEvent proto map.
+%%
+%% Egress integrity policy (reckon-gateway 0.2.0):
+%%   - prev_event_hash IS propagated. Polyglot clients can verify
+%%     chain continuity with their own SHA-256 implementation.
+%%   - mac is NEVER propagated. The HMAC is a symmetric secret bound
+%%     to the per-store key; leaking it to gateway clients would
+%%     defeat its purpose. External authenticity is the job of a
+%%     future Ed25519 signature field, not the storage-layer MAC.
+%%   - signature is reserved for the same future role; not yet
+%%     populated server-side, not yet exposed on the wire.
 -spec event_to_recorded(#event{}) -> map().
 event_to_recorded(#event{} = E) ->
     #{
@@ -85,10 +95,14 @@ event_to_recorded(#event{} = E) ->
         timestamp => E#event.timestamp,
         epoch_us => E#event.epoch_us,
         data_content_type => E#event.data_content_type,
-        metadata_content_type => E#event.metadata_content_type
+        metadata_content_type => E#event.metadata_content_type,
+        prev_event_hash => integrity_bytes(E#event.prev_event_hash)
     }.
 
 %% @doc Convert a gater #snapshot{} record to a SnapshotRecord proto map.
+%%
+%% Egress integrity policy: anchor_hash on the wire; mac NEVER on the
+%% wire. Same rationale as event_to_recorded/1.
 -spec snapshot_to_proto(#snapshot{}) -> map().
 snapshot_to_proto(#snapshot{} = S) ->
     #{
@@ -96,8 +110,18 @@ snapshot_to_proto(#snapshot{} = S) ->
         version => S#snapshot.version,
         data => encode_data(S#snapshot.data, ?CONTENT_TYPE_JSON),
         metadata => encode_data(S#snapshot.metadata, ?CONTENT_TYPE_JSON),
-        timestamp => S#snapshot.timestamp
+        timestamp => S#snapshot.timestamp,
+        anchor_hash => integrity_bytes(S#snapshot.anchor_hash)
     }.
+
+%% @private Wire-format helper for the optional integrity hash fields.
+%%
+%% Proto3 `bytes` is non-nullable; `undefined` on the Erlang side maps
+%% to an empty binary on the wire. Clients receiving empty bytes
+%% should interpret it as "legacy event/snapshot — no integrity"
+%% rather than "integrity check failed".
+integrity_bytes(undefined) -> <<>>;
+integrity_bytes(Hash) when is_binary(Hash) -> Hash.
 
 %% @doc Convert a gater #subscription{} record to a SubscriptionInfo proto map.
 -spec subscription_to_proto(#subscription{}) -> map().
