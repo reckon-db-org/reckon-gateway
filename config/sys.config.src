@@ -1,0 +1,56 @@
+%% Runtime config — env-var driven where it varies per deployment.
+%%
+%% Variables read from env (with sensible defaults in the Dockerfile):
+%%
+%%   RECKON_GATEWAY_PORT       — gRPC listen port (default 50051)
+%%   RECKON_DB_DATA_DIR        — base path for store data
+%%   RECKON_DB_STORE_MODE      — `single' or `cluster'
+%%   RECKON_DB_CLUSTER_PORT    — gossip discovery UDP port (default 45892)
+%%   RECKON_DB_CLUSTER_MULTICAST_ADDR
+%%                              — discovery multicast group (default 239.255.0.1)
+%%   RECKON_DB_CLUSTER_SECRET  — shared secret for gossip auth
+%%                              (READ DIRECTLY by reckon_db_discovery via os:getenv)
+
+[
+    {reckon_gateway, [
+        {listen_port, ${RECKON_GATEWAY_PORT}},
+        {listen_ip, {0, 0, 0, 0}}
+    ]},
+
+    {reckon_db, [
+        %% Gossip discovery parameters. reckon_db_discovery reads
+        %% these via application:get_env/2.
+        {cluster_port, ${RECKON_DB_CLUSTER_PORT}},
+        {cluster_multicast_addr, "${RECKON_DB_CLUSTER_MULTICAST_ADDR}"},
+
+        {stores, [
+            {default_store, [
+                {data_dir, "${RECKON_DB_DATA_DIR}/default_store"},
+                {mode, ${RECKON_DB_STORE_MODE}},
+                {writer_pool_size, 10},
+                {reader_pool_size, 10},
+                {gateway_pool_size, 2}
+            ]}
+        ]}
+    ]},
+
+    {reckon_gater, [
+        {retry, [
+            {base_delay_ms, 100},
+            {max_delay_ms, 30000},
+            {max_attempts, 10}
+        ]}
+    ]},
+
+    {kernel, [
+        {logger_level, info},
+        {logger, [
+            {handler, default, logger_std_h, #{
+                level => info,
+                formatter => {logger_formatter, #{
+                    template => [time, " [", level, "] ", msg, "\n"]
+                }}
+            }}
+        ]}
+    ]}
+].

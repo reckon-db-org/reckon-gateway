@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.3.0 (2026-05-16)
+
+### Added — Env-var driven config for cluster deployments
+
+`vm.args` and `sys.config` rewritten as `.src` templates that substitute environment variables at release startup. Enables multi-host cluster deployments without per-host image builds.
+
+Variables (defaults set in the Dockerfile for standalone use):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `NODE_NAME` | `reckon_gateway@127.0.0.1` | BEAM long node name (set per-host in cluster) |
+| `RELEASE_COOKIE` | `reckon_gateway_default_cookie_change_in_prod` | Distribution cookie (same across cluster) |
+| `RECKON_GATEWAY_PORT` | `50051` | gRPC listen port |
+| `RECKON_DB_DATA_DIR` | `/app/data` | Base path for store data |
+| `RECKON_DB_STORE_MODE` | `single` | `single` or `cluster` |
+| `RECKON_DB_CLUSTER_PORT` | `45892` | UDP gossip discovery port |
+| `RECKON_DB_CLUSTER_MULTICAST_ADDR` | `239.255.0.1` | Gossip multicast group |
+| `RECKON_DB_CLUSTER_SECRET` | `reckon_db_default_secret_change_in_prod` | Gossip auth secret (same across cluster) |
+
+### Changed
+
+- `vm.args` switched from `-sname reckon_gateway` (short names) to `-name ${NODE_NAME}` (long names) — required for cross-host BEAM distribution.
+- relx config in `rebar.config` switched to `sys_config_src` + `vm_args_src` directives.
+- Bumped version 0.1.0 → 0.3.0 in both `relx` blocks (they were stale; CHANGELOG had moved to 0.2.0 without bumping the release version).
+
+### Notes
+
+The reckon-db cluster machinery (gossip discovery, store coordinator, node monitor, leader supervisor) already exists in reckon-db proper as a pure-Erlang port of the ExESDB libcluster-Gossip recipe. This release exposes the configuration surface so an operator can drive that machinery from outside the BEAM.
+
 ## 0.2.0 (2026-05-15)
 
 ### Added — Tamper-resistance fields on the wire + GetServerInfo

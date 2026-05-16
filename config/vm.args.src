@@ -1,0 +1,24 @@
+## BEAM distribution config — env-var driven for cluster deployments.
+##
+## Defaults make the image work standalone (single-node, default cookie).
+## Cluster deployments must set NODE_NAME and RELEASE_COOKIE in the
+## environment (same RELEASE_COOKIE on every cluster node).
+
+## Long node name. Format: NAME@HOSTNAME. Hostname must resolve from
+## peers — in container deployments use network_mode: host so the
+## host's hostname is reachable on the lab subnet.
+-name ${NODE_NAME}
+
+## Cookie for distributed Erlang. MUST match on every peer to form
+## a cluster. Treat as a secret (it's the only auth between BEAM
+## dist nodes).
+-setcookie ${RELEASE_COOKIE}
+
+## Increase process limit
++P 1048576
+
+## Increase port limit
++Q 65536
+
+## Distribution buffer
++zdbbl 32768

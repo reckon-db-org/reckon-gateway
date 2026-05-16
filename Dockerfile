@@ -56,8 +56,24 @@ EXPOSE 9100-9200
 # ReckonDB discovery (UDP multicast)
 EXPOSE 45892/udp
 
+# Runtime config — all overridable via the container's environment.
+# Defaults make the image run standalone (single-node, default cookie).
+# For clustered deployments set RECKON_DB_STORE_MODE=cluster + a unique
+# NODE_NAME per host + a shared RELEASE_COOKIE + a shared
+# RECKON_DB_CLUSTER_SECRET.
 ENV RECKON_GATEWAY_PORT=50051
 ENV RECKON_DB_DATA_DIR=/app/data
+
+# BEAM distribution — long names. NODE_NAME is the full -name value.
+# Standalone default uses localhost; cluster overrides this per host.
+ENV NODE_NAME=reckon_gateway@127.0.0.1
+ENV RELEASE_COOKIE=reckon_gateway_default_cookie_change_in_prod
+
+# reckon-db store mode + cluster discovery params.
+ENV RECKON_DB_STORE_MODE=single
+ENV RECKON_DB_CLUSTER_PORT=45892
+ENV RECKON_DB_CLUSTER_MULTICAST_ADDR=239.255.0.1
+ENV RECKON_DB_CLUSTER_SECRET=reckon_db_default_secret_change_in_prod
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD /app/bin/reckon_gateway ping || exit 1
