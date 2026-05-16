@@ -5,7 +5,7 @@
 FROM erlang:27-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git ca-certificates && \
+    git curl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 # Install rebar3
