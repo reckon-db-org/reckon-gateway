@@ -54,9 +54,25 @@ proposed_to_event(Proposed, _StreamId) ->
     }.
 
 %% @doc Convert a string store_id to an atom.
+%%
+%% Uses `binary_to_atom/2', NOT `binary_to_existing_atom/2', so
+%% clients can create new stores on demand. To prevent atom-table
+%% exhaustion attacks, the input is length-capped (64 bytes) and
+%% must match a conservative identifier regex.
+%%
+%% Crashes with `{invalid_store_id, BinId}' on violation, which the
+%% gRPC handler surfaces as `INVALID_ARGUMENT' (status 3).
+-define(STORE_ID_REGEX, <<"^[a-zA-Z][a-zA-Z0-9_-]*$">>).
+-define(STORE_ID_MAX_BYTES, 64).
+
 -spec store_id(binary()) -> atom().
+store_id(BinId) when is_binary(BinId), byte_size(BinId) =< ?STORE_ID_MAX_BYTES ->
+    case re:run(BinId, ?STORE_ID_REGEX, [{capture, none}]) of
+        match   -> binary_to_atom(BinId, utf8);
+        nomatch -> error({invalid_store_id, BinId})
+    end;
 store_id(BinId) ->
-    binary_to_existing_atom(BinId, utf8).
+    error({invalid_store_id, BinId}).
 
 %% @doc Convert proto SubscriptionType enum to gater atom.
 -spec subscription_type(integer()) -> subscription_type().
