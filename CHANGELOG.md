@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.4.0 (2026-05-17)
+
+### Added — `StoresService` (cluster topology discovery)
+
+New gRPC service `reckon.gateway.v1.StoresService` for discovery
+of currently-running stores. Read-only — store lifecycle stays a
+deployment concern (sys.config, hecate-gitops, podman units), the
+same primitive that bootstraps `default_store`.
+
+```
+service StoresService {
+  rpc ListStores  (ListStoresRequest)  returns (ListStoresResponse);
+  rpc GetStore    (GetStoreRequest)    returns (GetStoreResponse);
+  rpc WatchStores (WatchStoresRequest) returns (stream StoreEvent);
+}
+```
+
+Backed by `reckon_db 2.2.0`'s cluster-wide `reckon_db_store_registry`
+discovery + `subscribe/1` watcher API. The `WatchStores`
+server-stream emits the current snapshot (optional) then live
+`STORE_EVENT_TYPE_ANNOUNCED` / `STORE_EVENT_TYPE_RETIRED` events
+as stores come and go anywhere in the cluster.
+
+The proto-level surface is multi-store-ready — every per-store
+service (`StreamService`, `SubscriptionService`, etc.) already
+takes a `store_id` field. Operators add new stores by deploying
+them; `StoresService` makes them discoverable.
+
+### Bumps
+
+- `reckon_db`: `~> 2.1` → `~> 2.2` (for the new discovery surface)
+
+### Fixed — Server-streaming RPC plumbing (carried from 0.3.x patches)
+
+Consolidated from previously-deployed images that never had a
+formal 0.3.x release tag:
+
+  - cowboy/cowlib mismatch: emqx/cowboy fork (2.9.0) routed
+    `{trailers, _}` through `send_or_queue_data` which has no
+    trailer clause in current cowlib → `case_clause` crash on
+    every server-streaming RPC at stream end. Switched to
+    mainline cowboy 2.15.0 + cowlib 2.16.1 + ranch 1.8.1.
+
+  - `reckon_gateway_convert:subscription_type/1` only handled
+    integer enums; gpb hands the handler proto atoms
+    (`'SUBSCRIPTION_TYPE_STREAM'`). Added atom clauses.
+
+  - `reckon_gateway_subscription_service:stream_events_loop/3`
+    threaded the cowboy stream through `lists:foldl/3` but
+    `grpc_stream:reply/2` returns `ok`. Second iteration crashed
+    with `function_clause`. Switched to `foreach`.
+
 ## 0.3.0 (2026-05-16)
 
 ### Added — Env-var driven config for cluster deployments

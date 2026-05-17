@@ -23,7 +23,8 @@ init([]) ->
             reckon_temporal_pb,
             reckon_causation_pb,
             reckon_schema_pb,
-            reckon_admin_pb
+            reckon_admin_pb,
+            reckon_stores_pb
         ],
         services => #{
             'reckon.gateway.v1.StreamService' =>
@@ -41,7 +42,9 @@ init([]) ->
             'reckon.gateway.v1.SchemaService' =>
                 reckon_gateway_schema_service,
             'reckon.gateway.v1.AdminService' =>
-                reckon_gateway_admin_service
+                reckon_gateway_admin_service,
+            'reckon.gateway.v1.StoresService' =>
+                reckon_gateway_stores_service
         }
     },
 
