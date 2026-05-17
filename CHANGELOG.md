@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.2 (2026-05-17)
+
+### Removed — `AdminService.ListStores` handler
+
+Aligns with `reckon-proto 0.2.0` which dropped the redundant
+`AdminService.ListStores` RPC (superseded by `StoresService.ListStores`).
+The handler in `reckon_gateway_admin_service.erl` was already
+returning a buggy projection (treated the registry map as a list
+of atoms); deleting it is cleanup, not a behaviour change.
+
+`reckon_proto` dep bumped `v0.1.0` → `v0.2.0`.
+
 ## 0.4.1 (2026-05-17)
 
 ### Changed — Proto bundle moved to `reckon-proto`

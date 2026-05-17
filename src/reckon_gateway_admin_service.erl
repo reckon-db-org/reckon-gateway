@@ -6,7 +6,6 @@
     get_store_stats/2,
     get_stream_info/2,
     get_event_type_summary/2,
-    list_stores/2,
     %% Scavenging
     scavenge/2,
     scavenge_matching/2,
@@ -60,15 +59,6 @@ get_event_type_summary(#{store_id := StoreIdBin}, Md) ->
                          count => maps:get(count, S, 0)}
                        || S <- Summary],
             {ok, #{entries => Entries}, Md};
-        {error, _Reason} ->
-            {error, <<"13">>}
-    end.
-
-list_stores(#{}, Md) ->
-    case reckon_gater_api:list_stores() of
-        {ok, Stores} ->
-            StoreIds = [atom_to_binary(S, utf8) || S <- Stores],
-            {ok, #{store_ids => StoreIds}, Md};
         {error, _Reason} ->
             {error, <<"13">>}
     end.
