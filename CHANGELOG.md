@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.4 (2026-05-17)
+
+### Changed — reckon_db dep back on hex
+
+Switches `reckon_db` from the temporary git+tag pin (`v2.2.2`)
+back to the standard hex constraint (`~> 2.2`). reckon_db 2.2.2
+is now published on hex.pm; the git pin was only a stopgap during
+0.4.3's live verification of the cluster Health RPC fix. No
+behaviour change.
+
 ## 0.4.3 (2026-05-17)
 
 ### Fixed — HealthService cluster RPCs no longer hang
