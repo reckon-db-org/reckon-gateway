@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.3 (2026-05-17)
+
+### Fixed — HealthService cluster RPCs no longer hang
+
+`HealthService.Check`, `VerifyClusterConsistency`,
+`VerifyMembershipConsensus`, and `CheckRaftLogConsistency` had been
+hanging the client until its deadline because
+`reckon_db_gateway_worker` was calling into a `reckon_db_cluster`
+module that didn't exist — a long-standing dangling reference left
+over from reckon-db's `esdb_* → reckon_db_*` rename. Invisible
+until the new reckon-go SDK actually started calling these RPCs.
+
+Fixed in `reckon_db 2.2.1` by adding the missing module; this
+release pins to that version. No gateway-side changes were
+needed.
+
+This release temporarily pulls reckon_db via git+tag (v2.2.1)
+rather than hex; 0.4.4 will switch back to a hex constraint once
+2.2.1 is published.
+
 ## 0.4.2 (2026-05-17)
 
 ### Removed — `AdminService.ListStores` handler
