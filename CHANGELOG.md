@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.7 (2026-05-18)
+
+### Updated
+
+- Pinned `reckon_db` to `~> 2.3.3` (was `~> 2.3.2` resolved).
+  reckon-db 2.3.3 adds an append-time stream-id format validator
+  that gates every write path through this gateway. Malformed
+  ids (e.g. `partition$XYZ`, `test$basic-stream`) are now
+  rejected with `{error, {invalid_stream_id, Reason, StreamId}}`,
+  which the gateway already maps to gRPC `InvalidArgument`.
+
+No source changes in the gateway itself; this is a deps-only
+release so the deployed image cleanly reflects the upstream
+ruleset.
+
 ## 0.4.6 (2026-05-17)
 
 ### Fixed — Subscription lag tolerates legacy + new field names
