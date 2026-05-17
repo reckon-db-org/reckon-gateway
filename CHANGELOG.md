@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.1 (2026-05-17)
+
+### Changed — Proto bundle moved to `reckon-proto`
+
+The 10 `.proto` files that lived under `proto/` in this repo are
+now consumed from the canonical [reckon-proto](https://codeberg.org/reckon-db-org/reckon-proto)
+bundle as a pinned git dep (`v0.1.0`). The gateway is no longer
+the source of truth for the wire contract.
+
+Build-time behaviour unchanged: `grpc_plugin` regenerates the
+same `_pb` and `_service_*` modules, just from the fetched dep
+path instead of a local subdir. Wire-level behaviour unchanged.
+
+Rationale: SDK consumers (`reckon-go`, future `reckon-ts`,
+`reckon-rust`, etc.) need a single canonical proto repo to
+depend on. Having the gateway also depend on it eliminates the
+last source of drift.
+
 ## 0.4.0 (2026-05-17)
 
 ### Added — `StoresService` (cluster topology discovery)

@@ -18,9 +18,11 @@ WORKDIR /app
 COPY rebar.config rebar.lock* ./
 RUN rebar3 deps
 
-# Copy source
+# Copy source (protos no longer live in this repo — they're fetched
+# from the reckon-proto git dep during `rebar3 deps' above, ending up
+# at _build/default/lib/reckon_proto/proto/ where grpc_plugin reads
+# them).
 COPY config/ config/
-COPY proto/ proto/
 COPY src/ src/
 COPY include/ include/
 
