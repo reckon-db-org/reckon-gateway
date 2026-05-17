@@ -4,9 +4,29 @@
 # ── Builder ──
 FROM erlang:27-slim AS builder
 
+# git/curl/ca-certificates: rebar3 deps fetching
+# build-essential: required by `cargo build` to link the NIF .so files
+# Rust toolchain installed below; needed at build time so reckon-db
+# can compile its embedded NIFs (reckon_db_*_nif crates under
+# native/) into priv/ during `rebar3 compile`. Without Rust here the
+# build would silently fall back to pure-Erlang implementations and
+# the cluster would lose 3-15× speedups on hot crypto/hash/archive
+# paths.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl ca-certificates && \
+    git curl ca-certificates build-essential && \
     rm -rf /var/lib/apt/lists/*
+
+# Rust via rustup, pinned to a recent stable. -y/--default-toolchain
+# avoids the interactive prompt; --profile minimal skips docs to
+# keep the layer small. Final image size impact is zero (this is a
+# multi-stage build — only the built release is copied to runtime).
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH \
+    RUST_VERSION=1.82.0
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --default-toolchain ${RUST_VERSION} --profile minimal \
+    && rustc --version && cargo --version
 
 # Install rebar3
 RUN curl -fsSL https://s3.amazonaws.com/rebar3/rebar3 -o /usr/local/bin/rebar3 && \
@@ -26,7 +46,10 @@ COPY config/ config/
 COPY src/ src/
 COPY include/ include/
 
-# Generate gRPC stubs and build release
+# Generate gRPC stubs and build release. The `rebar3 compile` step
+# (invoked by `release`) runs reckon-db's pre_hook which builds the
+# six Rust NIFs into _build/default/lib/reckon_db/priv/*.so. Those
+# .so files get bundled into the release tarball by relx.
 RUN rebar3 grpc gen && \
     rebar3 as prod release
 

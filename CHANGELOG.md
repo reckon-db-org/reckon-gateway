@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.4.5 (2026-05-17)
+
+### Added — NIF acceleration end-to-end
+
+Brings reckon-db 2.3.1's embedded Rust NIFs into the production
+build, giving the cluster 3-15× speedups on the hot paths:
+
+| Wrapper module | Speedup |
+|----------------|---------|
+| `reckon_db_crypto_nif` (Ed25519, SHA256) | 3-5× |
+| `reckon_db_archive_nif` (LZ4 compression) | 5-8× |
+| `reckon_db_hash_nif` (xxHash, FNV-1a) | 10-15× |
+| `reckon_db_aggregate_nif` (vectorised aggregation) | 5-10× |
+| `reckon_db_filter_nif` (regex/pattern) | 3-5× |
+| `reckon_db_graph_nif` (graph algorithms) | 5-10× |
+
+#### Changes
+
+- `rebar.config`: `reckon_db` constraint bumped `~> 2.2 → ~> 2.3`
+  (resolves to 2.3.1 from hex). reckon-db 2.3.x ships the six
+  NIF crate sources under `native/` and the build-nifs.sh hook
+  that compiles them.
+- `Dockerfile` builder stage: installs `build-essential` plus the
+  Rust 1.82.0 toolchain via rustup. Needed at build time so
+  `rebar3 compile` can invoke `cargo build --release` for each
+  reckon-db NIF crate. Final image size unchanged (this is a
+  multi-stage build — only the assembled release is copied to
+  the slim runtime image).
+
+#### Operator notes
+
+After deploying 0.4.5, the gateway boot logs should flip from
+
+    [reckon_db_hash_nif] NIF not available (no_nif_found), using
+                        pure Erlang - Community mode
+
+to
+
+    [reckon_db_hash_nif] NIF loaded - Enterprise mode
+
+for all six modules. If you still see Community-mode logs the
+cargo build step silently failed — check the builder-stage logs
+for compilation errors. The fallback path stays functionally
+correct in either case.
+
 ## 0.4.4 (2026-05-17)
 
 ### Changed — reckon_db dep back on hex
