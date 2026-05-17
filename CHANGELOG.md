@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.6 (2026-05-17)
+
+### Fixed — Subscription lag tolerates legacy + new field names
+
+`reckon_gateway_subscription_service:get_subscription_lag/2` read
+`#{lag, latest_version, ...}` from the gater response, but
+`reckon_db_store_inspector:subscription_lag/2` emits
+`#{lag_events, latest_position, ...}`. The mismatch returned a
+zero-padded response on every successful lookup. Now accepts both
+shapes (alongside the reckon-db 2.3.2 case_clause crash fix).
+
+### Updated
+
+- Pinned `reckon_db` to `~> 2.3.2` (was `~> 2.3.1`). Picks up
+  three gateway-facing bug fixes: `by_stream` filter no longer
+  rejects plain stream ids, `subscription_lag` no longer crashes
+  the worker, `ReadSnapshot` with version=0 returns the latest.
+
 ## 0.4.5 (2026-05-17)
 
 ### Added — NIF acceleration end-to-end

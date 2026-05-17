@@ -83,26 +83,6 @@ get_event_type_summary(Req, Metadata, Options) ->
                            event_type_summary_request, event_type_summary_response, <<"reckon.gateway.v1.EventTypeSummaryRequest">>),
                       Req, Metadata, Options).
 
--spec list_stores(reckon_admin_pb:list_stores_request())
-    -> {ok, reckon_admin_pb:list_stores_response(), grpc:metadata()}
-     | {error, term()}.
-list_stores(Req) ->
-    list_stores(Req, #{}, #{}).
-
--spec list_stores(reckon_admin_pb:list_stores_request(), grpc:options())
-    -> {ok, reckon_admin_pb:list_stores_response(), grpc:metadata()}
-     | {error, term()}.
-list_stores(Req, Options) ->
-    list_stores(Req, #{}, Options).
-
--spec list_stores(reckon_admin_pb:list_stores_request(), grpc:metadata(), grpc_client:options())
-    -> {ok, reckon_admin_pb:list_stores_response(), grpc:metadata()}
-     | {error, term()}.
-list_stores(Req, Metadata, Options) ->
-    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/ListStores">>,
-                           list_stores_request, list_stores_response, <<"reckon.gateway.v1.ListStoresRequest">>),
-                      Req, Metadata, Options).
-
 -spec scavenge(reckon_admin_pb:scavenge_request())
     -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
      | {error, term()}.

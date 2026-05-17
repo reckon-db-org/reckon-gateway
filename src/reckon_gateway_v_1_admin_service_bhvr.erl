@@ -19,10 +19,6 @@
     -> {ok, reckon_admin_pb:event_type_summary_response(), grpc:metadata()}
      | {error, grpc_stream:error_response()}.
 
--callback list_stores(reckon_admin_pb:list_stores_request(), grpc:metadata())
-    -> {ok, reckon_admin_pb:list_stores_response(), grpc:metadata()}
-     | {error, grpc_stream:error_response()}.
-
 -callback scavenge(reckon_admin_pb:scavenge_request(), grpc:metadata())
     -> {ok, reckon_admin_pb:scavenge_response(), grpc:metadata()}
      | {error, grpc_stream:error_response()}.

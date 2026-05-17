@@ -93,9 +93,21 @@ get_subscription_lag(#{store_id := StoreIdBin,
     StoreId = reckon_gateway_convert:store_id(StoreIdBin),
     case reckon_gater_api:subscription_lag(StoreId, Name) of
         {ok, LagInfo} ->
-            {ok, #{lag => maps:get(lag, LagInfo, 0),
-                   current_checkpoint => maps:get(checkpoint, LagInfo, 0),
-                   latest_version => maps:get(latest_version, LagInfo, 0)}, Md};
+            %% reckon_db_store_inspector:subscription_lag/2 returns
+            %% #{checkpoint, latest_position, lag_events, ...}. Older
+            %% code paths emitted #{lag, latest_version, ...}. Accept
+            %% both shapes here so the gateway is robust across
+            %% reckon-db versions.
+            Checkpoint     = maps:get(checkpoint, LagInfo, 0),
+            LatestPosition = maps:get(latest_position,
+                                      LagInfo,
+                                      maps:get(latest_version, LagInfo, 0)),
+            LagEvents      = maps:get(lag_events,
+                                      LagInfo,
+                                      maps:get(lag, LagInfo, 0)),
+            {ok, #{lag => LagEvents,
+                   current_checkpoint => Checkpoint,
+                   latest_version => LatestPosition}, Md};
         {error, _Reason} ->
             {error, <<"13">>}
     end.

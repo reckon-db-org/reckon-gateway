@@ -92,14 +92,6 @@
       #{entries                 => [event_type_summary_entry()] % = 1, repeated
        }.
 
--type list_stores_request() ::
-      #{
-       }.
-
--type list_stores_response() ::
-      #{store_ids               => [unicode:chardata()] % = 1, repeated
-       }.
-
 -type scavenge_request() ::
       #{store_id                => unicode:chardata(), % = 1, optional
         stream_id               => unicode:chardata(), % = 2, optional
@@ -189,9 +181,9 @@
         details                 => #{unicode:chardata() => unicode:chardata()} % = 4
        }.
 
--export_type(['store_stats_request'/0, 'store_stats_response'/0, 'stream_info_request'/0, 'stream_info_response'/0, 'event_type_summary_request'/0, 'event_type_summary_entry'/0, 'event_type_summary_response'/0, 'list_stores_request'/0, 'list_stores_response'/0, 'scavenge_request'/0, 'scavenge_response'/0, 'scavenge_matching_request'/0, 'scavenge_matching_response'/0, 'create_link_request'/0, 'create_link_response'/0, 'delete_link_request'/0, 'delete_link_response'/0, 'get_link_request'/0, 'link_info'/0, 'start_link_request'/0, 'start_link_response'/0, 'stop_link_request'/0, 'stop_link_response'/0, 'list_links_request'/0, 'list_links_response'/0, 'link_runtime_info'/0]).
--type '$msg_name'() :: store_stats_request | store_stats_response | stream_info_request | stream_info_response | event_type_summary_request | event_type_summary_entry | event_type_summary_response | list_stores_request | list_stores_response | scavenge_request | scavenge_response | scavenge_matching_request | scavenge_matching_response | create_link_request | create_link_response | delete_link_request | delete_link_response | get_link_request | link_info | start_link_request | start_link_response | stop_link_request | stop_link_response | list_links_request | list_links_response | link_runtime_info.
--type '$msg'() :: store_stats_request() | store_stats_response() | stream_info_request() | stream_info_response() | event_type_summary_request() | event_type_summary_entry() | event_type_summary_response() | list_stores_request() | list_stores_response() | scavenge_request() | scavenge_response() | scavenge_matching_request() | scavenge_matching_response() | create_link_request() | create_link_response() | delete_link_request() | delete_link_response() | get_link_request() | link_info() | start_link_request() | start_link_response() | stop_link_request() | stop_link_response() | list_links_request() | list_links_response() | link_runtime_info().
+-export_type(['store_stats_request'/0, 'store_stats_response'/0, 'stream_info_request'/0, 'stream_info_response'/0, 'event_type_summary_request'/0, 'event_type_summary_entry'/0, 'event_type_summary_response'/0, 'scavenge_request'/0, 'scavenge_response'/0, 'scavenge_matching_request'/0, 'scavenge_matching_response'/0, 'create_link_request'/0, 'create_link_response'/0, 'delete_link_request'/0, 'delete_link_response'/0, 'get_link_request'/0, 'link_info'/0, 'start_link_request'/0, 'start_link_response'/0, 'stop_link_request'/0, 'stop_link_response'/0, 'list_links_request'/0, 'list_links_response'/0, 'link_runtime_info'/0]).
+-type '$msg_name'() :: store_stats_request | store_stats_response | stream_info_request | stream_info_response | event_type_summary_request | event_type_summary_entry | event_type_summary_response | scavenge_request | scavenge_response | scavenge_matching_request | scavenge_matching_response | create_link_request | create_link_response | delete_link_request | delete_link_response | get_link_request | link_info | start_link_request | start_link_response | stop_link_request | stop_link_response | list_links_request | list_links_response | link_runtime_info.
+-type '$msg'() :: store_stats_request() | store_stats_response() | stream_info_request() | stream_info_response() | event_type_summary_request() | event_type_summary_entry() | event_type_summary_response() | scavenge_request() | scavenge_response() | scavenge_matching_request() | scavenge_matching_response() | create_link_request() | create_link_response() | delete_link_request() | delete_link_response() | get_link_request() | link_info() | start_link_request() | start_link_response() | stop_link_request() | stop_link_response() | list_links_request() | list_links_response() | link_runtime_info().
 -export_type(['$msg_name'/0, '$msg'/0]).
 
 -if(?OTP_RELEASE >= 24).
@@ -218,8 +210,6 @@ encode_msg(Msg, MsgName, Opts) ->
         event_type_summary_request -> encode_msg_event_type_summary_request(id(Msg, TrUserData), TrUserData);
         event_type_summary_entry -> encode_msg_event_type_summary_entry(id(Msg, TrUserData), TrUserData);
         event_type_summary_response -> encode_msg_event_type_summary_response(id(Msg, TrUserData), TrUserData);
-        list_stores_request -> encode_msg_list_stores_request(id(Msg, TrUserData), TrUserData);
-        list_stores_response -> encode_msg_list_stores_response(id(Msg, TrUserData), TrUserData);
         scavenge_request -> encode_msg_scavenge_request(id(Msg, TrUserData), TrUserData);
         scavenge_response -> encode_msg_scavenge_response(id(Msg, TrUserData), TrUserData);
         scavenge_matching_request -> encode_msg_scavenge_matching_request(id(Msg, TrUserData), TrUserData);
@@ -451,21 +441,6 @@ encode_msg_event_type_summary_response(#{} = M, Bin, TrUserData) ->
             TrF1 = id(F1, TrUserData),
             if TrF1 == [] -> Bin;
                true -> e_field_event_type_summary_response_entries(TrF1, Bin, TrUserData)
-            end;
-        _ -> Bin
-    end.
-
-encode_msg_list_stores_request(_Msg, _TrUserData) -> <<>>.
-
-encode_msg_list_stores_response(Msg, TrUserData) -> encode_msg_list_stores_response(Msg, <<>>, TrUserData).
-
-
-encode_msg_list_stores_response(#{} = M, Bin, TrUserData) ->
-    case M of
-        #{store_ids := F1} ->
-            TrF1 = id(F1, TrUserData),
-            if TrF1 == [] -> Bin;
-               true -> e_field_list_stores_response_store_ids(TrF1, Bin, TrUserData)
             end;
         _ -> Bin
     end.
@@ -917,12 +892,6 @@ e_field_event_type_summary_response_entries([Elem | Rest], Bin, TrUserData) ->
     e_field_event_type_summary_response_entries(Rest, Bin3, TrUserData);
 e_field_event_type_summary_response_entries([], Bin, _TrUserData) -> Bin.
 
-e_field_list_stores_response_store_ids([Elem | Rest], Bin, TrUserData) ->
-    Bin2 = <<Bin/binary, 10>>,
-    Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
-    e_field_list_stores_response_store_ids(Rest, Bin3, TrUserData);
-e_field_list_stores_response_store_ids([], Bin, _TrUserData) -> Bin.
-
 e_mfield_scavenge_request_options(Msg, Bin, TrUserData) ->
     SubBin = 'encode_msg_map<string,string>'(Msg, <<>>, TrUserData),
     Bin2 = e_varint(byte_size(SubBin), Bin),
@@ -1160,8 +1129,6 @@ decode_msg_2_doit(stream_info_response, Bin, TrUserData) -> id(decode_msg_stream
 decode_msg_2_doit(event_type_summary_request, Bin, TrUserData) -> id(decode_msg_event_type_summary_request(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(event_type_summary_entry, Bin, TrUserData) -> id(decode_msg_event_type_summary_entry(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(event_type_summary_response, Bin, TrUserData) -> id(decode_msg_event_type_summary_response(Bin, TrUserData), TrUserData);
-decode_msg_2_doit(list_stores_request, Bin, TrUserData) -> id(decode_msg_list_stores_request(Bin, TrUserData), TrUserData);
-decode_msg_2_doit(list_stores_response, Bin, TrUserData) -> id(decode_msg_list_stores_response(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(scavenge_request, Bin, TrUserData) -> id(decode_msg_scavenge_request(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(scavenge_response, Bin, TrUserData) -> id(decode_msg_scavenge_response(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(scavenge_matching_request, Bin, TrUserData) -> id(decode_msg_scavenge_matching_request(Bin, TrUserData), TrUserData);
@@ -1592,84 +1559,6 @@ skip_group_event_type_summary_response(Bin, _, Z2, FNum, F@_1, TrUserData) ->
 skip_32_event_type_summary_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_event_type_summary_response(Rest, Z1, Z2, F, F@_1, TrUserData).
 
 skip_64_event_type_summary_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_event_type_summary_response(Rest, Z1, Z2, F, F@_1, TrUserData).
-
-decode_msg_list_stores_request(Bin, TrUserData) -> dfp_read_field_def_list_stores_request(Bin, 0, 0, 0, TrUserData).
-
-dfp_read_field_def_list_stores_request(<<>>, 0, 0, _, _) -> #{};
-dfp_read_field_def_list_stores_request(Other, Z1, Z2, F, TrUserData) -> dg_read_field_def_list_stores_request(Other, Z1, Z2, F, TrUserData).
-
-dg_read_field_def_list_stores_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, TrUserData) when N < 32 - 7 -> dg_read_field_def_list_stores_request(Rest, N + 7, X bsl N + Acc, F, TrUserData);
-dg_read_field_def_list_stores_request(<<0:1, X:7, Rest/binary>>, N, Acc, _, TrUserData) ->
-    Key = X bsl N + Acc,
-    case Key band 7 of
-        0 -> skip_varint_list_stores_request(Rest, 0, 0, Key bsr 3, TrUserData);
-        1 -> skip_64_list_stores_request(Rest, 0, 0, Key bsr 3, TrUserData);
-        2 -> skip_length_delimited_list_stores_request(Rest, 0, 0, Key bsr 3, TrUserData);
-        3 -> skip_group_list_stores_request(Rest, 0, 0, Key bsr 3, TrUserData);
-        5 -> skip_32_list_stores_request(Rest, 0, 0, Key bsr 3, TrUserData)
-    end;
-dg_read_field_def_list_stores_request(<<>>, 0, 0, _, _) -> #{}.
-
-skip_varint_list_stores_request(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, TrUserData) -> skip_varint_list_stores_request(Rest, Z1, Z2, F, TrUserData);
-skip_varint_list_stores_request(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, TrUserData) -> dfp_read_field_def_list_stores_request(Rest, Z1, Z2, F, TrUserData).
-
-skip_length_delimited_list_stores_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, TrUserData) when N < 57 -> skip_length_delimited_list_stores_request(Rest, N + 7, X bsl N + Acc, F, TrUserData);
-skip_length_delimited_list_stores_request(<<0:1, X:7, Rest/binary>>, N, Acc, F, TrUserData) ->
-    Length = X bsl N + Acc,
-    <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_list_stores_request(Rest2, 0, 0, F, TrUserData).
-
-skip_group_list_stores_request(Bin, _, Z2, FNum, TrUserData) ->
-    {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_list_stores_request(Rest, 0, Z2, FNum, TrUserData).
-
-skip_32_list_stores_request(<<_:32, Rest/binary>>, Z1, Z2, F, TrUserData) -> dfp_read_field_def_list_stores_request(Rest, Z1, Z2, F, TrUserData).
-
-skip_64_list_stores_request(<<_:64, Rest/binary>>, Z1, Z2, F, TrUserData) -> dfp_read_field_def_list_stores_request(Rest, Z1, Z2, F, TrUserData).
-
-decode_msg_list_stores_response(Bin, TrUserData) -> dfp_read_field_def_list_stores_response(Bin, 0, 0, 0, id([], TrUserData), TrUserData).
-
-dfp_read_field_def_list_stores_response(<<10, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> d_field_list_stores_response_store_ids(Rest, Z1, Z2, F, F@_1, TrUserData);
-dfp_read_field_def_list_stores_response(<<>>, 0, 0, _, R1, TrUserData) -> #{store_ids => lists_reverse(R1, TrUserData)};
-dfp_read_field_def_list_stores_response(Other, Z1, Z2, F, F@_1, TrUserData) -> dg_read_field_def_list_stores_response(Other, Z1, Z2, F, F@_1, TrUserData).
-
-dg_read_field_def_list_stores_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 32 - 7 -> dg_read_field_def_list_stores_response(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
-dg_read_field_def_list_stores_response(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, TrUserData) ->
-    Key = X bsl N + Acc,
-    case Key of
-        10 -> d_field_list_stores_response_store_ids(Rest, 0, 0, 0, F@_1, TrUserData);
-        _ ->
-            case Key band 7 of
-                0 -> skip_varint_list_stores_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
-                1 -> skip_64_list_stores_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
-                2 -> skip_length_delimited_list_stores_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
-                3 -> skip_group_list_stores_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
-                5 -> skip_32_list_stores_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData)
-            end
-    end;
-dg_read_field_def_list_stores_response(<<>>, 0, 0, _, R1, TrUserData) -> #{store_ids => lists_reverse(R1, TrUserData)}.
-
-d_field_list_stores_response_store_ids(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 57 -> d_field_list_stores_response_store_ids(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
-d_field_list_stores_response_store_ids(<<0:1, X:7, Rest/binary>>, N, Acc, F, Prev, TrUserData) ->
-    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_list_stores_response(RestF, 0, 0, F, cons(NewFValue, Prev, TrUserData), TrUserData).
-
-skip_varint_list_stores_response(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> skip_varint_list_stores_response(Rest, Z1, Z2, F, F@_1, TrUserData);
-skip_varint_list_stores_response(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_list_stores_response(Rest, Z1, Z2, F, F@_1, TrUserData).
-
-skip_length_delimited_list_stores_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 57 -> skip_length_delimited_list_stores_response(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
-skip_length_delimited_list_stores_response(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) ->
-    Length = X bsl N + Acc,
-    <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_list_stores_response(Rest2, 0, 0, F, F@_1, TrUserData).
-
-skip_group_list_stores_response(Bin, _, Z2, FNum, F@_1, TrUserData) ->
-    {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_list_stores_response(Rest, 0, Z2, FNum, F@_1, TrUserData).
-
-skip_32_list_stores_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_list_stores_response(Rest, Z1, Z2, F, F@_1, TrUserData).
-
-skip_64_list_stores_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_list_stores_response(Rest, Z1, Z2, F, F@_1, TrUserData).
 
 decode_msg_scavenge_request(Bin, TrUserData) -> dfp_read_field_def_scavenge_request(Bin, 0, 0, 0, id(<<>>, TrUserData), id(<<>>, TrUserData), 'tr_decode_init_default_scavenge_request.options'([], TrUserData), TrUserData).
 
@@ -2668,8 +2557,6 @@ merge_msgs(Prev, New, MsgName, Opts) ->
         event_type_summary_request -> merge_msg_event_type_summary_request(Prev, New, TrUserData);
         event_type_summary_entry -> merge_msg_event_type_summary_entry(Prev, New, TrUserData);
         event_type_summary_response -> merge_msg_event_type_summary_response(Prev, New, TrUserData);
-        list_stores_request -> merge_msg_list_stores_request(Prev, New, TrUserData);
-        list_stores_response -> merge_msg_list_stores_response(Prev, New, TrUserData);
         scavenge_request -> merge_msg_scavenge_request(Prev, New, TrUserData);
         scavenge_response -> merge_msg_scavenge_response(Prev, New, TrUserData);
         scavenge_matching_request -> merge_msg_scavenge_matching_request(Prev, New, TrUserData);
@@ -2807,19 +2694,6 @@ merge_msg_event_type_summary_response(PMsg, NMsg, TrUserData) ->
         {#{entries := PFentries}, #{entries := NFentries}} -> S1#{entries => 'erlang_++'(PFentries, NFentries, TrUserData)};
         {_, #{entries := NFentries}} -> S1#{entries => NFentries};
         {#{entries := PFentries}, _} -> S1#{entries => PFentries};
-        {_, _} -> S1
-    end.
-
--compile({nowarn_unused_function,merge_msg_list_stores_request/3}).
-merge_msg_list_stores_request(_Prev, New, _TrUserData) -> New.
-
--compile({nowarn_unused_function,merge_msg_list_stores_response/3}).
-merge_msg_list_stores_response(PMsg, NMsg, TrUserData) ->
-    S1 = #{},
-    case {PMsg, NMsg} of
-        {#{store_ids := PFstore_ids}, #{store_ids := NFstore_ids}} -> S1#{store_ids => 'erlang_++'(PFstore_ids, NFstore_ids, TrUserData)};
-        {_, #{store_ids := NFstore_ids}} -> S1#{store_ids => NFstore_ids};
-        {#{store_ids := PFstore_ids}, _} -> S1#{store_ids => PFstore_ids};
         {_, _} -> S1
     end.
 
@@ -3078,8 +2952,6 @@ verify_msg(Msg, MsgName, Opts) ->
         event_type_summary_request -> v_msg_event_type_summary_request(Msg, [MsgName], TrUserData);
         event_type_summary_entry -> v_msg_event_type_summary_entry(Msg, [MsgName], TrUserData);
         event_type_summary_response -> v_msg_event_type_summary_response(Msg, [MsgName], TrUserData);
-        list_stores_request -> v_msg_list_stores_request(Msg, [MsgName], TrUserData);
-        list_stores_response -> v_msg_list_stores_response(Msg, [MsgName], TrUserData);
         scavenge_request -> v_msg_scavenge_request(Msg, [MsgName], TrUserData);
         scavenge_response -> v_msg_scavenge_response(Msg, [MsgName], TrUserData);
         scavenge_matching_request -> v_msg_scavenge_matching_request(Msg, [MsgName], TrUserData);
@@ -3274,34 +3146,6 @@ v_msg_event_type_summary_response(#{} = M, Path, TrUserData) ->
     ok;
 v_msg_event_type_summary_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), event_type_summary_response}, M, Path);
 v_msg_event_type_summary_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, event_type_summary_response}, X, Path).
-
--compile({nowarn_unused_function,v_msg_list_stores_request/3}).
--dialyzer({nowarn_function,v_msg_list_stores_request/3}).
-v_msg_list_stores_request(#{} = M, Path, _) ->
-    lists:foreach(fun (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path) end, maps:keys(M)),
-    ok;
-v_msg_list_stores_request(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), list_stores_request}, M, Path);
-v_msg_list_stores_request(X, Path, _TrUserData) -> mk_type_error({expected_msg, list_stores_request}, X, Path).
-
--compile({nowarn_unused_function,v_msg_list_stores_response/3}).
--dialyzer({nowarn_function,v_msg_list_stores_response/3}).
-v_msg_list_stores_response(#{} = M, Path, TrUserData) ->
-    case M of
-        #{store_ids := F1} ->
-            if is_list(F1) ->
-                   _ = [v_type_string(Elem, [store_ids | Path], TrUserData) || Elem <- F1],
-                   ok;
-               true -> mk_type_error({invalid_list_of, string}, F1, [store_ids | Path])
-            end;
-        _ -> ok
-    end,
-    lists:foreach(fun (store_ids) -> ok;
-                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
-                  end,
-                  maps:keys(M)),
-    ok;
-v_msg_list_stores_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), list_stores_response}, M, Path);
-v_msg_list_stores_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, list_stores_response}, X, Path).
 
 -compile({nowarn_unused_function,v_msg_scavenge_request/3}).
 -dialyzer({nowarn_function,v_msg_scavenge_request/3}).
@@ -3885,8 +3729,6 @@ get_msg_defs() ->
      {{msg, event_type_summary_request}, [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []}]},
      {{msg, event_type_summary_entry}, [#{name => event_type, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []}, #{name => count, fnum => 2, rnum => 3, type => uint64, occurrence => optional, opts => []}]},
      {{msg, event_type_summary_response}, [#{name => entries, fnum => 1, rnum => 2, type => {msg, event_type_summary_entry}, occurrence => repeated, opts => []}]},
-     {{msg, list_stores_request}, []},
-     {{msg, list_stores_response}, [#{name => store_ids, fnum => 1, rnum => 2, type => string, occurrence => repeated, opts => []}]},
      {{msg, scavenge_request},
       [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
        #{name => stream_id, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
@@ -3937,8 +3779,6 @@ get_msg_names() ->
      event_type_summary_request,
      event_type_summary_entry,
      event_type_summary_response,
-     list_stores_request,
-     list_stores_response,
      scavenge_request,
      scavenge_response,
      scavenge_matching_request,
@@ -3969,8 +3809,6 @@ get_msg_or_group_names() ->
      event_type_summary_request,
      event_type_summary_entry,
      event_type_summary_response,
-     list_stores_request,
-     list_stores_response,
      scavenge_request,
      scavenge_response,
      scavenge_matching_request,
@@ -4022,8 +3860,6 @@ find_msg_def(stream_info_response) ->
 find_msg_def(event_type_summary_request) -> [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []}];
 find_msg_def(event_type_summary_entry) -> [#{name => event_type, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []}, #{name => count, fnum => 2, rnum => 3, type => uint64, occurrence => optional, opts => []}];
 find_msg_def(event_type_summary_response) -> [#{name => entries, fnum => 1, rnum => 2, type => {msg, event_type_summary_entry}, occurrence => repeated, opts => []}];
-find_msg_def(list_stores_request) -> [];
-find_msg_def(list_stores_response) -> [#{name => store_ids, fnum => 1, rnum => 2, type => string, occurrence => repeated, opts => []}];
 find_msg_def(scavenge_request) ->
     [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
      #{name => stream_id, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
@@ -4087,7 +3923,6 @@ get_service_def('reckon.gateway.v1.AdminService') ->
      [#{name => 'GetStoreStats', input => store_stats_request, output => store_stats_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'GetStreamInfo', input => stream_info_request, output => stream_info_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'GetEventTypeSummary', input => event_type_summary_request, output => event_type_summary_response, input_stream => false, output_stream => false, opts => []},
-      #{name => 'ListStores', input => list_stores_request, output => list_stores_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'Scavenge', input => scavenge_request, output => scavenge_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'ScavengeMatching', input => scavenge_matching_request, output => scavenge_matching_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'ScavengeDryRun', input => scavenge_request, output => scavenge_response, input_stream => false, output_stream => false, opts => []},
@@ -4102,7 +3937,7 @@ get_service_def(_) -> error.
 
 
 get_rpc_names('reckon.gateway.v1.AdminService') ->
-    ['GetStoreStats', 'GetStreamInfo', 'GetEventTypeSummary', 'ListStores', 'Scavenge', 'ScavengeMatching', 'ScavengeDryRun', 'CreateLink', 'DeleteLink', 'GetLink', 'ListLinks', 'StartLink', 'StopLink', 'GetLinkInfo'];
+    ['GetStoreStats', 'GetStreamInfo', 'GetEventTypeSummary', 'Scavenge', 'ScavengeMatching', 'ScavengeDryRun', 'CreateLink', 'DeleteLink', 'GetLink', 'ListLinks', 'StartLink', 'StopLink', 'GetLinkInfo'];
 get_rpc_names(_) -> error.
 
 
@@ -4113,7 +3948,6 @@ find_rpc_def(_, _) -> error.
 'find_rpc_def_reckon.gateway.v1.AdminService'('GetStoreStats') -> #{name => 'GetStoreStats', input => store_stats_request, output => store_stats_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.AdminService'('GetStreamInfo') -> #{name => 'GetStreamInfo', input => stream_info_request, output => stream_info_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.AdminService'('GetEventTypeSummary') -> #{name => 'GetEventTypeSummary', input => event_type_summary_request, output => event_type_summary_response, input_stream => false, output_stream => false, opts => []};
-'find_rpc_def_reckon.gateway.v1.AdminService'('ListStores') -> #{name => 'ListStores', input => list_stores_request, output => list_stores_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.AdminService'('Scavenge') -> #{name => 'Scavenge', input => scavenge_request, output => scavenge_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.AdminService'('ScavengeMatching') -> #{name => 'ScavengeMatching', input => scavenge_matching_request, output => scavenge_matching_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.AdminService'('ScavengeDryRun') -> #{name => 'ScavengeDryRun', input => scavenge_request, output => scavenge_response, input_stream => false, output_stream => false, opts => []};
@@ -4152,7 +3986,6 @@ service_name_to_fqbin(X) -> error({gpb_error, {badservice, X}}).
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"GetStoreStats">>) -> {'reckon.gateway.v1.AdminService', 'GetStoreStats'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"GetStreamInfo">>) -> {'reckon.gateway.v1.AdminService', 'GetStreamInfo'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"GetEventTypeSummary">>) -> {'reckon.gateway.v1.AdminService', 'GetEventTypeSummary'};
-fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"ListStores">>) -> {'reckon.gateway.v1.AdminService', 'ListStores'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"Scavenge">>) -> {'reckon.gateway.v1.AdminService', 'Scavenge'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"ScavengeMatching">>) -> {'reckon.gateway.v1.AdminService', 'ScavengeMatching'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"ScavengeDryRun">>) -> {'reckon.gateway.v1.AdminService', 'ScavengeDryRun'};
@@ -4172,7 +4005,6 @@ fqbins_to_service_and_rpc_name(S, R) -> error({gpb_error, {badservice_or_rpc, {S
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'GetStoreStats') -> {<<"reckon.gateway.v1.AdminService">>, <<"GetStoreStats">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'GetStreamInfo') -> {<<"reckon.gateway.v1.AdminService">>, <<"GetStreamInfo">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'GetEventTypeSummary') -> {<<"reckon.gateway.v1.AdminService">>, <<"GetEventTypeSummary">>};
-service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'ListStores') -> {<<"reckon.gateway.v1.AdminService">>, <<"ListStores">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'Scavenge') -> {<<"reckon.gateway.v1.AdminService">>, <<"Scavenge">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'ScavengeMatching') -> {<<"reckon.gateway.v1.AdminService">>, <<"ScavengeMatching">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'ScavengeDryRun') -> {<<"reckon.gateway.v1.AdminService">>, <<"ScavengeDryRun">>};
@@ -4193,8 +4025,6 @@ fqbin_to_msg_name(<<"reckon.gateway.v1.StreamInfoResponse">>) -> stream_info_res
 fqbin_to_msg_name(<<"reckon.gateway.v1.EventTypeSummaryRequest">>) -> event_type_summary_request;
 fqbin_to_msg_name(<<"reckon.gateway.v1.EventTypeSummaryEntry">>) -> event_type_summary_entry;
 fqbin_to_msg_name(<<"reckon.gateway.v1.EventTypeSummaryResponse">>) -> event_type_summary_response;
-fqbin_to_msg_name(<<"reckon.gateway.v1.ListStoresRequest">>) -> list_stores_request;
-fqbin_to_msg_name(<<"reckon.gateway.v1.ListStoresResponse">>) -> list_stores_response;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ScavengeRequest">>) -> scavenge_request;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ScavengeResponse">>) -> scavenge_response;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ScavengeMatchingRequest">>) -> scavenge_matching_request;
@@ -4222,8 +4052,6 @@ msg_name_to_fqbin(stream_info_response) -> <<"reckon.gateway.v1.StreamInfoRespon
 msg_name_to_fqbin(event_type_summary_request) -> <<"reckon.gateway.v1.EventTypeSummaryRequest">>;
 msg_name_to_fqbin(event_type_summary_entry) -> <<"reckon.gateway.v1.EventTypeSummaryEntry">>;
 msg_name_to_fqbin(event_type_summary_response) -> <<"reckon.gateway.v1.EventTypeSummaryResponse">>;
-msg_name_to_fqbin(list_stores_request) -> <<"reckon.gateway.v1.ListStoresRequest">>;
-msg_name_to_fqbin(list_stores_response) -> <<"reckon.gateway.v1.ListStoresResponse">>;
 msg_name_to_fqbin(scavenge_request) -> <<"reckon.gateway.v1.ScavengeRequest">>;
 msg_name_to_fqbin(scavenge_response) -> <<"reckon.gateway.v1.ScavengeResponse">>;
 msg_name_to_fqbin(scavenge_matching_request) -> <<"reckon.gateway.v1.ScavengeMatchingRequest">>;
@@ -4292,8 +4120,6 @@ get_msg_containment("reckon_admin") ->
      link_runtime_info,
      list_links_request,
      list_links_response,
-     list_stores_request,
-     list_stores_response,
      scavenge_matching_request,
      scavenge_matching_response,
      scavenge_request,
@@ -4321,7 +4147,6 @@ get_rpc_containment("reckon_admin") ->
     [{'reckon.gateway.v1.AdminService', 'GetStoreStats'},
      {'reckon.gateway.v1.AdminService', 'GetStreamInfo'},
      {'reckon.gateway.v1.AdminService', 'GetEventTypeSummary'},
-     {'reckon.gateway.v1.AdminService', 'ListStores'},
      {'reckon.gateway.v1.AdminService', 'Scavenge'},
      {'reckon.gateway.v1.AdminService', 'ScavengeMatching'},
      {'reckon.gateway.v1.AdminService', 'ScavengeDryRun'},
@@ -4345,7 +4170,6 @@ get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StopLinkRequest">>) -> "reck
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StartLinkRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ScavengeRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ScavengeMatchingRequest">>) -> "reckon_admin";
-get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ListStoresRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ListLinksRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.GetLinkRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.EventTypeSummaryRequest">>) -> "reckon_admin";
@@ -4357,7 +4181,6 @@ get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StopLinkResponse">>) -> "rec
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StartLinkResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ScavengeResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ScavengeMatchingResponse">>) -> "reckon_admin";
-get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ListStoresResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ListLinksResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.EventTypeSummaryResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.DeleteLinkResponse">>) -> "reckon_admin";

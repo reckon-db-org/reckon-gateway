@@ -150,7 +150,8 @@
         timestamp               => integer(),       % = 8, optional, 64 bits
         epoch_us                => integer(),       % = 9, optional, 64 bits
         data_content_type       => unicode:chardata(), % = 10, optional
-        metadata_content_type   => unicode:chardata() % = 11, optional
+        metadata_content_type   => unicode:chardata(), % = 11, optional
+        prev_event_hash         => iodata()         % = 12, optional
        }.
 
 -type snapshot_record() ::
@@ -158,7 +159,8 @@
         version                 => non_neg_integer(), % = 2, optional, 64 bits
         data                    => iodata(),        % = 3, optional
         metadata                => iodata(),        % = 4, optional
-        timestamp               => integer()        % = 5, optional, 64 bits
+        timestamp               => integer(),       % = 5, optional, 64 bits
+        anchor_hash             => iodata()         % = 6, optional
        }.
 
 -type subscription_info() ::
@@ -795,16 +797,27 @@ encode_msg_recorded_event(#{} = M, Bin, TrUserData) ->
                   end;
               _ -> B9
           end,
+    B11 = case M of
+              #{metadata_content_type := F11} ->
+                  begin
+                      TrF11 = id(F11, TrUserData),
+                      case is_empty_string(TrF11) of
+                          true -> B10;
+                          false -> e_type_string(TrF11, <<B10/binary, 90>>, TrUserData)
+                      end
+                  end;
+              _ -> B10
+          end,
     case M of
-        #{metadata_content_type := F11} ->
+        #{prev_event_hash := F12} ->
             begin
-                TrF11 = id(F11, TrUserData),
-                case is_empty_string(TrF11) of
-                    true -> B10;
-                    false -> e_type_string(TrF11, <<B10/binary, 90>>, TrUserData)
+                TrF12 = id(F12, TrUserData),
+                case iolist_size(TrF12) of
+                    0 -> B11;
+                    _ -> e_type_bytes(TrF12, <<B11/binary, 98>>, TrUserData)
                 end
             end;
-        _ -> B10
+        _ -> B11
     end.
 
 encode_msg_snapshot_record(Msg, TrUserData) -> encode_msg_snapshot_record(Msg, <<>>, TrUserData).
@@ -854,15 +867,26 @@ encode_msg_snapshot_record(#{} = M, Bin, TrUserData) ->
                  end;
              _ -> B3
          end,
+    B5 = case M of
+             #{timestamp := F5} ->
+                 begin
+                     TrF5 = id(F5, TrUserData),
+                     if TrF5 =:= 0 -> B4;
+                        true -> e_type_int64(TrF5, <<B4/binary, 40>>, TrUserData)
+                     end
+                 end;
+             _ -> B4
+         end,
     case M of
-        #{timestamp := F5} ->
+        #{anchor_hash := F6} ->
             begin
-                TrF5 = id(F5, TrUserData),
-                if TrF5 =:= 0 -> B4;
-                   true -> e_type_int64(TrF5, <<B4/binary, 40>>, TrUserData)
+                TrF6 = id(F6, TrUserData),
+                case iolist_size(TrF6) of
+                    0 -> B5;
+                    _ -> e_type_bytes(TrF6, <<B5/binary, 50>>, TrUserData)
                 end
             end;
-        _ -> B4
+        _ -> B5
     end.
 
 encode_msg_subscription_info(Msg, TrUserData) -> encode_msg_subscription_info(Msg, <<>>, TrUserData).
@@ -1991,222 +2015,244 @@ decode_msg_recorded_event(Bin, TrUserData) ->
                                       id(0, TrUserData),
                                       id(<<>>, TrUserData),
                                       id(<<>>, TrUserData),
+                                      id(<<>>, TrUserData),
                                       TrUserData).
 
-dfp_read_field_def_recorded_event(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_event_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_event_type(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_stream_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_version(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<42, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_data(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<50, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_metadata(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<58, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_tags(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_timestamp(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<72, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_epoch_us(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<82, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_data_content_type(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<90, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    d_field_recorded_event_metadata_content_type(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dfp_read_field_def_recorded_event(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, R1, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    #{event_id => F@_1, event_type => F@_2, stream_id => F@_3, version => F@_4, data => F@_5, metadata => F@_6, tags => lists_reverse(R1, TrUserData), timestamp => F@_8, epoch_us => F@_9, data_content_type => F@_10, metadata_content_type => F@_11};
-dfp_read_field_def_recorded_event(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    dg_read_field_def_recorded_event(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+dfp_read_field_def_recorded_event(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_event_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_event_type(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_stream_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_version(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<42, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_data(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<50, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_metadata(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<58, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_tags(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_timestamp(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<72, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_epoch_us(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<82, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_data_content_type(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<90, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_metadata_content_type(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<98, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    d_field_recorded_event_prev_event_hash(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dfp_read_field_def_recorded_event(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, R1, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    #{event_id => F@_1, event_type => F@_2, stream_id => F@_3, version => F@_4, data => F@_5, metadata => F@_6, tags => lists_reverse(R1, TrUserData), timestamp => F@_8, epoch_us => F@_9, data_content_type => F@_10, metadata_content_type => F@_11,
+      prev_event_hash => F@_12};
+dfp_read_field_def_recorded_event(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    dg_read_field_def_recorded_event(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-dg_read_field_def_recorded_event(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 32 - 7 ->
-    dg_read_field_def_recorded_event(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-dg_read_field_def_recorded_event(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+dg_read_field_def_recorded_event(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 32 - 7 ->
+    dg_read_field_def_recorded_event(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+dg_read_field_def_recorded_event(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
-        10 -> d_field_recorded_event_event_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        18 -> d_field_recorded_event_event_type(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        26 -> d_field_recorded_event_stream_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        32 -> d_field_recorded_event_version(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        42 -> d_field_recorded_event_data(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        50 -> d_field_recorded_event_metadata(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        58 -> d_field_recorded_event_tags(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        64 -> d_field_recorded_event_timestamp(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        72 -> d_field_recorded_event_epoch_us(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        82 -> d_field_recorded_event_data_content_type(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-        90 -> d_field_recorded_event_metadata_content_type(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
+        10 -> d_field_recorded_event_event_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        18 -> d_field_recorded_event_event_type(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        26 -> d_field_recorded_event_stream_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        32 -> d_field_recorded_event_version(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        42 -> d_field_recorded_event_data(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        50 -> d_field_recorded_event_metadata(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        58 -> d_field_recorded_event_tags(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        64 -> d_field_recorded_event_timestamp(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        72 -> d_field_recorded_event_epoch_us(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        82 -> d_field_recorded_event_data_content_type(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        90 -> d_field_recorded_event_metadata_content_type(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+        98 -> d_field_recorded_event_prev_event_hash(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
         _ ->
             case Key band 7 of
-                0 -> skip_varint_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-                1 -> skip_64_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-                2 -> skip_length_delimited_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-                3 -> skip_group_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-                5 -> skip_32_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData)
+                0 -> skip_varint_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+                1 -> skip_64_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+                2 -> skip_length_delimited_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+                3 -> skip_group_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+                5 -> skip_32_recorded_event(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData)
             end
     end;
-dg_read_field_def_recorded_event(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, R1, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    #{event_id => F@_1, event_type => F@_2, stream_id => F@_3, version => F@_4, data => F@_5, metadata => F@_6, tags => lists_reverse(R1, TrUserData), timestamp => F@_8, epoch_us => F@_9, data_content_type => F@_10, metadata_content_type => F@_11}.
+dg_read_field_def_recorded_event(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, R1, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    #{event_id => F@_1, event_type => F@_2, stream_id => F@_3, version => F@_4, data => F@_5, metadata => F@_6, tags => lists_reverse(R1, TrUserData), timestamp => F@_8, epoch_us => F@_9, data_content_type => F@_10, metadata_content_type => F@_11,
+      prev_event_hash => F@_12}.
 
-d_field_recorded_event_event_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_event_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_event_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+d_field_recorded_event_event_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_event_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_event_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_event_type(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_event_type(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_event_type(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+d_field_recorded_event_event_type(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_event_type(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_event_type(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, NewFValue, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, NewFValue, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_stream_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_stream_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_stream_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+d_field_recorded_event_stream_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_stream_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_stream_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_version(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_version(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_version(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+d_field_recorded_event_version(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_version(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_version(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = {id((X bsl N + Acc) band 18446744073709551615, TrUserData), Rest},
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_data(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_data(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_data(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+d_field_recorded_event_data(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_data(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_data(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, NewFValue, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, NewFValue, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_metadata(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_metadata(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_metadata(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, _, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+d_field_recorded_event_metadata(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_metadata(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_metadata(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, _, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, NewFValue, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, NewFValue, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_tags(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_tags(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_tags(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, Prev, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+d_field_recorded_event_tags(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_tags(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_tags(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, Prev, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, cons(NewFValue, Prev, TrUserData), F@_8, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, cons(NewFValue, Prev, TrUserData), F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_timestamp(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_timestamp(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_timestamp(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, _, F@_9, F@_10, F@_11, TrUserData) ->
+d_field_recorded_event_timestamp(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_timestamp(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_timestamp(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, _, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = {begin <<Res:64/signed-native>> = <<(X bsl N + Acc):64/unsigned-native>>, id(Res, TrUserData) end, Rest},
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, NewFValue, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, NewFValue, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_epoch_us(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_epoch_us(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_epoch_us(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, _, F@_10, F@_11, TrUserData) ->
+d_field_recorded_event_epoch_us(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_epoch_us(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_epoch_us(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, _, F@_10, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = {begin <<Res:64/signed-native>> = <<(X bsl N + Acc):64/unsigned-native>>, id(Res, TrUserData) end, Rest},
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, NewFValue, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, NewFValue, F@_10, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_data_content_type(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_data_content_type(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_data_content_type(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, _, F@_11, TrUserData) ->
+d_field_recorded_event_data_content_type(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_data_content_type(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_data_content_type(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, _, F@_11, F@_12, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, NewFValue, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, NewFValue, F@_11, F@_12, TrUserData).
 
-d_field_recorded_event_metadata_content_type(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    d_field_recorded_event_metadata_content_type(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-d_field_recorded_event_metadata_content_type(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, _, TrUserData) ->
+d_field_recorded_event_metadata_content_type(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_metadata_content_type(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_metadata_content_type(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, _, F@_12, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, NewFValue, TrUserData).
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, NewFValue, F@_12, TrUserData).
 
-skip_varint_recorded_event(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    skip_varint_recorded_event(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-skip_varint_recorded_event(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    dfp_read_field_def_recorded_event(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+d_field_recorded_event_prev_event_hash(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    d_field_recorded_event_prev_event_hash(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+d_field_recorded_event_prev_event_hash(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, _, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_recorded_event(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, NewFValue, TrUserData).
 
-skip_length_delimited_recorded_event(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) when N < 57 ->
-    skip_length_delimited_recorded_event(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData);
-skip_length_delimited_recorded_event(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+skip_varint_recorded_event(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    skip_varint_recorded_event(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+skip_varint_recorded_event(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    dfp_read_field_def_recorded_event(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
+
+skip_length_delimited_recorded_event(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) when N < 57 ->
+    skip_length_delimited_recorded_event(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData);
+skip_length_delimited_recorded_event(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_recorded_event(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-skip_group_recorded_event(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
+skip_group_recorded_event(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_recorded_event(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+    dfp_read_field_def_recorded_event(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-skip_32_recorded_event(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    dfp_read_field_def_recorded_event(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+skip_32_recorded_event(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    dfp_read_field_def_recorded_event(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-skip_64_recorded_event(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData) ->
-    dfp_read_field_def_recorded_event(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, TrUserData).
+skip_64_recorded_event(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData) ->
+    dfp_read_field_def_recorded_event(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, F@_8, F@_9, F@_10, F@_11, F@_12, TrUserData).
 
-decode_msg_snapshot_record(Bin, TrUserData) -> dfp_read_field_def_snapshot_record(Bin, 0, 0, 0, id(<<>>, TrUserData), id(0, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(0, TrUserData), TrUserData).
+decode_msg_snapshot_record(Bin, TrUserData) -> dfp_read_field_def_snapshot_record(Bin, 0, 0, 0, id(<<>>, TrUserData), id(0, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(0, TrUserData), id(<<>>, TrUserData), TrUserData).
 
-dfp_read_field_def_snapshot_record(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> d_field_snapshot_record_stream_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-dfp_read_field_def_snapshot_record(<<16, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> d_field_snapshot_record_version(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-dfp_read_field_def_snapshot_record(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> d_field_snapshot_record_data(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-dfp_read_field_def_snapshot_record(<<34, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> d_field_snapshot_record_metadata(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-dfp_read_field_def_snapshot_record(<<40, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> d_field_snapshot_record_timestamp(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-dfp_read_field_def_snapshot_record(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, _) -> #{stream_id => F@_1, version => F@_2, data => F@_3, metadata => F@_4, timestamp => F@_5};
-dfp_read_field_def_snapshot_record(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> dg_read_field_def_snapshot_record(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData).
+dfp_read_field_def_snapshot_record(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_snapshot_record_stream_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_snapshot_record(<<16, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_snapshot_record_version(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_snapshot_record(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_snapshot_record_data(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_snapshot_record(<<34, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_snapshot_record_metadata(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_snapshot_record(<<40, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_snapshot_record_timestamp(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_snapshot_record(<<50, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_snapshot_record_anchor_hash(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_snapshot_record(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, _) -> #{stream_id => F@_1, version => F@_2, data => F@_3, metadata => F@_4, timestamp => F@_5, anchor_hash => F@_6};
+dfp_read_field_def_snapshot_record(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dg_read_field_def_snapshot_record(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-dg_read_field_def_snapshot_record(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) when N < 32 - 7 -> dg_read_field_def_snapshot_record(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-dg_read_field_def_snapshot_record(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) ->
+dg_read_field_def_snapshot_record(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 32 - 7 ->
+    dg_read_field_def_snapshot_record(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dg_read_field_def_snapshot_record(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
-        10 -> d_field_snapshot_record_stream_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-        16 -> d_field_snapshot_record_version(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-        26 -> d_field_snapshot_record_data(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-        34 -> d_field_snapshot_record_metadata(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-        40 -> d_field_snapshot_record_timestamp(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
+        10 -> d_field_snapshot_record_stream_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        16 -> d_field_snapshot_record_version(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        26 -> d_field_snapshot_record_data(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        34 -> d_field_snapshot_record_metadata(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        40 -> d_field_snapshot_record_timestamp(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        50 -> d_field_snapshot_record_anchor_hash(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
         _ ->
             case Key band 7 of
-                0 -> skip_varint_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-                1 -> skip_64_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-                2 -> skip_length_delimited_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-                3 -> skip_group_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-                5 -> skip_32_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData)
+                0 -> skip_varint_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                1 -> skip_64_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                2 -> skip_length_delimited_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                3 -> skip_group_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                5 -> skip_32_snapshot_record(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData)
             end
     end;
-dg_read_field_def_snapshot_record(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, _) -> #{stream_id => F@_1, version => F@_2, data => F@_3, metadata => F@_4, timestamp => F@_5}.
+dg_read_field_def_snapshot_record(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, _) -> #{stream_id => F@_1, version => F@_2, data => F@_3, metadata => F@_4, timestamp => F@_5, anchor_hash => F@_6}.
 
-d_field_snapshot_record_stream_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) when N < 57 -> d_field_snapshot_record_stream_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-d_field_snapshot_record_stream_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, TrUserData) ->
+d_field_snapshot_record_stream_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_snapshot_record_stream_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_snapshot_record_stream_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, TrUserData).
+    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-d_field_snapshot_record_version(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) when N < 57 -> d_field_snapshot_record_version(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-d_field_snapshot_record_version(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, F@_4, F@_5, TrUserData) ->
+d_field_snapshot_record_version(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_snapshot_record_version(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_snapshot_record_version(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     {NewFValue, RestF} = {id((X bsl N + Acc) band 18446744073709551615, TrUserData), Rest},
-    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, F@_1, NewFValue, F@_3, F@_4, F@_5, TrUserData).
+    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, F@_1, NewFValue, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-d_field_snapshot_record_data(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) when N < 57 -> d_field_snapshot_record_data(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-d_field_snapshot_record_data(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, TrUserData) ->
+d_field_snapshot_record_data(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_snapshot_record_data(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_snapshot_record_data(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, F@_6, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, TrUserData).
+    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, F@_6, TrUserData).
 
-d_field_snapshot_record_metadata(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) when N < 57 -> d_field_snapshot_record_metadata(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-d_field_snapshot_record_metadata(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, TrUserData) ->
+d_field_snapshot_record_metadata(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_snapshot_record_metadata(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_snapshot_record_metadata(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, F@_6, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, TrUserData).
+    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, F@_6, TrUserData).
 
-d_field_snapshot_record_timestamp(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) when N < 57 -> d_field_snapshot_record_timestamp(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-d_field_snapshot_record_timestamp(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, _, TrUserData) ->
+d_field_snapshot_record_timestamp(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_snapshot_record_timestamp(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_snapshot_record_timestamp(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, TrUserData) ->
     {NewFValue, RestF} = {begin <<Res:64/signed-native>> = <<(X bsl N + Acc):64/unsigned-native>>, id(Res, TrUserData) end, Rest},
-    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, NewFValue, TrUserData).
+    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, NewFValue, F@_6, TrUserData).
 
-skip_varint_snapshot_record(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> skip_varint_snapshot_record(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-skip_varint_snapshot_record(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> dfp_read_field_def_snapshot_record(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData).
+d_field_snapshot_record_anchor_hash(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_snapshot_record_anchor_hash(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_snapshot_record_anchor_hash(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, _, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_snapshot_record(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, NewFValue, TrUserData).
 
-skip_length_delimited_snapshot_record(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) when N < 57 -> skip_length_delimited_snapshot_record(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData);
-skip_length_delimited_snapshot_record(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) ->
+skip_varint_snapshot_record(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> skip_varint_snapshot_record(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+skip_varint_snapshot_record(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_snapshot_record(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+skip_length_delimited_snapshot_record(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    skip_length_delimited_snapshot_record(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+skip_length_delimited_snapshot_record(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_snapshot_record(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData).
+    dfp_read_field_def_snapshot_record(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-skip_group_snapshot_record(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) ->
+skip_group_snapshot_record(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_snapshot_record(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData).
+    dfp_read_field_def_snapshot_record(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-skip_32_snapshot_record(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> dfp_read_field_def_snapshot_record(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData).
+skip_32_snapshot_record(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_snapshot_record(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-skip_64_snapshot_record(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData) -> dfp_read_field_def_snapshot_record(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, TrUserData).
+skip_64_snapshot_record(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_snapshot_record(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
 decode_msg_subscription_info(Bin, TrUserData) ->
     dfp_read_field_def_subscription_info(Bin, 0, 0, 0, id(<<>>, TrUserData), id('SUBSCRIPTION_TYPE_UNSPECIFIED', TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(0, TrUserData), id(0, TrUserData), id(0, TrUserData), TrUserData).
@@ -2699,10 +2745,15 @@ merge_msg_recorded_event(PMsg, NMsg, TrUserData) ->
               {#{data_content_type := PFdata_content_type}, _} -> S10#{data_content_type => PFdata_content_type};
               _ -> S10
           end,
+    S12 = case {PMsg, NMsg} of
+              {_, #{metadata_content_type := NFmetadata_content_type}} -> S11#{metadata_content_type => NFmetadata_content_type};
+              {#{metadata_content_type := PFmetadata_content_type}, _} -> S11#{metadata_content_type => PFmetadata_content_type};
+              _ -> S11
+          end,
     case {PMsg, NMsg} of
-        {_, #{metadata_content_type := NFmetadata_content_type}} -> S11#{metadata_content_type => NFmetadata_content_type};
-        {#{metadata_content_type := PFmetadata_content_type}, _} -> S11#{metadata_content_type => PFmetadata_content_type};
-        _ -> S11
+        {_, #{prev_event_hash := NFprev_event_hash}} -> S12#{prev_event_hash => NFprev_event_hash};
+        {#{prev_event_hash := PFprev_event_hash}, _} -> S12#{prev_event_hash => PFprev_event_hash};
+        _ -> S12
     end.
 
 -compile({nowarn_unused_function,merge_msg_snapshot_record/3}).
@@ -2728,10 +2779,15 @@ merge_msg_snapshot_record(PMsg, NMsg, _) ->
              {#{metadata := PFmetadata}, _} -> S4#{metadata => PFmetadata};
              _ -> S4
          end,
+    S6 = case {PMsg, NMsg} of
+             {_, #{timestamp := NFtimestamp}} -> S5#{timestamp => NFtimestamp};
+             {#{timestamp := PFtimestamp}, _} -> S5#{timestamp => PFtimestamp};
+             _ -> S5
+         end,
     case {PMsg, NMsg} of
-        {_, #{timestamp := NFtimestamp}} -> S5#{timestamp => NFtimestamp};
-        {#{timestamp := PFtimestamp}, _} -> S5#{timestamp => PFtimestamp};
-        _ -> S5
+        {_, #{anchor_hash := NFanchor_hash}} -> S6#{anchor_hash => NFanchor_hash};
+        {#{anchor_hash := PFanchor_hash}, _} -> S6#{anchor_hash => PFanchor_hash};
+        _ -> S6
     end.
 
 -compile({nowarn_unused_function,merge_msg_subscription_info/3}).
@@ -3197,6 +3253,10 @@ v_msg_recorded_event(#{} = M, Path, TrUserData) ->
         #{metadata_content_type := F11} -> v_type_string(F11, [metadata_content_type | Path], TrUserData);
         _ -> ok
     end,
+    case M of
+        #{prev_event_hash := F12} -> v_type_bytes(F12, [prev_event_hash | Path], TrUserData);
+        _ -> ok
+    end,
     lists:foreach(fun (event_id) -> ok;
                       (event_type) -> ok;
                       (stream_id) -> ok;
@@ -3208,6 +3268,7 @@ v_msg_recorded_event(#{} = M, Path, TrUserData) ->
                       (epoch_us) -> ok;
                       (data_content_type) -> ok;
                       (metadata_content_type) -> ok;
+                      (prev_event_hash) -> ok;
                       (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
                   end,
                   maps:keys(M)),
@@ -3238,11 +3299,16 @@ v_msg_snapshot_record(#{} = M, Path, TrUserData) ->
         #{timestamp := F5} -> v_type_int64(F5, [timestamp | Path], TrUserData);
         _ -> ok
     end,
+    case M of
+        #{anchor_hash := F6} -> v_type_bytes(F6, [anchor_hash | Path], TrUserData);
+        _ -> ok
+    end,
     lists:foreach(fun (stream_id) -> ok;
                       (version) -> ok;
                       (data) -> ok;
                       (metadata) -> ok;
                       (timestamp) -> ok;
+                      (anchor_hash) -> ok;
                       (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
                   end,
                   maps:keys(M)),
@@ -3441,13 +3507,15 @@ get_msg_defs() ->
        #{name => timestamp, fnum => 8, rnum => 9, type => int64, occurrence => optional, opts => []},
        #{name => epoch_us, fnum => 9, rnum => 10, type => int64, occurrence => optional, opts => []},
        #{name => data_content_type, fnum => 10, rnum => 11, type => string, occurrence => optional, opts => []},
-       #{name => metadata_content_type, fnum => 11, rnum => 12, type => string, occurrence => optional, opts => []}]},
+       #{name => metadata_content_type, fnum => 11, rnum => 12, type => string, occurrence => optional, opts => []},
+       #{name => prev_event_hash, fnum => 12, rnum => 13, type => bytes, occurrence => optional, opts => []}]},
      {{msg, snapshot_record},
       [#{name => stream_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
        #{name => version, fnum => 2, rnum => 3, type => uint64, occurrence => optional, opts => []},
        #{name => data, fnum => 3, rnum => 4, type => bytes, occurrence => optional, opts => []},
        #{name => metadata, fnum => 4, rnum => 5, type => bytes, occurrence => optional, opts => []},
-       #{name => timestamp, fnum => 5, rnum => 6, type => int64, occurrence => optional, opts => []}]},
+       #{name => timestamp, fnum => 5, rnum => 6, type => int64, occurrence => optional, opts => []},
+       #{name => anchor_hash, fnum => 6, rnum => 7, type => bytes, occurrence => optional, opts => []}]},
      {{msg, subscription_info},
       [#{name => id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
        #{name => type, fnum => 2, rnum => 3, type => {enum, 'reckon.gateway.v1.SubscriptionType'}, occurrence => optional, opts => []},
@@ -3573,13 +3641,15 @@ find_msg_def(recorded_event) ->
      #{name => timestamp, fnum => 8, rnum => 9, type => int64, occurrence => optional, opts => []},
      #{name => epoch_us, fnum => 9, rnum => 10, type => int64, occurrence => optional, opts => []},
      #{name => data_content_type, fnum => 10, rnum => 11, type => string, occurrence => optional, opts => []},
-     #{name => metadata_content_type, fnum => 11, rnum => 12, type => string, occurrence => optional, opts => []}];
+     #{name => metadata_content_type, fnum => 11, rnum => 12, type => string, occurrence => optional, opts => []},
+     #{name => prev_event_hash, fnum => 12, rnum => 13, type => bytes, occurrence => optional, opts => []}];
 find_msg_def(snapshot_record) ->
     [#{name => stream_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
      #{name => version, fnum => 2, rnum => 3, type => uint64, occurrence => optional, opts => []},
      #{name => data, fnum => 3, rnum => 4, type => bytes, occurrence => optional, opts => []},
      #{name => metadata, fnum => 4, rnum => 5, type => bytes, occurrence => optional, opts => []},
-     #{name => timestamp, fnum => 5, rnum => 6, type => int64, occurrence => optional, opts => []}];
+     #{name => timestamp, fnum => 5, rnum => 6, type => int64, occurrence => optional, opts => []},
+     #{name => anchor_hash, fnum => 6, rnum => 7, type => bytes, occurrence => optional, opts => []}];
 find_msg_def(subscription_info) ->
     [#{name => id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
      #{name => type, fnum => 2, rnum => 3, type => {enum, 'reckon.gateway.v1.SubscriptionType'}, occurrence => optional, opts => []},
