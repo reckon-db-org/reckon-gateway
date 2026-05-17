@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.8 (2026-05-18)
+
+### Updated
+
+- Pinned `reckon_db` to `~> 2.3.4` (was `~> 2.3.3` resolved).
+- Pinned `reckon_gater` to `~> 2.1.1` (was `~> 2.1` resolved at 2.1.0).
+
+2.3.4 + gater 2.1.1 together make the new stream-id validator
+fail fast: malformed appends return gRPC `InvalidArgument`
+within milliseconds instead of timing out after ~30s of
+exponential-backoff retries.
+
+Pins tightened so consumers can't accidentally regress.
+
 ## 0.4.7 (2026-05-18)
 
 ### Updated
