@@ -107,18 +107,21 @@ get_subscription_lag(#{store_id := StoreIdBin,
 stream_events_loop(Stream, StoreId, Name) ->
     receive
         {events, Events} when is_list(Events) ->
-            Stream1 = lists:foldl(
-                fun(Event, S) ->
+            %% grpc_stream:reply/2 returns `ok', not a Stream — don't
+            %% thread the accumulator through foldl or the second
+            %% iteration calls `reply(ok, _)' and crashes the handler
+            %% with function_clause. Stream stays valid for the
+            %% lifetime of the HTTP/2 stream.
+            lists:foreach(
+                fun(Event) ->
                     Recorded = reckon_gateway_convert:event_to_recorded(Event),
                     Msg = #{event => Recorded, checkpoint => Event#event.version},
-                    grpc_stream:reply(S, Msg)
+                    grpc_stream:reply(Stream, Msg)
                 end,
-                Stream,
                 Events),
-            stream_events_loop(Stream1, StoreId, Name);
+            stream_events_loop(Stream, StoreId, Name);
         stop ->
             {ok, Stream};
         {'EXIT', _Pid, _Reason} ->
-            %% Parent died — client disconnected
             {ok, Stream}
     end.

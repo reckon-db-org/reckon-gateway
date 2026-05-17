@@ -75,7 +75,18 @@ store_id(BinId) ->
     error({invalid_store_id, BinId}).
 
 %% @doc Convert proto SubscriptionType enum to gater atom.
--spec subscription_type(integer()) -> subscription_type().
+%%
+%% gpb decodes proto enums to the atom form on the wire (e.g.
+%% `'SUBSCRIPTION_TYPE_STREAM''), not the integer ordinal — so the
+%% atom clauses below are the real path the Subscribe handler hits.
+%% The integer clauses remain for callers that pre-converted.
+-spec subscription_type(integer() | atom()) -> subscription_type().
+subscription_type('SUBSCRIPTION_TYPE_UNSPECIFIED')   -> stream;
+subscription_type('SUBSCRIPTION_TYPE_STREAM')        -> stream;
+subscription_type('SUBSCRIPTION_TYPE_EVENT_TYPE')    -> event_type;
+subscription_type('SUBSCRIPTION_TYPE_EVENT_PATTERN') -> event_pattern;
+subscription_type('SUBSCRIPTION_TYPE_EVENT_PAYLOAD') -> event_payload;
+subscription_type('SUBSCRIPTION_TYPE_TAGS')          -> tags;
 subscription_type(0) -> stream;
 subscription_type(1) -> stream;
 subscription_type(2) -> event_type;
