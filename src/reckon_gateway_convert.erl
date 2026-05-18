@@ -10,6 +10,7 @@
     %% Proto → Gater
     proposed_to_event/2,
     store_id/1,
+    try_store_id/1,
     subscription_type/1,
 
     %% Gater → Proto
@@ -73,6 +74,23 @@ store_id(BinId) when is_binary(BinId), byte_size(BinId) =< ?STORE_ID_MAX_BYTES -
     end;
 store_id(BinId) ->
     error({invalid_store_id, BinId}).
+
+%% @doc Non-throwing variant. Returns `{ok, Atom}' on success or
+%% `{error, invalid_store_id}' on any malformed input (empty
+%% binary, oversized, regex mismatch, non-binary).
+%%
+%% Gateway handlers use this to surface a typed gRPC
+%% `InvalidArgument' (status 3) instead of letting the throwing
+%% `store_id/1' bubble up as a generic `Handle frame crashed' /
+%% `Internal' response. See the per-handler wrappers added in
+%% reckon-gateway 0.4.9.
+-spec try_store_id(term()) -> {ok, atom()} | {error, invalid_store_id}.
+try_store_id(BinId) ->
+    try {ok, store_id(BinId)}
+    catch
+        error:{invalid_store_id, _} -> {error, invalid_store_id};
+        error:badarg -> {error, invalid_store_id}
+    end.
 
 %% @doc Convert proto SubscriptionType enum to gater atom.
 %%

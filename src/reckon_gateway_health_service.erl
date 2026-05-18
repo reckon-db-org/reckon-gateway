@@ -20,12 +20,16 @@
 -define(API_COMPAT_VERSION, <<"reckon.gateway.v1">>).
 
 check(#{store_id := StoreIdBin}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case reckon_gater_api:quick_health_check(StoreId) of
-        {ok, _} ->
-            {ok, #{status => 'HEALTH_STATUS_HEALTHY', details => #{}}, Md};
-        {error, _} ->
-            {ok, #{status => 'HEALTH_STATUS_UNHEALTHY', details => #{}}, Md}
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            case reckon_gater_api:quick_health_check(StoreId) of
+                {ok, _} ->
+                    {ok, #{status => 'HEALTH_STATUS_HEALTHY', details => #{}}, Md};
+                {error, _} ->
+                    {ok, #{status => 'HEALTH_STATUS_UNHEALTHY', details => #{}}, Md}
+            end
     end.
 
 health(#{}, Md) ->
@@ -52,51 +56,71 @@ health(#{}, Md) ->
     end.
 
 verify_cluster_consistency(#{store_id := StoreIdBin}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case reckon_gater_api:verify_cluster_consistency(StoreId) of
-        {ok, #{status := Status} = Info} ->
-            {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
-        {error, _} -> {error, <<"13">>}
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            case reckon_gater_api:verify_cluster_consistency(StoreId) of
+                {ok, #{status := Status} = Info} ->
+                    {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
+                {error, _} -> {error, <<"13">>}
+            end
     end.
 
 verify_membership_consensus(#{store_id := StoreIdBin}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case reckon_gater_api:verify_membership_consensus(StoreId) of
-        {ok, #{status := Status} = Info} ->
-            {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
-        {error, _} -> {error, <<"13">>}
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            case reckon_gater_api:verify_membership_consensus(StoreId) of
+                {ok, #{status := Status} = Info} ->
+                    {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
+                {error, _} -> {error, <<"13">>}
+            end
     end.
 
 check_raft_log_consistency(#{store_id := StoreIdBin}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case reckon_gater_api:check_raft_log_consistency(StoreId) of
-        {ok, #{status := Status} = Info} ->
-            {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
-        {error, _} -> {error, <<"13">>}
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            case reckon_gater_api:check_raft_log_consistency(StoreId) of
+                {ok, #{status := Status} = Info} ->
+                    {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
+                {error, _} -> {error, <<"13">>}
+            end
     end.
 
 get_memory_level(#{store_id := StoreIdBin}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case reckon_gater_api:get_memory_level(StoreId) of
-        {ok, Level} ->
-            ProtoLevel = case Level of
-                low -> 'MEMORY_LEVEL_LOW'; normal -> 'MEMORY_LEVEL_NORMAL';
-                high -> 'MEMORY_LEVEL_HIGH'; critical -> 'MEMORY_LEVEL_CRITICAL';
-                _ -> 'MEMORY_LEVEL_NORMAL'
-            end,
-            {ok, #{level => ProtoLevel}, Md};
-        {error, _} -> {error, <<"13">>}
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            case reckon_gater_api:get_memory_level(StoreId) of
+                {ok, Level} ->
+                    ProtoLevel = case Level of
+                        low -> 'MEMORY_LEVEL_LOW'; normal -> 'MEMORY_LEVEL_NORMAL';
+                        high -> 'MEMORY_LEVEL_HIGH'; critical -> 'MEMORY_LEVEL_CRITICAL';
+                        _ -> 'MEMORY_LEVEL_NORMAL'
+                    end,
+                    {ok, #{level => ProtoLevel}, Md};
+                {error, _} -> {error, <<"13">>}
+            end
     end.
 
 get_memory_stats(#{store_id := StoreIdBin}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case reckon_gater_api:get_memory_stats(StoreId) of
-        {ok, Stats} ->
-            {ok, #{used_bytes => maps:get(used, Stats, 0),
-                   total_bytes => maps:get(total, Stats, 0),
-                   usage_percent => maps:get(usage_percent, Stats, 0.0),
-                   breakdown => maps_to_strings(maps:get(breakdown, Stats, #{}))}, Md};
-        {error, _} -> {error, <<"13">>}
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            case reckon_gater_api:get_memory_stats(StoreId) of
+                {ok, Stats} ->
+                    {ok, #{used_bytes => maps:get(used, Stats, 0),
+                           total_bytes => maps:get(total, Stats, 0),
+                           usage_percent => maps:get(usage_percent, Stats, 0.0),
+                           breakdown => maps_to_strings(maps:get(breakdown, Stats, #{}))}, Md};
+                {error, _} -> {error, <<"13">>}
+            end
     end.
 
 %% @doc GetServerInfo — advertise the tamper-resistance algorithm,
@@ -107,24 +131,28 @@ get_memory_stats(#{store_id := StoreIdBin}, Md) ->
 %% (an opaque integer the server uses to coordinate rotation) appears
 %% in the response.
 get_server_info(#{store_id := StoreIdBin}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    IntegrityEnabled = integrity_enabled_for_store(StoreId),
-    {AlgoBin, KeyId} = case IntegrityEnabled of
-        true ->
-            %% Key ID is fixed at 1 in reckon-db 2.1.0; rotation
-            %% machinery (2.2+) will introduce variable IDs.
-            {?INTEGRITY_ALGO, 1};
-        false ->
-            {<<>>, 0}
-    end,
-    {ok, #{
-        reckon_db_version => reckon_db_version(),
-        reckon_gateway_version => reckon_gateway_version(),
-        integrity_algo => AlgoBin,
-        integrity_enabled => IntegrityEnabled,
-        hmac_key_id => KeyId,
-        api_compatibility_version => ?API_COMPAT_VERSION
-    }, Md}.
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            IntegrityEnabled = integrity_enabled_for_store(StoreId),
+            {AlgoBin, KeyId} = case IntegrityEnabled of
+                true ->
+                    %% Key ID is fixed at 1 in reckon-db 2.1.0; rotation
+                    %% machinery (2.2+) will introduce variable IDs.
+                    {?INTEGRITY_ALGO, 1};
+                false ->
+                    {<<>>, 0}
+            end,
+            {ok, #{
+                reckon_db_version => reckon_db_version(),
+                reckon_gateway_version => reckon_gateway_version(),
+                integrity_algo => AlgoBin,
+                integrity_enabled => IntegrityEnabled,
+                hmac_key_id => KeyId,
+                api_compatibility_version => ?API_COMPAT_VERSION
+            }, Md}
+    end.
 
 %% @private Whether the addressed store has integrity enabled.
 %% Wraps the local reckon_db check; falls back to `false` on errors

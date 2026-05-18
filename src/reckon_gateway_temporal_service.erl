@@ -7,17 +7,21 @@ read_until(#{store_id := StoreIdBin,
              stream_id := StreamId,
              timestamp := Timestamp,
              batch_size := BatchSize}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    Opts = case BatchSize of
-        0 -> #{};
-        BS -> #{batch_size => BS}
-    end,
-    case reckon_gater_api:read_until(StoreId, StreamId, Timestamp, Opts) of
-        {ok, Events} ->
-            Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
-            {ok, #{events => Recorded}, Md};
-        {error, _Reason} ->
-            {error, <<"13">>}
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            Opts = case BatchSize of
+                0 -> #{};
+                BS -> #{batch_size => BS}
+            end,
+            case reckon_gater_api:read_until(StoreId, StreamId, Timestamp, Opts) of
+                {ok, Events} ->
+                    Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
+                    {ok, #{events => Recorded}, Md};
+                {error, _Reason} ->
+                    {error, <<"13">>}
+            end
     end.
 
 read_range(#{store_id := StoreIdBin,
@@ -25,26 +29,34 @@ read_range(#{store_id := StoreIdBin,
              from_timestamp := From,
              to_timestamp := To,
              batch_size := BatchSize}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    Opts = case BatchSize of
-        0 -> #{};
-        BS -> #{batch_size => BS}
-    end,
-    case reckon_gater_api:read_range(StoreId, StreamId, From, To, Opts) of
-        {ok, Events} ->
-            Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
-            {ok, #{events => Recorded}, Md};
-        {error, _Reason} ->
-            {error, <<"13">>}
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            Opts = case BatchSize of
+                0 -> #{};
+                BS -> #{batch_size => BS}
+            end,
+            case reckon_gater_api:read_range(StoreId, StreamId, From, To, Opts) of
+                {ok, Events} ->
+                    Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
+                    {ok, #{events => Recorded}, Md};
+                {error, _Reason} ->
+                    {error, <<"13">>}
+            end
     end.
 
 version_at(#{store_id := StoreIdBin,
              stream_id := StreamId,
              timestamp := Timestamp}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    case reckon_gater_api:version_at(StoreId, StreamId, Timestamp) of
-        {ok, Version} ->
-            {ok, #{version => Version}, Md};
-        {error, _Reason} ->
-            {error, <<"13">>}
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            case reckon_gater_api:version_at(StoreId, StreamId, Timestamp) of
+                {ok, Version} ->
+                    {ok, #{version => Version}, Md};
+                {error, _Reason} ->
+                    {error, <<"13">>}
+            end
     end.

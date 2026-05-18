@@ -25,10 +25,14 @@ list_stores(_Req, Md) ->
     {ok, #{instances => [entry_to_proto(E) || E <- Entries]}, Md}.
 
 get_store(#{store_id := StoreIdBin}, Md) ->
-    StoreId = reckon_gateway_convert:store_id(StoreIdBin),
-    {ok, Entries} = reckon_db_store_registry:list_stores(),
-    Filtered = [E || E <- Entries, maps:get(store_id, E) =:= StoreId],
-    {ok, #{instances => [entry_to_proto(E) || E <- Filtered]}, Md}.
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            {error, <<"3">>};
+        {ok, StoreId} ->
+            {ok, Entries} = reckon_db_store_registry:list_stores(),
+            Filtered = [E || E <- Entries, maps:get(store_id, E) =:= StoreId],
+            {ok, #{instances => [entry_to_proto(E) || E <- Filtered]}, Md}
+    end.
 
 %%====================================================================
 %% Server-streaming

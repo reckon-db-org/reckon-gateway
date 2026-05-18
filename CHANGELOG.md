@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.9 (2026-05-18)
+
+### Fixed — empty / malformed `store_id` returns InvalidArgument
+
+`reckon_gateway_convert:store_id/1` used to throw `error/1` on
+malformed input (empty binary, oversized, regex mismatch).
+grpc-erl's handler wrapper caught the throw and surfaced
+`Handle frame crashed` → gRPC `Internal`, which read as a
+server bug even though the input was the client's fault.
+
+New `reckon_gateway_convert:try_store_id/1` returns
+`{ok, Atom} | {error, invalid_store_id}`. All 57 unary handler
+entries across the 9 service modules now use it and return
+gRPC `InvalidArgument` (status 3) on bad input. The throwing
+`store_id/1` is kept for backwards compatibility and the few
+internal callers that want fail-fast semantics.
+
+Server-streaming `subscribe/2` in `reckon_gateway_subscription_service`
+gets the same treatment.
+
 ## 0.4.8 (2026-05-18)
 
 ### Updated
