@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.4.10 (2026-05-18)
+
+### Fixed — subscribe / create_subscription errors reach the client
+
+Both `subscribe/2` (server-streaming) and `create_subscription/2`
+(unary) used to do `ok = reckon_gater_api:save_subscription(...)`,
+which was a fire-and-forget cast. If the worker rejected the
+subscription (most notably `{invalid_filter, _}` from a malformed
+selector), the gateway never knew — the cast returned `ok`
+synchronously, the stream sat there forever, and the client saw
+gRPC success while no events ever flowed.
+
+With reckon-gater 2.1.2 / reckon-db 2.3.5, `save_subscription`
+is synchronous and returns `{ok, Key} | {error, Reason}`. Both
+handlers now pattern-match the result:
+
+- `{ok, _Key}` → enter the streaming loop (subscribe) / return
+  the assigned id (create_subscription).
+- `{error, _}` → log the rejection, return gRPC
+  `InvalidArgument` (status 3). The retry layer already
+  whitelists `{invalid_filter, _}` and `{invalid_stream_id, _, _}`
+  as non-retriable so the response is immediate.
+
+### Updated
+
+- Pinned `reckon_db` to `~> 2.3.5` (was `~> 2.3.4`).
+- Pinned `reckon_gater` to `~> 2.1.2` (was `~> 2.1.1`).
+
 ## 0.4.9 (2026-05-18)
 
 ### Fixed — empty / malformed `store_id` returns InvalidArgument

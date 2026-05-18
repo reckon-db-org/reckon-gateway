@@ -30,13 +30,22 @@ subscribe(Stream, _Md) ->
             _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
             Self = self(),
             process_flag(trap_exit, true),
-            ok = reckon_gater_api:save_subscription(
-                StoreId, SubType, Selector, Name, StartFrom, Self),
-            try
-                stream_events_loop(Stream1, StoreId, Name)
-            after
-                %% Always clean up the subscription when the stream ends
-                reckon_gater_api:remove_subscription(StoreId, SubType, Selector, Name)
+            case reckon_gater_api:save_subscription(
+                    StoreId, SubType, Selector, Name, StartFrom, Self) of
+                {ok, _Key} ->
+                    try
+                        stream_events_loop(Stream1, StoreId, Name)
+                    after
+                        %% Always clean up the subscription when the
+                        %% stream ends.
+                        reckon_gater_api:remove_subscription(
+                            StoreId, SubType, Selector, Name)
+                    end;
+                {error, Reason} ->
+                    logger:warning(
+                        "[gateway] subscribe ~s rejected: ~p",
+                        [Name, Reason]),
+                    {error, <<"3">>}
             end
     end.
 
@@ -65,10 +74,18 @@ create_subscription(#{store_id := StoreIdBin,
         {ok, StoreId} ->
             SubType = reckon_gateway_convert:subscription_type(Type),
             _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
-            ok = reckon_gater_api:save_subscription(
-                StoreId, SubType, Selector, Name, StartFrom, undefined),
-            SubId = iolist_to_binary([atom_to_binary(StoreId), <<":">>, Name]),
-            {ok, #{subscription_id => SubId}, Md}
+            case reckon_gater_api:save_subscription(
+                    StoreId, SubType, Selector, Name, StartFrom, undefined) of
+                {ok, _Key} ->
+                    SubId = iolist_to_binary(
+                        [atom_to_binary(StoreId), <<":">>, Name]),
+                    {ok, #{subscription_id => SubId}, Md};
+                {error, Reason} ->
+                    logger:warning(
+                        "[gateway] create_subscription ~s rejected: ~p",
+                        [Name, Reason]),
+                    {error, <<"3">>}
+            end
     end.
 
 remove_subscription(#{store_id := StoreIdBin,
