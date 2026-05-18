@@ -87,8 +87,8 @@ scavenge(#{store_id := StoreIdBin, stream_id := StreamId, options := Opts}, Md) 
             case reckon_gater_api:scavenge(StoreId, StreamId, Opts) of
                 {ok, Result} ->
                     {ok, scavenge_result_to_proto(Result), Md};
-                {error, _Reason} ->
-                    {error, <<"13">>}
+                {error, Reason} ->
+                    scavenge_error(Reason)
             end
     end.
 
@@ -101,8 +101,8 @@ scavenge_matching(#{store_id := StoreIdBin, pattern := Pattern, options := Opts}
                 {ok, Results} ->
                     ProtoResults = [scavenge_result_to_proto(R) || R <- Results],
                     {ok, #{results => ProtoResults}, Md};
-                {error, _Reason} ->
-                    {error, <<"13">>}
+                {error, Reason} ->
+                    scavenge_error(Reason)
             end
     end.
 
@@ -114,10 +114,18 @@ scavenge_dry_run(#{store_id := StoreIdBin, stream_id := StreamId, options := Opt
             case reckon_gater_api:scavenge_dry_run(StoreId, StreamId, Opts) of
                 {ok, Result} ->
                     {ok, scavenge_result_to_proto(Result), Md};
-                {error, _Reason} ->
-                    {error, <<"13">>}
+                {error, Reason} ->
+                    scavenge_error(Reason)
             end
     end.
+
+%% @private Map worker-side errors to the right gRPC status code.
+%% Caller-side errors (no_snapshot, stream_not_found, invalid_stream_id)
+%% are 3 (InvalidArgument). Anything else stays 13 (Internal).
+scavenge_error({no_snapshot, _}) -> {error, <<"3">>};
+scavenge_error({stream_not_found, _}) -> {error, <<"3">>};
+scavenge_error({invalid_stream_id, _, _}) -> {error, <<"3">>};
+scavenge_error(_) -> {error, <<"13">>}.
 
 %%====================================================================
 %% Stream Links

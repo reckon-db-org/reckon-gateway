@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.13 (2026-05-18)
+
+### Fixed — scavenge errors surface the right gRPC code
+
+The 0.4.12 admin scavenge handlers caught every worker error as
+gRPC code 13 (Internal). Caller-side errors like
+`{no_snapshot, _}`, `{stream_not_found, _}`, `{invalid_stream_id, _, _}`
+now return code 3 (InvalidArgument).
+
 ## 0.4.12 (2026-05-18)
 
 ### Fixed — `ScavengeDryRun` against a stream without a snapshot is fast
