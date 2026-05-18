@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.12 (2026-05-18)
+
+### Fixed — `ScavengeDryRun` against a stream without a snapshot is fast
+
+The retry layer in reckon-gater 2.1.3 didn't treat `{no_snapshot, _}`
+as a non-retriable error. `AdminService.ScavengeDryRun` against
+a stream that doesn't exist (or has no checkpoint) hit the full
+retry chain and ran out the gRPC deadline before surfacing the
+real cause.
+
+Bumps to reckon-gater 2.1.4 / reckon-db 2.3.7 which whitelist
+`{no_snapshot, _}` alongside the other caller-side errors.
+
+### Changed — deps bumped
+
+- `reckon_gater` `~> 2.1.4`
+- `reckon_db` `~> 2.3.7`
+
 ## 0.4.11 (2026-05-18)
 
 ### Fixed — remove_subscription / ack_event surface worker errors
