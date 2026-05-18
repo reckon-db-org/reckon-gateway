@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.4.11 (2026-05-18)
+
+### Fixed — remove_subscription / ack_event surface worker errors
+
+Mirror of the 0.4.10 subscribe/create_subscription fix for the
+remaining two subscription-lifecycle endpoints. Both handlers used
+to do `ok = reckon_gater_api:...(...)`, a fire-and-forget cast
+masking any worker-side failure.
+
+With reckon-gater 2.1.3 / reckon-db 2.3.6, both calls are
+synchronous and return `ok | {error, Reason}`. Handlers now
+pattern-match:
+
+- `remove_subscription/2` returns gRPC `Ok` on success (including the
+  idempotent "already gone" case which the worker maps to `ok`) and
+  `InvalidArgument` on transport / store errors.
+- `ack_event/2` returns gRPC `Ok` on success and `InvalidArgument`
+  on `{subscription_not_found, _}` (acking a removed subscription).
+
+The cleanup-after-disconnect path in `subscribe/2` keeps the
+discard-result shape — `remove_subscription` is idempotent on the
+worker side and the worker logs any genuine error itself.
+
+### Refactored — subscription-service handlers flatter
+
+The handlers were 4+ levels deep (case-on-store-id → case-on-result).
+`remove_subscription/2` and `ack_event/2` are split into two helper
+clauses each (`handle_*` / `reply_*`), leaning on function-head
+pattern matching instead of nested `case`.
+
+### Changed — deps bumped
+
+- `reckon_gater` `~> 2.1.3`
+- `reckon_db` `~> 2.3.6`
+
 ## 0.4.10 (2026-05-18)
 
 ### Fixed — subscribe / create_subscription errors reach the client

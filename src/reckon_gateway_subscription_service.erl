@@ -36,10 +36,11 @@ subscribe(Stream, _Md) ->
                     try
                         stream_events_loop(Stream1, StoreId, Name)
                     after
-                        %% Always clean up the subscription when the
-                        %% stream ends.
-                        reckon_gater_api:remove_subscription(
-                            StoreId, SubType, Selector, Name)
+                        %% Best-effort cleanup. remove_subscription is
+                        %% idempotent (not_found → ok); the worker logs
+                        %% any genuine error itself.
+                        _ = reckon_gater_api:remove_subscription(
+                                StoreId, SubType, Selector, Name)
                     end;
                 {error, Reason} ->
                     logger:warning(
@@ -51,16 +52,22 @@ subscribe(Stream, _Md) ->
 
 ack_event(#{store_id := StoreIdBin,
             stream_id := StreamId,
-            subscription_name := _Name,
+            subscription_name := Name,
             event_number := EventNumber}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            {error, <<"3">>};
-        {ok, StoreId} ->
-            AckMap = #{event_number => EventNumber},
-            ok = reckon_gater_api:ack_event(StoreId, StreamId, self(), AckMap),
-            {ok, #{}, Md}
-    end.
+    handle_ack(reckon_gateway_convert:try_store_id(StoreIdBin),
+               StreamId, Name, EventNumber, Md).
+
+handle_ack({error, invalid_store_id}, _StreamId, _Name, _EvtNum, _Md) ->
+    {error, <<"3">>};
+handle_ack({ok, StoreId}, StreamId, Name, EventNumber, Md) ->
+    AckMap = #{event_number => EventNumber},
+    reply_ack(reckon_gater_api:ack_event(StoreId, StreamId, self(), AckMap), Name, Md).
+
+reply_ack(ok, _Name, Md) ->
+    {ok, #{}, Md};
+reply_ack({error, Reason}, Name, _Md) ->
+    logger:warning("[gateway] ack_event ~s rejected: ~p", [Name, Reason]),
+    {error, <<"3">>}.
 
 create_subscription(#{store_id := StoreIdBin,
                       type := Type,
@@ -92,14 +99,21 @@ remove_subscription(#{store_id := StoreIdBin,
                       type := Type,
                       selector := Selector,
                       subscription_name := Name}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            {error, <<"3">>};
-        {ok, StoreId} ->
-            SubType = reckon_gateway_convert:subscription_type(Type),
-            ok = reckon_gater_api:remove_subscription(StoreId, SubType, Selector, Name),
-            {ok, #{}, Md}
-    end.
+    handle_remove(reckon_gateway_convert:try_store_id(StoreIdBin),
+                  Type, Selector, Name, Md).
+
+handle_remove({error, invalid_store_id}, _Type, _Sel, _Name, _Md) ->
+    {error, <<"3">>};
+handle_remove({ok, StoreId}, Type, Selector, Name, Md) ->
+    SubType = reckon_gateway_convert:subscription_type(Type),
+    reply_remove(reckon_gater_api:remove_subscription(StoreId, SubType, Selector, Name),
+                 Name, Md).
+
+reply_remove(ok, _Name, Md) ->
+    {ok, #{}, Md};
+reply_remove({error, Reason}, Name, _Md) ->
+    logger:warning("[gateway] remove_subscription ~s rejected: ~p", [Name, Reason]),
+    {error, <<"3">>}.
 
 list_subscriptions(#{store_id := StoreIdBin}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
