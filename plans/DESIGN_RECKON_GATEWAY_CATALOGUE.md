@@ -1,9 +1,17 @@
 # DESIGN: reckon-gateway as a multi-cluster catalogue
 
-**Status:** draft (no code yet)
+**Status:** draft (no code yet) — **BLOCKED** by [RESEARCH_CATALOGUE_SPIKES.md](RESEARCH_CATALOGUE_SPIKES.md)
 **Author:** session 2026-05-19
 **Audience:** Raf
 **Supersedes:** [DESIGN_RECKON_GATEWAY_PROXY_MODE.md](DESIGN_RECKON_GATEWAY_PROXY_MODE.md) (historical only)
+
+> Implementation cannot start until the parksim CMD apps actually
+> instantiate reckon-db stores. The dist-routing mechanism this
+> design relies on is verified; the discovery surface
+> (`reckon_db_store_registry`) is correct; what's missing is that
+> parksim configures `event_store_id` but never starts the matching
+> `reckon_db_store`. See RESEARCH_CATALOGUE_SPIKES.md for the
+> finding and the parksim wiring fix it requires.
 
 ## Problem
 
