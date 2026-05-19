@@ -24,11 +24,17 @@ check(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(quick_health_check, [StoreId]) of
-                {ok, _} ->
-                    {ok, #{status => 'HEALTH_STATUS_HEALTHY', details => #{}}, Md};
-                {error, _} ->
-                    {ok, #{status => 'HEALTH_STATUS_UNHEALTHY', details => #{}}, Md}
+            case single_mode_short_circuit(StoreId) of
+                true ->
+                    {ok, #{status => 'HEALTH_STATUS_HEALTHY',
+                           details => #{<<"mode">> => <<"single">>}}, Md};
+                false ->
+                    case reckon_gateway_dispatch:call(quick_health_check, [StoreId]) of
+                        {ok, _} ->
+                            {ok, #{status => 'HEALTH_STATUS_HEALTHY', details => #{}}, Md};
+                        {error, _} ->
+                            {ok, #{status => 'HEALTH_STATUS_UNHEALTHY', details => #{}}, Md}
+                    end
             end
     end.
 
@@ -56,39 +62,56 @@ health(#{}, Md) ->
     end.
 
 verify_cluster_consistency(#{store_id := StoreIdBin}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            {error, <<"3">>};
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(verify_cluster_consistency, [StoreId]) of
-                {ok, #{status := Status} = Info} ->
-                    {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
-                {error, _} -> {error, <<"13">>}
-            end
-    end.
+    raft_only_check(StoreIdBin, verify_cluster_consistency, Md).
 
 verify_membership_consensus(#{store_id := StoreIdBin}, Md) ->
+    raft_only_check(StoreIdBin, verify_membership_consensus, Md).
+
+check_raft_log_consistency(#{store_id := StoreIdBin}, Md) ->
+    raft_only_check(StoreIdBin, check_raft_log_consistency, Md).
+
+%% @private Cluster-only consistency RPCs. Single-mode reckon-db has
+%% no Raft and no `reckon_db_cluster' module loaded; dispatching the
+%% RPC to the BEAM that holds the single-mode store triggers
+%% `{undef, reckon_db_cluster:..}' and a retry storm in the
+%% reckon-gater 1.x with_retry wrapper (~155s of back-off per call).
+%% That storm blocks the worker gen_server and starves concurrent
+%% list_streams / read_stream_forward calls, surfacing as `INTERNAL'
+%% errors in clients (lazyreckon).
+%%
+%% Short-circuit here: if the catalogue marks the store as single
+%% mode, the answer is unambiguous — there is nothing to verify — so
+%% return HEALTHY with a mode=single detail instead of touching the
+%% BEAM at all.
+raft_only_check(StoreIdBin, DispatchFn, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(verify_membership_consensus, [StoreId]) of
-                {ok, #{status := Status} = Info} ->
-                    {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
-                {error, _} -> {error, <<"13">>}
+            case single_mode_short_circuit(StoreId) of
+                true ->
+                    {ok, #{status  => 'CLUSTER_STATUS_HEALTHY',
+                           details => #{<<"mode">>   => <<"single">>,
+                                        <<"reason">> => <<"no cluster to verify">>}},
+                     Md};
+                false ->
+                    case reckon_gateway_dispatch:call(DispatchFn, [StoreId]) of
+                        {ok, #{status := Status} = Info} ->
+                            {ok, #{status  => cluster_status(Status),
+                                   details => maps_to_strings(Info)}, Md};
+                        {error, _} ->
+                            {error, <<"13">>}
+                    end
             end
     end.
 
-check_raft_log_consistency(#{store_id := StoreIdBin}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            {error, <<"3">>};
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(check_raft_log_consistency, [StoreId]) of
-                {ok, #{status := Status} = Info} ->
-                    {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
-                {error, _} -> {error, <<"13">>}
-            end
+%% @private Returns true if the catalogue knows this store and it is
+%% single-mode. False on unknown stores OR cluster-mode stores — in
+%% both cases the dispatcher is the right next hop.
+single_mode_short_circuit(StoreId) ->
+    case reckon_gateway_catalogue:store_mode(StoreId) of
+        {ok, single} -> true;
+        _            -> false
     end.
 
 get_memory_level(#{store_id := StoreIdBin}, Md) ->

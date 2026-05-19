@@ -82,7 +82,10 @@ catalogue_test_() ->
         fun subscriber_receives_retired_on_diff/1,
         fun subscriber_receives_retired_on_cluster_remove/1,
         fun unsubscribe_stops_events/1,
-        fun subscriber_pruned_on_death/1
+        fun subscriber_pruned_on_death/1,
+        fun store_mode_single/1,
+        fun store_mode_unknown/1,
+        fun store_mode_defaults_to_cluster_on_missing_field/1
      ]}.
 
 empty_at_startup(_) ->
@@ -284,4 +287,44 @@ subscriber_pruned_on_death(_) ->
         timer:sleep(50),
         %% The catalogue must still be alive + responsive.
         ?assertEqual([], reckon_gateway_catalogue:list_all())
+    end.
+
+%%====================================================================
+%% store_mode/1 — drives HealthService.VerifyClusterConsistency
+%% single-mode short-circuit.
+%%====================================================================
+
+store_mode_single(_) ->
+    fun() ->
+        publish(parksim, ['p@h'], [entry(parksim_entry2exit_store, 'p@h')]),
+        ?assertEqual({ok, single},
+                     reckon_gateway_catalogue:store_mode(parksim_entry2exit_store))
+    end.
+
+store_mode_unknown(_) ->
+    fun() ->
+        ?assertEqual({error, not_found},
+                     reckon_gateway_catalogue:store_mode(no_such_store))
+    end.
+
+store_mode_defaults_to_cluster_on_missing_field(_) ->
+    fun() ->
+        %% Legacy connector or hand-built entry without the `mode' key.
+        %% Conservative default: cluster, so Raft consistency RPCs are
+        %% NOT silently skipped on a real cluster.
+        BareEntry = #{store_id      => legacy_store,
+                      node          => 'l@h',
+                      data_dir      => "/tmp/legacy_store",
+                      timeout       => 5000,
+                      registered_at => erlang:system_time(millisecond)},
+        reckon_gateway_catalogue:publish(legacy, #{
+            members      => ['l@h'],
+            api_module   => esdb_gater_api,
+            stores       => [BareEntry],
+            status       => up,
+            last_refresh => erlang:system_time(millisecond)
+        }),
+        _ = reckon_gateway_catalogue:list_all(),  %% sync the cast
+        ?assertEqual({ok, cluster},
+                     reckon_gateway_catalogue:store_mode(legacy_store))
     end.

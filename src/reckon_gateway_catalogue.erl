@@ -18,7 +18,8 @@
 -behaviour(gen_server).
 
 -export([start_link/0, child_spec/0,
-         publish/2, remove/1, lookup/1, list_all/0, list_entries/0, status/0,
+         publish/2, remove/1, lookup/1, store_mode/1,
+         list_all/0, list_entries/0, status/0,
          subscribe/1, unsubscribe/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
@@ -82,6 +83,16 @@ remove(ClusterId) when is_atom(ClusterId) ->
     {ok, atom(), [node()], atom()} | {error, not_found | unreachable}.
 lookup(StoreId) when is_atom(StoreId) ->
     gen_server:call(?MODULE, {lookup, StoreId}).
+
+%% @doc Report the mode (single | cluster) of a known store. Used by
+%% handlers that need to short-circuit cluster-only RPCs against
+%% single-mode reckon-db stores (e.g. HealthService.VerifyClusterConsistency,
+%% where the parksim single-mode BEAMs would otherwise spin a retry
+%% storm against the missing reckon_db_cluster module).
+-spec store_mode(atom()) ->
+    {ok, single | cluster} | {error, not_found}.
+store_mode(StoreId) when is_atom(StoreId) ->
+    gen_server:call(?MODULE, {store_mode, StoreId}).
 
 %% @doc Flat union of every known store. Used by ops scripts.
 -spec list_all() -> [{atom(), atom(), atom()}].
@@ -156,6 +167,26 @@ handle_call(list_entries, _From,
     Reply = lists:flatten(
         [annotate_owned_entries(StoreId, ClusterId, CMap)
          || {StoreId, ClusterId} <- maps:to_list(Cat)]),
+    {reply, Reply, State};
+
+handle_call({store_mode, StoreId}, _From,
+            #state{catalogue = Cat, clusters = CMap} = State) ->
+    Reply = case maps:find(StoreId, Cat) of
+        error ->
+            {error, not_found};
+        {ok, ClusterId} ->
+            Entries = prev_stores(ClusterId, CMap),
+            case [maps:get(mode, E, undefined)
+                  || E <- Entries, maps:get(store_id, E) =:= StoreId] of
+                [Mode | _] when Mode =:= single; Mode =:= cluster ->
+                    {ok, Mode};
+                _ ->
+                    %% Mode unset on entry (legacy connector, etc.) —
+                    %% fall back to cluster so we don't silently
+                    %% mis-route consistency checks on a real cluster.
+                    {ok, cluster}
+            end
+    end,
     {reply, Reply, State};
 
 handle_call(status, _From,

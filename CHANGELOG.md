@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.1 (2026-05-19)
+
+**HealthService: short-circuit single-mode stores.**
+
+`VerifyClusterConsistency`, `VerifyMembershipConsensus`, `CheckRaftLogConsistency`,
+and the per-store `Check` (which invokes `quick_health_check`) now consult the
+catalogue's `mode` field first. If the store is single-mode the handler
+returns `HEALTH_STATUS_HEALTHY` (or `CLUSTER_STATUS_HEALTHY`) with
+`details.mode=single` immediately, without rpc-dispatching to the
+owning BEAM.
+
+Reason: single-mode reckon-db (the deployment shape used by the parksim
+fleet) has no `reckon_db_cluster` module loaded. Dispatching the Raft-style
+verification RPC triggers `{undef, reckon_db_cluster:verify_consistency/1}`
+on the parksim worker, which the reckon-gater 1.x with_retry wrapper then
+retries 11 times with exponential back-off (≈155 s). That retry storm
+blocks the worker gen_server and starves concurrent `list_streams` /
+`read_stream_forward` calls, surfacing as `INTERNAL` errors in client
+tools (lazyreckon).
+
+Fix is at the right layer: the gateway already knows each store's mode
+via the catalogue connector's refresh tick. No parksim-side change
+required.
+
+New surface:
+- `reckon_gateway_catalogue:store_mode/1 :: atom() -> {ok, single|cluster} | {error, not_found}`.
+
 ## 0.5.0 (2026-05-19)
 
 **BREAKING.** Catalogue-mode refactor. Reckon-gateway no longer
