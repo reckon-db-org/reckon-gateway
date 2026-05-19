@@ -18,11 +18,13 @@
 -behaviour(gen_server).
 
 -export([start_link/0, child_spec/0,
-         publish/2, remove/1, lookup/1, list_all/0, status/0]).
+         publish/2, remove/1, lookup/1, list_all/0, list_entries/0, status/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
+-type store_entry() :: #{store_id := atom(), _ => term()}.
+
 -type cluster_info() :: #{members      := [node()],
-                          stores       := [atom()],
+                          stores       := [store_entry()],
                           status       := up | degraded | unreachable,
                           last_refresh := integer() | undefined}.
 
@@ -75,10 +77,17 @@ remove(ClusterId) when is_atom(ClusterId) ->
 lookup(StoreId) when is_atom(StoreId) ->
     gen_server:call(?MODULE, {lookup, StoreId}).
 
-%% @doc Flat union of every known store. Used by StoresService.ListStores.
+%% @doc Flat union of every known store. Used by ops scripts.
 -spec list_all() -> [{atom(), atom(), atom()}].
 list_all() ->
     gen_server:call(?MODULE, list_all).
+
+%% @doc Full registry entries with cluster_id annotated. Used by
+%% StoresService.ListStores to populate the proto response without
+%% an additional rpc round-trip.
+-spec list_entries() -> [#{atom() => term()}].
+list_entries() ->
+    gen_server:call(?MODULE, list_entries).
 
 %% @doc Full status snapshot used by AdminService.GetCatalogueStatus.
 -spec status() ->
@@ -118,6 +127,15 @@ handle_call(list_all, _From,
              || {StoreId, ClusterId} <- maps:to_list(Cat)],
     {reply, Reply, State};
 
+handle_call(list_entries, _From,
+            #state{catalogue = Cat, clusters = CMap} = State) ->
+    %% Walk catalogue (which holds the winner per store_id after
+    %% collision-handling) and annotate each entry with cluster_id.
+    Reply = lists:flatten(
+        [annotate_owned_entries(StoreId, ClusterId, CMap)
+         || {StoreId, ClusterId} <- maps:to_list(Cat)]),
+    {reply, Reply, State};
+
 handle_call(status, _From,
             #state{catalogue = Cat, clusters = CMap} = State) ->
     Snapshot = #{
@@ -133,14 +151,11 @@ handle_cast({publish, ClusterId, Info},
             #state{catalogue = Cat,
                    clusters  = CMap,
                    collisions_logged = LoggedCollisions} = State) ->
-    PrevStores = case maps:get(ClusterId, CMap, undefined) of
-        undefined        -> [];
-        #{stores := S}   -> S
-    end,
-    NewStores = maps:get(stores, Info, []),
-    Added     = NewStores -- PrevStores,
-    Removed   = PrevStores -- NewStores,
-    %% Apply per-store add/remove against the denorm catalogue.
+    PrevIds = entry_ids(prev_stores(ClusterId, CMap)),
+    NewIds  = entry_ids(maps:get(stores, Info, [])),
+    Added   = NewIds -- PrevIds,
+    Removed = PrevIds -- NewIds,
+    %% Apply per-store_id add/remove against the denorm catalogue.
     {Cat1, NewLogged} = lists:foldl(
         fun(StoreId, {AccCat, AccLogged}) ->
             case maps:find(StoreId, AccCat) of
@@ -206,6 +221,20 @@ cluster_status(ClusterId, CMap) ->
         #{status := S} -> S;
         _              -> unreachable
     end.
+
+prev_stores(ClusterId, CMap) ->
+    case maps:get(ClusterId, CMap, undefined) of
+        undefined        -> [];
+        #{stores := S}   -> S
+    end.
+
+entry_ids(Entries) ->
+    [maps:get(store_id, E) || E <- Entries].
+
+annotate_owned_entries(StoreId, ClusterId, CMap) ->
+    Entries = prev_stores(ClusterId, CMap),
+    [E#{cluster_id => ClusterId}
+     || E <- Entries, maps:get(store_id, E) =:= StoreId].
 
 cluster_snapshot(Id, #{members := M, stores := S,
                        status  := Status, last_refresh := LR}) ->

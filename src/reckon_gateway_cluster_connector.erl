@@ -216,17 +216,25 @@ refresh(#state{cluster_id = Id,
                 last_refresh  = Now,
                 refresh_timer = Timer}.
 
-%% @doc Union the live store list across every connected member.
+%% @doc Union the live store registry entries across every connected
+%% member. Returns a list of registry-entry maps:
+%%
+%%   #{store_id := atom(), node := node(), mode := atom(),
+%%     data_dir := string(), timeout := pos_integer(),
+%%     registered_at := integer()}
+%%
 %% Single-mode reckon-db (as in parksim) keeps a per-node registry
 %% that only reports the stores running on THAT node; cluster-mode
-%% replicates within the cluster but the union+dedup is still safe.
+%% replicates within the cluster but `first-seen wins' dedup on
+%% store_id keeps either case clean.
 discover_stores(ClusterId, Members) ->
-    lists:usort(lists:flatten([discover_one(ClusterId, M) || M <- Members])).
+    All = lists:flatten([discover_one(ClusterId, M) || M <- Members]),
+    dedup_entries(All).
 
 discover_one(ClusterId, Member) ->
     case rpc:call(Member, reckon_db_store_registry, list_stores, []) of
         {ok, Entries} when is_list(Entries) ->
-            [maps:get(store_id, E) || E <- Entries, is_map(E)];
+            [E || E <- Entries, is_map(E), maps:is_key(store_id, E)];
         {badrpc, Why} ->
             logger:warning("[reckon_gateway_cluster ~p] list_stores via ~p failed: ~p",
                            [ClusterId, Member, Why]),
@@ -236,6 +244,16 @@ discover_one(ClusterId, Member) ->
                            [ClusterId, Member, Other]),
             []
     end.
+
+dedup_entries(Entries) ->
+    {_Seen, Out} = lists:foldl(
+        fun(#{store_id := Id} = E, {Seen, Acc}) ->
+            case sets:is_element(Id, Seen) of
+                true  -> {Seen, Acc};
+                false -> {sets:add_element(Id, Seen), [E | Acc]}
+            end
+        end, {sets:new(), []}, Entries),
+    lists:reverse(Out).
 
 publish_catalogue(ClusterId, Members, Stores, Status, Now) ->
     reckon_gateway_catalogue:publish(ClusterId, #{
