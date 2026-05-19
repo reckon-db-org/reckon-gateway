@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.3 (2026-05-19)
+
+**HealthService.Health: compute from catalogue, not dispatch.**
+
+The `Health` RPC (gateway-wide, no store_id) was a leftover from the
+pre-catalogue data-plane gateway. It dispatched the function `health`
+with an empty args list — but the catalogue-mode dispatcher's
+function head pattern is `call(Fn, [StoreId | _], _)` which requires
+a non-empty list. Every call hit a function_clause crash and
+returned `INTERNAL`.
+
+Symptom: TUI dashboards (lazyreckon's "Connected" indicator polls
+this RPC every refresh) saw permanent `rpc error: code = Internal
+desc =` regardless of how healthy the underlying fleet actually
+was. Surfaced via the new `gateway_rpc_coverage_SUITE` in reckon-e2e.
+
+Fix: compute Health from the catalogue's own status snapshot. No
+BEAM round-trip required — the gateway IS the layer that knows
+whether catalogue connectors are up. Returns HEALTHY when at least
+one configured cluster has status=up.
+
+`stores` field now carries cluster_id → cluster_status mappings
+(was per-store-id → unknown-detail in the legacy data-plane handler).
+
 ## 0.5.2 (2026-05-19)
 
 **AdminService.GetStreamInfo: reject empty stream_id.**

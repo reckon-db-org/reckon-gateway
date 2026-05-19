@@ -39,27 +39,39 @@ check(#{store_id := StoreIdBin}, Md) ->
     end.
 
 health(#{}, Md) ->
-    case reckon_gateway_dispatch:call(health, []) of
-        {ok, #{status := Status} = Info} ->
-            ProtoStatus = case Status of
-                healthy -> 'HEALTH_STATUS_HEALTHY';
-                degraded -> 'HEALTH_STATUS_DEGRADED';
-                _ -> 'HEALTH_STATUS_UNHEALTHY'
-            end,
-            Stores = maps:fold(
-                fun(K, V, Acc) -> Acc#{atom_to_binary(K, utf8) => V} end,
-                #{}, maps:get(stores, Info, #{})),
-            {ok, #{status => ProtoStatus,
-                   stores => Stores,
-                   total_workers => maps:get(total_workers, Info, 0),
-                   node => atom_to_binary(maps:get(node, Info, node()), utf8),
-                   timestamp => maps:get(timestamp, Info, 0)}, Md};
+    %% Catalogue-mode gateway: this is the GATEWAY's own health, NOT
+    %% any per-store BEAM's. Inheriting from the pre-catalogue
+    %% (data-plane) handler, this used to dispatch `health' with an
+    %% empty arg list which now crashes the dispatcher
+    %% (pattern requires `[StoreId | _]'). Compute the gateway's
+    %% status from the catalogue instead — no BEAM round-trip required.
+    Snapshot = reckon_gateway_catalogue:status(),
+    Clusters = maps:get(clusters, Snapshot, []),
+    Status = case Clusters of
+        [] ->
+            %% No connectors configured at all — gateway is up but
+            %% has nothing to route to.
+            'HEALTH_STATUS_DEGRADED';
         _ ->
-            {ok, #{status => 'HEALTH_STATUS_UNHEALTHY',
-                   stores => #{}, total_workers => 0,
-                   node => atom_to_binary(node(), utf8),
-                   timestamp => erlang:system_time(millisecond)}, Md}
-    end.
+            case lists:any(fun(#{status := up}) -> true; (_) -> false end,
+                           Clusters) of
+                true  -> 'HEALTH_STATUS_HEALTHY';
+                false -> 'HEALTH_STATUS_DEGRADED'
+            end
+    end,
+    %% `stores' map: store_id_bin => status string. Surfaces per-store
+    %% connector status from the catalogue without an RPC fan-out.
+    StoresMap = lists:foldl(
+        fun(#{cluster_id := CId, status := CStatus, store_count := _SC},
+            Acc) ->
+            Acc#{atom_to_binary(CId, utf8) =>
+                 atom_to_binary(CStatus, utf8)}
+        end, #{}, Clusters),
+    {ok, #{status => Status,
+           stores => StoresMap,
+           total_workers => maps:get(catalogue_size, Snapshot, 0),
+           node => atom_to_binary(node(), utf8),
+           timestamp => erlang:system_time(millisecond)}, Md}.
 
 verify_cluster_consistency(#{store_id := StoreIdBin}, Md) ->
     raft_only_check(StoreIdBin, verify_cluster_consistency, Md).
