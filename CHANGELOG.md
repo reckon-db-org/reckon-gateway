@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.4 (2026-05-19)
+
+**HealthService.Health: fix stores field encoding.**
+
+The `stores` field in `HealthResponse` is `map<string, uint32>` per
+the proto (cluster store-count per cluster). 0.5.3 returned
+`map<binary, binary>` (cluster_status atom rendered as string),
+which the proto encoder silently mis-encodes; the response never
+reached the wire, the gRPC client timed out at 5s.
+
+Fix: emit `cluster_id_bin => store_count_int`.
+
 ## 0.5.3 (2026-05-19)
 
 **HealthService.Health: compute from catalogue, not dispatch.**

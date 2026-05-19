@@ -59,13 +59,11 @@ health(#{}, Md) ->
                 false -> 'HEALTH_STATUS_DEGRADED'
             end
     end,
-    %% `stores' map: store_id_bin => status string. Surfaces per-store
-    %% connector status from the catalogue without an RPC fan-out.
+    %% `stores' is `map<string, uint32>' in the proto (per-cluster
+    %% store count). cluster_id binary -> store_count int.
     StoresMap = lists:foldl(
-        fun(#{cluster_id := CId, status := CStatus, store_count := _SC},
-            Acc) ->
-            Acc#{atom_to_binary(CId, utf8) =>
-                 atom_to_binary(CStatus, utf8)}
+        fun(#{cluster_id := CId, store_count := SC}, Acc) ->
+            Acc#{atom_to_binary(CId, utf8) => SC}
         end, #{}, Clusters),
     {ok, #{status => Status,
            stores => StoresMap,
