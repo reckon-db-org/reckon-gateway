@@ -207,6 +207,51 @@ New on `AdminService`:
 - `GetCatalogueStatus` — returns per-cluster `{cluster_id, seed,
   members, store_count, status, last_refresh}`. Used by ops tooling.
 
+## SDK contract — wire-compatible
+
+**reckon-gateway remains the single owner of the gRPC SDK API.** The
+contract that the reckon-go SDK and lazyreckon consume is exactly the
+contract reckon-gateway exposes today; this design preserves it.
+
+What stays wire-identical:
+
+- All nine gRPC services (`StreamService`, `StoresService`,
+  `SubscriptionService`, `SnapshotService`, `HealthService`,
+  `TemporalService`, `CausationService`, `SchemaService`,
+  `AdminService`) and every RPC method on them.
+- The reckon-proto schemas — request/response message types, field
+  numbers, error codes, streaming semantics. No client recompilation
+  needed.
+- The per-handler `store_id` extraction + validation
+  (`reckon_gateway_convert:try_store_id/1`). Clients send the same
+  identifiers; the gateway resolves them differently internally.
+- The `reckon-gater` Erlang dependency. reckon-gateway still
+  imports the protocol types from reckon-gater; what changes is
+  that the IMPLEMENTATION (`reckon_gater_api`) now runs on remote
+  cluster members reached via dist `rpc:call`, instead of locally.
+
+What changes from the SDK's perspective:
+
+- `ListStores` returns an additional `cluster_id` field per entry
+  (proto field with a fresh number; back-compatible — old clients
+  ignore unknown fields).
+- `AdminService` gains two new RPCs (`ReloadCatalogue`,
+  `GetCatalogueStatus`); existing admin RPCs are unaffected.
+- Per-RPC latency increases by one network hop (dist rpc to the
+  owning cluster member). Documented; affects timeouts on long
+  reads.
+- New error returns: `store_unknown` (was previously rare),
+  `cluster_unavailable` (new). Existing client error-handling
+  paths typically already cover unknown-store; cluster-unavailable
+  maps cleanly to `UNAVAILABLE` in gRPC status codes.
+
+What does NOT change:
+
+- The fact that reckon-gateway is the API surface for the reckon
+  ecosystem. Clients connect to a gateway, not to individual
+  reckon-db nodes. The data-plane refactor does not change that
+  topology decision.
+
 ## Cookie discipline
 
 **Cookies never cross the gateway → client boundary.** They are
