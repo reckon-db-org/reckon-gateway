@@ -1,4 +1,15 @@
 %% @doc gRPC HealthService implementation (emqx/grpc-erl).
+%%
+%% Error paths routed through reckon_gateway_error so the
+%% underlying reason is logged server-side (grpc-erl drops
+%% grpc-message on unary; see reckon_gateway_error docstring).
+%%
+%% Note: `check/2' deliberately does NOT raise gRPC errors on
+%% dispatch failure — instead it returns a HEALTHY/UNHEALTHY
+%% Health response. The dispatch failure IS the answer to
+%% "is this store healthy?". That non-error path is left intact;
+%% we log the dispatch reason directly so docker logs still
+%% carry it.
 -module(reckon_gateway_health_service).
 
 -export([
@@ -22,7 +33,7 @@
 check(#{store_id := StoreIdBin}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(check, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case single_mode_short_circuit(StoreId) of
                 true ->
@@ -32,7 +43,11 @@ check(#{store_id := StoreIdBin}, Md) ->
                     case reckon_gateway_dispatch:call(quick_health_check, [StoreId]) of
                         {ok, _} ->
                             {ok, #{status => 'HEALTH_STATUS_HEALTHY', details => #{}}, Md};
-                        {error, _} ->
+                        {error, Reason} ->
+                            %% Dispatch failure IS the answer — return
+                            %% UNHEALTHY, not a gRPC error. Still log
+                            %% the reason for triage.
+                            reckon_gateway_error:log(check, <<"unhealthy">>, Reason),
                             {ok, #{status => 'HEALTH_STATUS_UNHEALTHY', details => #{}}, Md}
                     end
             end
@@ -96,7 +111,7 @@ check_raft_log_consistency(#{store_id := StoreIdBin}, Md) ->
 raft_only_check(StoreIdBin, DispatchFn, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(DispatchFn, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case single_mode_short_circuit(StoreId) of
                 true ->
@@ -109,8 +124,8 @@ raft_only_check(StoreIdBin, DispatchFn, Md) ->
                         {ok, #{status := Status} = Info} ->
                             {ok, #{status  => cluster_status(Status),
                                    details => maps_to_strings(Info)}, Md};
-                        {error, _} ->
-                            {error, <<"13">>}
+                        {error, Reason} ->
+                            reckon_gateway_error:wrap(DispatchFn, <<"13">>, Reason)
                     end
             end
     end.
@@ -127,7 +142,7 @@ single_mode_short_circuit(StoreId) ->
 get_memory_level(#{store_id := StoreIdBin}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(get_memory_level, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case reckon_gateway_dispatch:call(get_memory_level, [StoreId]) of
                 {ok, Level} ->
@@ -137,14 +152,15 @@ get_memory_level(#{store_id := StoreIdBin}, Md) ->
                         _ -> 'MEMORY_LEVEL_NORMAL'
                     end,
                     {ok, #{level => ProtoLevel}, Md};
-                {error, _} -> {error, <<"13">>}
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(get_memory_level, <<"13">>, Reason)
             end
     end.
 
 get_memory_stats(#{store_id := StoreIdBin}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(get_memory_stats, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case reckon_gateway_dispatch:call(get_memory_stats, [StoreId]) of
                 {ok, Stats} ->
@@ -152,7 +168,8 @@ get_memory_stats(#{store_id := StoreIdBin}, Md) ->
                            total_bytes => maps:get(total, Stats, 0),
                            usage_percent => maps:get(usage_percent, Stats, 0.0),
                            breakdown => maps_to_strings(maps:get(breakdown, Stats, #{}))}, Md};
-                {error, _} -> {error, <<"13">>}
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(get_memory_stats, <<"13">>, Reason)
             end
     end.
 
@@ -166,7 +183,7 @@ get_memory_stats(#{store_id := StoreIdBin}, Md) ->
 get_server_info(#{store_id := StoreIdBin}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(get_server_info, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             IntegrityEnabled = integrity_enabled_for_store(StoreId),
             {AlgoBin, KeyId} = case IntegrityEnabled of

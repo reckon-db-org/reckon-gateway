@@ -1,4 +1,8 @@
 %% @doc gRPC SubscriptionService implementation.
+%%
+%% Error paths routed through reckon_gateway_error so the
+%% underlying reason is logged server-side (grpc-erl drops
+%% grpc-message on unary; see reckon_gateway_error docstring).
 -module(reckon_gateway_subscription_service).
 
 -include_lib("reckon_gater/include/reckon_gater_types.hrl").
@@ -24,7 +28,9 @@ subscribe(Stream, _Md) ->
            pool_size := PoolSize}], Stream1} = grpc_stream:recv(Stream),
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            {Code, Msg} = reckon_gateway_error:wrap_stream(
+                subscribe, <<"3">>, invalid_store_id),
+            {Code, Msg, Stream1};
         {ok, StoreId} ->
             SubType = reckon_gateway_convert:subscription_type(Type),
             _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
@@ -43,10 +49,9 @@ subscribe(Stream, _Md) ->
                                 StoreId, SubType, Selector, Name])
                     end;
                 {error, Reason} ->
-                    logger:warning(
-                        "[gateway] subscribe ~s rejected: ~p",
-                        [Name, Reason]),
-                    {error, <<"3">>}
+                    {Code, Msg} = reckon_gateway_error:wrap_stream(
+                        subscribe, <<"3">>, {Name, Reason}),
+                    {Code, Msg, Stream1}
             end
     end.
 
@@ -58,7 +63,7 @@ ack_event(#{store_id := StoreIdBin,
                StreamId, Name, EventNumber, Md).
 
 handle_ack({error, invalid_store_id}, _StreamId, _Name, _EvtNum, _Md) ->
-    {error, <<"3">>};
+    reckon_gateway_error:wrap(ack_event, <<"3">>, invalid_store_id);
 handle_ack({ok, StoreId}, StreamId, Name, EventNumber, Md) ->
     AckMap = #{event_number => EventNumber},
     reply_ack(reckon_gateway_dispatch:call(ack_event, [StoreId, StreamId, self(), AckMap]), Name, Md).
@@ -66,8 +71,7 @@ handle_ack({ok, StoreId}, StreamId, Name, EventNumber, Md) ->
 reply_ack(ok, _Name, Md) ->
     {ok, #{}, Md};
 reply_ack({error, Reason}, Name, _Md) ->
-    logger:warning("[gateway] ack_event ~s rejected: ~p", [Name, Reason]),
-    {error, <<"3">>}.
+    reckon_gateway_error:wrap(ack_event, <<"3">>, {Name, Reason}).
 
 create_subscription(#{store_id := StoreIdBin,
                       type := Type,
@@ -77,7 +81,7 @@ create_subscription(#{store_id := StoreIdBin,
                       pool_size := PoolSize}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(create_subscription, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             SubType = reckon_gateway_convert:subscription_type(Type),
             _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
@@ -88,10 +92,7 @@ create_subscription(#{store_id := StoreIdBin,
                         [atom_to_binary(StoreId), <<":">>, Name]),
                     {ok, #{subscription_id => SubId}, Md};
                 {error, Reason} ->
-                    logger:warning(
-                        "[gateway] create_subscription ~s rejected: ~p",
-                        [Name, Reason]),
-                    {error, <<"3">>}
+                    reckon_gateway_error:wrap(create_subscription, <<"3">>, {Name, Reason})
             end
     end.
 
@@ -103,7 +104,7 @@ remove_subscription(#{store_id := StoreIdBin,
                   Type, Selector, Name, Md).
 
 handle_remove({error, invalid_store_id}, _Type, _Sel, _Name, _Md) ->
-    {error, <<"3">>};
+    reckon_gateway_error:wrap(remove_subscription, <<"3">>, invalid_store_id);
 handle_remove({ok, StoreId}, Type, Selector, Name, Md) ->
     SubType = reckon_gateway_convert:subscription_type(Type),
     reply_remove(reckon_gateway_dispatch:call(remove_subscription, [StoreId, SubType, Selector, Name]),
@@ -112,20 +113,19 @@ handle_remove({ok, StoreId}, Type, Selector, Name, Md) ->
 reply_remove(ok, _Name, Md) ->
     {ok, #{}, Md};
 reply_remove({error, Reason}, Name, _Md) ->
-    logger:warning("[gateway] remove_subscription ~s rejected: ~p", [Name, Reason]),
-    {error, <<"3">>}.
+    reckon_gateway_error:wrap(remove_subscription, <<"3">>, {Name, Reason}).
 
 list_subscriptions(#{store_id := StoreIdBin}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(list_subscriptions, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case reckon_gateway_dispatch:call(get_subscriptions, [StoreId]) of
                 {ok, Subs} ->
                     ProtoSubs = [reckon_gateway_convert:subscription_to_proto(S) || S <- Subs],
                     {ok, #{subscriptions => ProtoSubs}, Md};
-                {error, _Reason} ->
-                    {error, <<"13">>}
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(list_subscriptions, <<"13">>, Reason)
             end
     end.
 
@@ -133,13 +133,13 @@ get_subscription(#{store_id := StoreIdBin,
                    subscription_name := Name}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(get_subscription, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case reckon_gateway_dispatch:call(get_subscription, [StoreId, Name]) of
                 {ok, Sub} ->
                     {ok, reckon_gateway_convert:subscription_to_proto(Sub), Md};
-                {error, _Reason} ->
-                    {error, <<"5">>}
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(get_subscription, <<"5">>, {Name, Reason})
             end
     end.
 
@@ -147,7 +147,7 @@ get_subscription_lag(#{store_id := StoreIdBin,
                        subscription_name := Name}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(get_subscription_lag, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case reckon_gateway_dispatch:call(subscription_lag, [StoreId, Name]) of
                 {ok, LagInfo} ->
@@ -166,8 +166,8 @@ get_subscription_lag(#{store_id := StoreIdBin,
                     {ok, #{lag => LagEvents,
                            current_checkpoint => Checkpoint,
                            latest_version => LatestPosition}, Md};
-                {error, _Reason} ->
-                    {error, <<"13">>}
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(get_subscription_lag, <<"13">>, {Name, Reason})
             end
     end.
 

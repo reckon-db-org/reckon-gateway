@@ -1,4 +1,8 @@
 %% @doc gRPC SnapshotService implementation.
+%%
+%% Error paths routed through reckon_gateway_error so the
+%% underlying reason is logged server-side (grpc-erl drops
+%% grpc-message on unary; see reckon_gateway_error docstring).
 -module(reckon_gateway_snapshot_service).
 
 -include_lib("reckon_gater/include/reckon_gater_types.hrl").
@@ -19,7 +23,7 @@ record_snapshot(#{store_id := StoreIdBin,
                   metadata := Metadata}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(record_snapshot, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             SnapshotRecord = #{
                 data => json:decode(Data),
@@ -37,13 +41,13 @@ read_snapshot(#{store_id := StoreIdBin,
                 version := Version}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(read_snapshot, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case reckon_gateway_dispatch:call(read_snapshot, [StoreId, SourceUuid, StreamUuid, Version]) of
                 {ok, Snapshot} ->
                     {ok, reckon_gateway_convert:snapshot_to_proto(Snapshot), Md};
-                {error, _Reason} ->
-                    {error, <<"5">>}
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(read_snapshot, <<"5">>, Reason)
             end
     end.
 
@@ -53,7 +57,7 @@ delete_snapshot(#{store_id := StoreIdBin,
                   version := Version}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(delete_snapshot, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             ok = reckon_gateway_dispatch:call(delete_snapshot, [StoreId, SourceUuid, StreamUuid, Version]),
             {ok, #{}, Md}
@@ -64,27 +68,27 @@ list_snapshots(#{store_id := StoreIdBin,
                  stream_uuid := StreamUuid}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(list_snapshots, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case reckon_gateway_dispatch:call(list_snapshots, [StoreId, SourceUuid, StreamUuid]) of
                 {ok, Snapshots} ->
                     ProtoSnapshots = [reckon_gateway_convert:snapshot_to_proto(S) || S <- Snapshots],
                     {ok, #{snapshots => ProtoSnapshots}, Md};
-                {error, _Reason} ->
-                    {error, <<"13">>}
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(list_snapshots, <<"13">>, Reason)
             end
     end.
 
 list_all_snapshots(#{store_id := StoreIdBin}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            {error, <<"3">>};
+            reckon_gateway_error:wrap(list_all_snapshots, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             case reckon_gateway_dispatch:call(list_all_snapshots, [StoreId]) of
                 {ok, Snapshots} ->
                     ProtoSnapshots = [reckon_gateway_convert:snapshot_to_proto(S) || S <- Snapshots],
                     {ok, #{snapshots => ProtoSnapshots}, Md};
-                {error, _Reason} ->
-                    {error, <<"13">>}
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(list_all_snapshots, <<"13">>, Reason)
             end
     end.
