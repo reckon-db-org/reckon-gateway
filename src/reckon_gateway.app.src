@@ -1,7 +1,9 @@
 {application, reckon_gateway, [
-    {description, "gRPC gateway for ReckonDB event store. "
-                  "Exposes ReckonDB operations over gRPC for polyglot access."},
-    {vsn, "0.4.13"},
+    {description, "Multi-cluster catalogue gateway for ReckonDB. "
+                  "Pure gRPC ingress; routes each request via Erlang dist "
+                  "rpc:call/4 to whichever BEAM owns the target store. "
+                  "Does NOT carry data."},
+    {vsn, "0.5.0"},
     {registered, [reckon_gateway_sup]},
     {mod, {reckon_gateway_app, []}},
     {applications, [
@@ -9,7 +11,6 @@
         stdlib,
         grpc,
         reckon_gater,
-        reckon_db,
         telemetry
     ]},
     {env, [

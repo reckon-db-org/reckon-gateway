@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.5.0 (2026-05-19)
+
+**BREAKING.** Catalogue-mode refactor. Reckon-gateway no longer
+carries data. It is a pure gRPC ingress that routes each request
+via Erlang dist `rpc:call/4` to whichever BEAM owns the target
+store. See `plans/DESIGN_RECKON_GATEWAY_CATALOGUE.md`.
+
+### Step 1 — strip the data plane
+
+This release covers only the first sub-task of the design: drop
+the reckon-db dependency and the cluster-discovery env block.
+Subsequent 0.5.x releases add the cluster connector, catalogue
+aggregator, admin RPCs (`ReloadCatalogue`, `GetCatalogueStatus`)
+and the per-handler dispatch.
+
+### Removed
+
+- `reckon_db` from `rebar.config` deps and from `reckon_gateway.app.src`
+  `applications`. The gateway BEAM no longer loads reckon-db.
+- `{reckon_db, [{cluster_port, ...}, {cluster_multicast_addr, ...},
+  {stores, [...]}]}` block from `config/sys.config.src`.
+- `RECKON_DB_DATA_DIR`, `RECKON_DB_STORE_MODE`, `RECKON_DB_CLUSTER_PORT`,
+  `RECKON_DB_CLUSTER_MULTICAST_ADDR`, `RECKON_DB_CLUSTER_SECRET` env
+  vars are no longer consumed. Setting them does nothing.
+
+### Added
+
+- `{reckon_gateway, [{clusters_config_path, "${RECKON_GATEWAY_CLUSTERS_PATH}"},
+  {refresh_interval_ms, 30000}]}` placeholder in sys.config. When
+  the path is unset or the file is missing, the catalogue boots
+  empty and every data RPC will return `store_unknown` once the
+  dispatch layer lands.
+- `{kernel, [{dist_auto_connect, never}]}` so the gateway only
+  connects to nodes it explicitly pings (per the design doc; avoids
+  accidental cookie mismatches).
+- `RECKON_GATEWAY_CLUSTERS_PATH` env var: absolute path to
+  operator-curated `clusters.eterm` (cookies live there;
+  out of gitops).
+
+### Migration
+
+The 5 orphan reckon-gateway:0.4.13 containers (laptop + beam00..03)
+were retired in macula-internal/macula-demo commit 09dadf4. There
+is no in-place upgrade path; the 0.5.0 image is intended for a
+fresh deploy via macula-demo/infrastructure once the catalogue
+implementation lands.
+
 ## 0.4.13 (2026-05-18)
 
 ### Fixed — scavenge errors surface the right gRPC code
