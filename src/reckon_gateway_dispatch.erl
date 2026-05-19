@@ -36,11 +36,20 @@ call(Fn, [StoreId | _] = Args, Timeout) when is_atom(StoreId) ->
                 {ok, Member} ->
                     invoke(Member, ApiModule, Fn, Args, Timeout);
                 error ->
+                    logger:warning(
+                        "dispatch: ~p has no healthy member for ~p",
+                        [StoreId, Fn]),
                     {error, cluster_unavailable}
             end;
         {error, not_found} ->
+            logger:debug(
+                "dispatch: store_unknown ~p (op=~p)",
+                [StoreId, Fn]),
             {error, store_unknown};
         {error, unreachable} ->
+            logger:warning(
+                "dispatch: catalogue unreachable for ~p (op=~p)",
+                [StoreId, Fn]),
             {error, cluster_unavailable}
     end.
 
@@ -52,6 +61,9 @@ pick_member([Member | _])   -> {ok, Member}.
 invoke(Member, ApiModule, Fn, Args, Timeout) ->
     case rpc:call(Member, ApiModule, Fn, Args, Timeout) of
         {badrpc, Reason} ->
+            logger:warning(
+                "dispatch: rpc ~p:~p/~p on ~p failed: ~p",
+                [ApiModule, Fn, length(Args), Member, Reason]),
             {error, {rpc_failed, Member, Reason}};
         Result ->
             Result
