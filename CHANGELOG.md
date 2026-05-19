@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.2 (2026-05-19)
+
+**AdminService.GetStreamInfo: reject empty stream_id.**
+
+`reckon_db_store_inspector:stream_info/2` (reckon-db 1.6.3) crashes
+with `{case_clause, -1}` at line 85 when called with an empty stream
+binary. The reckon-gater 1.x with_retry wrapper then retries 11
+times with exponential back-off (~155 s wall time), blocking the
+parksim worker gen_server and surfacing as `INTERNAL` to the gRPC
+caller. lazyreckon polls `GetStreamInfo` during refresh; before this
+guard, that single bad call could starve every concurrent RPC
+against the same store for over two minutes.
+
+Fix: gateway-side validation rejects empty stream_id with
+INVALID_ARGUMENT before dispatching. The validation is cheap and
+catches the bug at the boundary instead of propagating it to the
+data plane.
+
 ## 0.5.1 (2026-05-19)
 
 **HealthService: short-circuit single-mode stores.**

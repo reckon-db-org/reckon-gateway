@@ -3,7 +3,7 @@
                   "Pure gRPC ingress; routes each request via Erlang dist "
                   "rpc:call/4 to whichever BEAM owns the target store. "
                   "Does NOT carry data."},
-    {vsn, "0.5.1"},
+    {vsn, "0.5.2"},
     {registered, [reckon_gateway_sup]},
     {mod, {reckon_gateway_app, []}},
     {applications, [

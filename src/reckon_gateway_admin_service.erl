@@ -45,20 +45,34 @@ get_store_stats(#{store_id := StoreIdBin}, Md) ->
     end.
 
 get_stream_info(#{store_id := StoreIdBin, stream_id := StreamId}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
+    %% Validate stream_id is non-empty BEFORE dispatching. The
+    %% parksim-side reckon_db_store_inspector:stream_info/2 (reckon-db
+    %% 1.6.3) crashes with case_clause -1 on an empty binary, which
+    %% the reckon-gater 1.x with_retry wrapper then retries 11 times
+    %% (~155s wall) before surfacing as INTERNAL. lazyreckon polls
+    %% this RPC with an empty stream_id between store-selection and
+    %% stream-selection; without this guard every refresh stalls the
+    %% gateway and lazyreckon's streams pane shows "rpc error: code
+    %% = Internal".
+    case StreamId of
+        <<>> ->
             {error, <<"3">>};
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(stream_info, [StoreId, StreamId]) of
-                {ok, Info} ->
-                    {ok, #{stream_id => StreamId,
-                           version => maps:get(version, Info, 0),
-                           event_count => maps:get(event_count, Info, 0),
-                           created_at => maps:get(created_at, Info, 0),
-                           last_event_at => maps:get(last_event_at, Info, 0),
-                           event_types => maps:get(event_types, Info, [])}, Md};
-                {error, _Reason} ->
-                    {error, <<"5">>}
+        _ ->
+            case reckon_gateway_convert:try_store_id(StoreIdBin) of
+                {error, invalid_store_id} ->
+                    {error, <<"3">>};
+                {ok, StoreId} ->
+                    case reckon_gateway_dispatch:call(stream_info, [StoreId, StreamId]) of
+                        {ok, Info} ->
+                            {ok, #{stream_id => StreamId,
+                                   version => maps:get(version, Info, 0),
+                                   event_count => maps:get(event_count, Info, 0),
+                                   created_at => maps:get(created_at, Info, 0),
+                                   last_event_at => maps:get(last_event_at, Info, 0),
+                                   event_types => maps:get(event_types, Info, [])}, Md};
+                        {error, _Reason} ->
+                            {error, <<"5">>}
+                    end
             end
     end.
 
