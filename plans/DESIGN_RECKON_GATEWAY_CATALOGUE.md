@@ -200,12 +200,150 @@ dist subscription and re-emits.
 
 ### Admin RPCs
 
-New on `AdminService`:
+Two new RPCs land on `AdminService` (the same service that already
+hosts `Scavenge`, `CreateLink` etc.). Both follow the existing admin
+pattern — request, response, no streaming.
 
-- `ReloadCatalogue` — re-reads `clusters.eterm`, diffs against live
-  connectors, spawns / retires as needed. No gateway restart.
-- `GetCatalogueStatus` — returns per-cluster `{cluster_id, seed,
-  members, store_count, status, last_refresh}`. Used by ops tooling.
+#### Proto
+
+In `reckon-proto/reckon_admin.proto`:
+
+```proto
+service AdminService {
+  // ... existing RPCs (Scavenge, CreateLink, ListLinks, etc.) stay ...
+
+  rpc ReloadCatalogue (ReloadCatalogueRequest)
+                      returns (ReloadCatalogueResponse);
+  rpc GetCatalogueStatus (GetCatalogueStatusRequest)
+                          returns (GetCatalogueStatusResponse);
+}
+
+message ReloadCatalogueRequest {
+  // Empty for now. Future-proof: could carry an inline config blob
+  // for environments where the gateway can't read a file.
+}
+
+message ReloadCatalogueResponse {
+  repeated string added     = 1;  // cluster_ids newly connected
+  repeated string removed   = 2;  // cluster_ids retired
+  repeated string restarted = 3;  // cluster_ids whose config changed
+  string error              = 4;  // populated only on bad config
+}
+
+message GetCatalogueStatusRequest {}
+
+message GetCatalogueStatusResponse {
+  int32   catalogue_size  = 1;  // total distinct store_ids
+  int64   gateway_uptime_ms = 2;
+  repeated ClusterStatus clusters = 3;
+}
+
+message ClusterStatus {
+  string  cluster_id   = 1;
+  string  seed         = 2;  // e.g. "parksim_entry2exit@192.168.1.10"
+  repeated string members = 3;
+  int32   store_count  = 4;
+  string  status       = 5;  // "up" | "unreachable" | "degraded"
+  string  last_refresh = 6;  // ISO-8601
+  string  last_error   = 7;  // populated when status != "up"
+}
+```
+
+#### Handler wiring
+
+`src/reckon_gateway_admin_service.erl` gains two clauses, each one
+liner that delegates to the right module:
+
+```erlang
+reload_catalogue(_Req, _Stream) ->
+    reckon_gateway_clusters_sup:reload_from_disk().
+
+get_catalogue_status(_Req, _Stream) ->
+    reckon_gateway_catalogue:status().
+```
+
+#### What each does
+
+**`ReloadCatalogue`** — triggered by an operator after editing
+`clusters.eterm`:
+
+1. `reckon_gateway_clusters_sup:reload_from_disk/0` reads the file
+   from `clusters_config_path` (sys.config).
+2. Parses + validates: list of maps with `cluster_id`, `seed`,
+   `cookie`. Malformed file → return `{error, {bad_config, Why}}`
+   without touching live state.
+3. Computes a diff against the current set of running connectors:
+   - **added**: new `cluster_id` → start a connector via
+     `supervisor:start_child/2`.
+   - **removed**: gone `cluster_id` → `supervisor:terminate_child/2`.
+     The connector's `terminate/2` calls
+     `reckon_gateway_catalogue:remove/1` to drop the cluster's
+     stores from the catalogue.
+   - **restarted**: same `cluster_id` but cookie or seed differs →
+     terminate + start. In-flight RPCs against this cluster see a
+     brief `cluster_unavailable` window.
+4. Returns the diff summary so the operator can confirm what
+   changed.
+
+Idempotent: calling twice with no file changes is a clean no-op
+(`added=removed=restarted=[]`). Concurrent reloads serialise on the
+sup's gen_server lock.
+
+**`GetCatalogueStatus`** — read-only snapshot, no side effects:
+
+1. `reckon_gateway_catalogue:status/0` returns the live aggregate:
+   - Per cluster: `cluster_id`, `seed`, `members`, `store_count`,
+     `status` (up | unreachable | degraded), `last_refresh` ISO
+     timestamp, `last_error` (set when status ≠ up).
+   - Gateway-level: `catalogue_size` (total distinct store_ids
+     across all clusters), `gateway_uptime_ms`.
+2. Used for:
+   - Ops dashboards (poll every N seconds).
+   - Verifying a `ReloadCatalogue` landed correctly.
+   - Diagnosing why a store is invisible (cluster shows
+     `unreachable` → fix the upstream service; cluster shows `up`
+     but store missing → the owner process on the cluster isn't
+     running).
+3. Cheap call. Pure read from the catalogue gen_server's state. Safe
+   to poll at 1-second granularity.
+
+#### Operator-facing surface
+
+How an operator actually invokes these. Three layers, choose one:
+
+| Layer | Pro | Con |
+|---|---|---|
+| **`grpcurl` ad-hoc** | Zero new tooling; works today. | Verbose; requires knowing the proto. |
+| **Small CLI in reckon-go** | One ergonomic binary: `reckon-gateway-admin {status,reload}`. | New code in reckon-go. |
+| **lazyreckon command-palette** | UI-integrated; `:reload-catalogue` from inside the TUI. | UI churn; debatable whether end users should have admin powers. |
+
+Recommendation: ship the `grpcurl` invocation as documented in the
+README on day 1. Add a small subcommand to `lazyreckon` ('r' to
+refresh, `Ctrl-R` to reload) as a follow-up if operators ask for it.
+Don't write a separate admin CLI unless / until ops volume justifies.
+
+#### Auth
+
+Today the gateway has no auth on any gRPC RPC. Admin inherits the
+same posture — anyone who can reach the gRPC port can call
+`ReloadCatalogue`. For lab usage this is fine; for anything wider,
+the gateway needs a bearer-token gate. Same Open Question as the
+rest of the gRPC surface; not solved here.
+
+#### Edge cases
+
+- **Bad config file** (syntax error, missing fields): connectors
+  keep running unchanged; response carries `error` with the parse
+  failure; nothing is mutated.
+- **Connector currently `unreachable` and unchanged in new config**:
+  stays as-is; its retry loop keeps running.
+- **In-flight RPC during a `removed` event**: connector termination
+  closes the dist link; the in-flight `rpc:call` returns
+  `{badrpc, nodedown}`; dispatch maps it to `cluster_unavailable`.
+- **Duplicate `cluster_id` in new config**: `bad_config` error;
+  state untouched.
+- **clusters.eterm path unset / file missing**: same — `bad_config`
+  with a clear error.
 
 ## SDK contract — wire-compatible
 
