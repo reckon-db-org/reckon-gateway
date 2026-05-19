@@ -44,7 +44,6 @@ RUN rebar3 deps
 # them).
 COPY config/ config/
 COPY src/ src/
-COPY include/ include/
 
 # Generate gRPC stubs and build release. The `rebar3 compile` step
 # (invoked by `release`) runs reckon-db's pre_hook which builds the
