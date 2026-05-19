@@ -1,8 +1,13 @@
 # DESIGN: reckon-gateway proxy mode
 
-**Status:** draft (no code yet)
+**Status:** SUPERSEDED by [DESIGN_RECKON_GATEWAY_CATALOG_MODE.md](DESIGN_RECKON_GATEWAY_CATALOG_MODE.md)
 **Author:** session 2026-05-19
 **Audience:** Raf
+
+> Kept for historical context only. The catalog-mode design covers the
+> same single-cluster use case as one entry in a multi-cluster catalog,
+> and the implementation supersedes this one. Do not implement against
+> this doc.
 
 ## Problem
 
