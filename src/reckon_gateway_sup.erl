@@ -55,4 +55,12 @@ init([]) ->
         intensity => 5,
         period => 30
     },
-    {ok, {SupFlags, []}}.
+    Children = [
+        #{id       => clusters_sup,
+          start    => {reckon_gateway_clusters_sup, start_link, []},
+          restart  => permanent,
+          shutdown => 5000,
+          type     => supervisor,
+          modules  => [reckon_gateway_clusters_sup]}
+    ],
+    {ok, {SupFlags, Children}}.
