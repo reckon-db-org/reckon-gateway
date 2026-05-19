@@ -35,11 +35,20 @@ Add a **catalog mode** to reckon-gateway that:
 
 - Connects to N disjoint Erlang dist clusters concurrently using
   per-peer cookies (Erlang's `set_cookie(Node, Cookie)` semantics).
-- Maintains a unified catalog of every store across every connected
-  cluster: `{store_name → cluster_id}`. `cluster_id` is an
-  operator-assigned opaque label (e.g. `"parksim"`, `"marketplace"`).
-- Exposes one gRPC endpoint that lists the catalog, then routes each
-  data RPC to the right cluster member via Erlang dist `rpc:call`.
+- The gateway's config contains **clusters only** (cookie + seed +
+  optional `cluster_id` label). It does NOT contain store_ids.
+- The store_id list is **ephemeral**, discovered from each cluster
+  at runtime via `rpc:call(member, reckon_db_store_registry,
+  list_stores, [])`. As CMD/PRJ services start and stop, store_ids
+  appear and disappear; the gateway's view tracks that.
+- Maintains a unified catalog by merging each cluster's live stores:
+  `{store_id → cluster_id}`. `cluster_id` is an operator-assigned
+  opaque label (e.g. `"parksim"`, `"marketplace"`) attached at the
+  cluster level in config; it propagates to each store discovered in
+  that cluster for grouping in the UX.
+- Exposes one gRPC endpoint that lists the merged catalog, then
+  routes each data RPC to a healthy member of the owning cluster via
+  Erlang dist `rpc:call`.
 - Never returns cookies to clients. Cookies live in the gateway's
   config + memory only.
 - Hot-reloadable: add/remove clusters at runtime without restarting
@@ -76,9 +85,14 @@ client-side cookies, no per-cluster bookmark management.
   gateways with the same config form an obvious A/A pair (each
   connects independently to all clusters) but the lazyreckon client
   picks one endpoint; failover is the client's problem.
-- **No store-name disambiguation** across clusters. Operator
-  guarantees globally-unique store names in their catalog config;
-  gateway errors at config load on duplicates.
+- **No store-id disambiguation across clusters.** store_ids are
+  ephemeral — they exist in each cluster's `reckon_db_store_registry`
+  only as long as their owner process is alive. The gateway discovers
+  them at runtime; the operator does NOT pin them in any config. When
+  two clusters happen to expose the same store_id, the gateway logs
+  the collision and rejects the later-arriving cluster's entry from
+  the merged catalog (first-seen wins). Operator's responsibility to
+  fix the collision in the offending service.
 
 ## Today's wiring (annotated)
 
@@ -172,11 +186,13 @@ Node-down handling (`monitor_node/2` on each member):
 
 ### Catalog aggregator
 
-A single gen_server holding the union view:
+A single gen_server holding the union view rebuilt on each refresh
+tick. Store_ids are NOT persisted; the catalog is a cache of what
+the clusters currently report.
 
 ```
 #state{
-    catalog = #{StoreName => ClusterId, ...},
+    catalog = #{StoreId => ClusterId, ...},   %% ephemeral, rebuilt
     clusters = #{ClusterId => #cluster_info{...}, ...}
 }.
 ```
@@ -184,15 +200,20 @@ A single gen_server holding the union view:
 API:
 
 ```erlang
-lookup(StoreName) -> {ok, ClusterId, Members} | {error, not_found | unreachable}.
-list_all() -> [{StoreName, ClusterId, Status}, ...].
-ensure_unique(NewStores, ClusterId) -> ok | {error, {duplicate, StoreName, OtherClusterId}}.
+lookup(StoreId) -> {ok, ClusterId, Members} | {error, not_found | unreachable}.
+list_all() -> [{StoreId, ClusterId, Status}, ...].
+%% Called by each connector after its periodic refresh:
+publish(ClusterId, [StoreId, ...]) -> ok.
 ```
 
-Connectors call `ensure_unique` before publishing their store list.
-Duplicate detection => log + reject the cluster's stores until
-operator resolves it (gateway stays up; the offending cluster's
-stores stay invisible).
+`publish/2` re-asserts the cluster's store list. The aggregator
+diffs against the previous tick: new entries are added, missing ones
+are removed (they're gone from the cluster as of this tick), and
+collisions are detected as part of the same merge step. On collision
+the entry already in the catalog wins; the conflicting one is
+dropped from `list_all()` until either side disappears or is
+renamed. The collision is logged once per occurrence (not per tick)
+to avoid log spam.
 
 ### gRPC layer changes
 
@@ -261,7 +282,7 @@ gRPC side they are NEVER returned, even in error messages.
 
 `cluster_id` is the only routing tag clients see. It's an
 operator-assigned label, not the cookie. Even if the entire catalog
-leaks, the worst outcome is a list of cluster labels and store names,
+leaks, the worst outcome is a list of cluster labels and store_ids,
 not credentials.
 
 ## Config shape
@@ -327,7 +348,7 @@ Roughly **300-450 LOC** across new modules + targeted edits:
 | Store removed | Same path. |
 | Cluster member moves (e.g. `parksim_lot@beam01` → `parksim_lot@beam04`) | Refresh re-queries `nodes()`. Old member gets pruned, new one connected. Cookie unchanged. |
 | Cookie rotation on a cluster | Operator updates `clusters.eterm`, ReloadCatalog. Connector reconnects with new cookie. Brief unavailability window. |
-| Duplicate store name across clusters | Config-load error logged; offending cluster's stores stay invisible. Operator's responsibility to fix. |
+| Duplicate store_id across clusters | Detected at refresh time when both clusters surface the same id. First-seen wins; the later cluster's entry is logged + rejected from the catalog. Operator fixes by renaming the colliding store_id in the offending service's own sys.config (store_ids are ephemeral, tied to the owner process). |
 
 ## Open questions
 
