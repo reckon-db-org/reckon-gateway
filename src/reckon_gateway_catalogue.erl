@@ -18,7 +18,8 @@
 -behaviour(gen_server).
 
 -export([start_link/0, child_spec/0,
-         publish/2, remove/1, lookup/1, list_all/0, list_entries/0, status/0]).
+         publish/2, remove/1, lookup/1, list_all/0, list_entries/0, status/0,
+         subscribe/1, unsubscribe/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -type store_entry() :: #{store_id := atom(), _ => term()}.
@@ -35,7 +36,10 @@
     %% Per-cluster info:
     clusters  = #{} :: #{atom() => cluster_info()},
     %% Track collisions we've already logged so we don't spam.
-    collisions_logged = sets:new() :: sets:set({atom(), atom(), atom()})
+    collisions_logged = sets:new() :: sets:set({atom(), atom(), atom()}),
+    %% Live-stream subscribers (e.g. WatchStores gRPC handlers).
+    %% Map of monitor_ref => pid so we can clean up on subscriber DOWN.
+    subscribers = #{} :: #{reference() => pid()}
 }).
 
 %%====================================================================
@@ -98,6 +102,21 @@ list_entries() ->
 status() ->
     gen_server:call(?MODULE, status).
 
+%% @doc Subscribe Pid to live store-event notifications. The
+%% catalogue sends `{store_event, announced | retired, Entry}'
+%% messages as stores are added or dropped from the merged view.
+%% The catalogue monitors the subscriber and cleans up on DOWN.
+-spec subscribe(pid()) -> ok.
+subscribe(Pid) when is_pid(Pid) ->
+    gen_server:cast(?MODULE, {subscribe, Pid}).
+
+%% @doc Idempotent unsubscribe. The catalogue would clean up
+%% automatically when the subscriber dies; this is for clients that
+%% want to drop the subscription explicitly while staying alive.
+-spec unsubscribe(pid()) -> ok.
+unsubscribe(Pid) when is_pid(Pid) ->
+    gen_server:cast(?MODULE, {unsubscribe, Pid}).
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -153,20 +172,25 @@ handle_call(_Msg, _From, State) ->
 handle_cast({publish, ClusterId, Info},
             #state{catalogue = Cat,
                    clusters  = CMap,
-                   collisions_logged = LoggedCollisions} = State) ->
-    PrevIds = entry_ids(prev_stores(ClusterId, CMap)),
-    NewIds  = entry_ids(maps:get(stores, Info, [])),
-    Added   = NewIds -- PrevIds,
-    Removed = PrevIds -- NewIds,
+                   collisions_logged = LoggedCollisions,
+                   subscribers = Subs} = State) ->
+    PrevEntries = prev_stores(ClusterId, CMap),
+    NewEntries  = maps:get(stores, Info, []),
+    PrevIds = entry_ids(PrevEntries),
+    NewIds  = entry_ids(NewEntries),
+    AddedIds   = NewIds -- PrevIds,
+    RemovedIds = PrevIds -- NewIds,
     %% Apply per-store_id add/remove against the denorm catalogue.
-    {Cat1, NewLogged} = lists:foldl(
-        fun(StoreId, {AccCat, AccLogged}) ->
+    {Cat1, NewLogged, AcceptedAdds} = lists:foldl(
+        fun(StoreId, {AccCat, AccLogged, AccAccepted}) ->
             case maps:find(StoreId, AccCat) of
                 error ->
-                    {AccCat#{StoreId => ClusterId}, AccLogged};
+                    {AccCat#{StoreId => ClusterId},
+                     AccLogged,
+                     [StoreId | AccAccepted]};
                 {ok, ClusterId} ->
                     %% Self-republish; harmless.
-                    {AccCat, AccLogged};
+                    {AccCat, AccLogged, AccAccepted};
                 {ok, OtherCluster} ->
                     Key = {StoreId, ClusterId, OtherCluster},
                     case sets:is_element(Key, AccLogged) of
@@ -178,41 +202,68 @@ handle_cast({publish, ClusterId, Info},
                                            [StoreId, ClusterId, OtherCluster,
                                             OtherCluster])
                     end,
-                    {AccCat, sets:add_element(Key, AccLogged)}
+                    {AccCat, sets:add_element(Key, AccLogged), AccAccepted}
             end
-        end, {Cat, LoggedCollisions}, Added),
-    Cat2 = lists:foldl(
-        fun(StoreId, AccCat) ->
+        end, {Cat, LoggedCollisions, []}, AddedIds),
+    {Cat2, AcceptedRemoves} = lists:foldl(
+        fun(StoreId, {AccCat, AccAccepted}) ->
             case maps:find(StoreId, AccCat) of
-                {ok, ClusterId} -> maps:remove(StoreId, AccCat);
-                _               -> AccCat       %% owned by someone else now
+                {ok, ClusterId} ->
+                    {maps:remove(StoreId, AccCat),
+                     [StoreId | AccAccepted]};
+                _               -> {AccCat, AccAccepted}  %% owned by someone else now
             end
-        end, Cat1, Removed),
+        end, {Cat1, []}, RemovedIds),
     CMap1 = CMap#{ClusterId => Info},
-    case {Added, Removed} of
+    case {AddedIds, RemovedIds} of
         {[], []} -> ok;
         _ ->
             logger:info("[reckon_gateway_catalogue ~p] +~p -~p (catalogue size ~b)",
-                        [ClusterId, Added, Removed, maps:size(Cat2)])
+                        [ClusterId, AddedIds, RemovedIds, maps:size(Cat2)])
     end,
+    %% Emit live events to subscribers (sub-task 9).
+    notify_subscribers(Subs, ClusterId, NewEntries, AcceptedAdds, announced),
+    notify_subscribers(Subs, ClusterId, PrevEntries, AcceptedRemoves, retired),
     {noreply, State#state{catalogue = Cat2,
                           clusters  = CMap1,
                           collisions_logged = NewLogged}};
 
 handle_cast({remove, ClusterId},
-            #state{catalogue = Cat, clusters = CMap} = State) ->
-    Stores = case maps:get(ClusterId, CMap, undefined) of
+            #state{catalogue = Cat, clusters = CMap,
+                   subscribers = Subs} = State) ->
+    Entries = case maps:get(ClusterId, CMap, undefined) of
         undefined      -> [];
         #{stores := S} -> S
     end,
+    OwnedIds = [Id || {Id, C} <- maps:to_list(Cat), C =:= ClusterId],
     Cat1 = maps:filter(fun(_, C) -> C =/= ClusterId end, Cat),
     CMap1 = maps:remove(ClusterId, CMap),
     logger:info("[reckon_gateway_catalogue] removed cluster ~p (was ~b store(s))",
-                [ClusterId, length(Stores)]),
+                [ClusterId, length(Entries)]),
+    notify_subscribers(Subs, ClusterId, Entries, OwnedIds, retired),
     {noreply, State#state{catalogue = Cat1, clusters = CMap1}};
+
+handle_cast({subscribe, Pid},
+            #state{subscribers = Subs} = State) ->
+    Ref = erlang:monitor(process, Pid),
+    {noreply, State#state{subscribers = Subs#{Ref => Pid}}};
+
+handle_cast({unsubscribe, Pid},
+            #state{subscribers = Subs} = State) ->
+    NewSubs = maps:filter(
+        fun(Ref, P) when P =:= Pid ->
+                erlang:demonitor(Ref, [flush]),
+                false;
+           (_, _) ->
+                true
+        end, Subs),
+    {noreply, State#state{subscribers = NewSubs}};
 
 handle_cast(_Msg, State) -> {noreply, State}.
 
+handle_info({'DOWN', Ref, process, _Pid, _Reason},
+            #state{subscribers = Subs} = State) ->
+    {noreply, State#state{subscribers = maps:remove(Ref, Subs)}};
 handle_info(_Msg, State) -> {noreply, State}.
 
 %%====================================================================
@@ -238,6 +289,29 @@ annotate_owned_entries(StoreId, ClusterId, CMap) ->
     Entries = prev_stores(ClusterId, CMap),
     [E#{cluster_id => ClusterId}
      || E <- Entries, maps:get(store_id, E) =:= StoreId].
+
+%% @private Fire `{store_event, Type, Entry}' to every subscriber for
+%% each StoreId that won this publish cycle (collisions already
+%% filtered upstream). The Entry is annotated with cluster_id so the
+%% WatchStores handler can populate the proto without an additional
+%% lookup.
+notify_subscribers(_Subs, _ClusterId, _Entries, [], _Type) -> ok;
+notify_subscribers(Subs, ClusterId, Entries, AcceptedIds, Type)
+  when map_size(Subs) =:= 0 ->
+    _ = AcceptedIds, _ = Entries, _ = ClusterId, _ = Type, ok;
+notify_subscribers(Subs, ClusterId, Entries, AcceptedIds, Type) ->
+    Pids = maps:values(Subs),
+    lists:foreach(
+        fun(Id) ->
+            case [E || E <- Entries, maps:get(store_id, E) =:= Id] of
+                [Entry | _] ->
+                    Annotated = Entry#{cluster_id => ClusterId},
+                    Msg = {store_event, Type, Annotated},
+                    [P ! Msg || P <- Pids];
+                [] ->
+                    ok
+            end
+        end, AcceptedIds).
 
 cluster_snapshot(Id, #{members := M, stores := S,
                        status  := Status, last_refresh := LR}) ->

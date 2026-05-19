@@ -5,11 +5,11 @@
 %% cluster. The local reckon-db registry is no longer consulted —
 %% reckon-gateway 0.5.0 dropped reckon-db entirely.
 %%
-%% WatchStores in this release emits periodic snapshots only (no
-%% live retired/announced events). Per
-%% plans/DESIGN_RECKON_GATEWAY_CATALOGUE.md open question 2, the
-%% phase-2 streaming aggregator is deferred until lazyreckon needs
-%% it; for now polling is correct enough.
+%% WatchStores subscribes to the catalogue's live store-event
+%% stream. Initial snapshot (when requested) emits ANNOUNCED for
+%% every current entry; subsequent ANNOUNCED/RETIRED events fire as
+%% clusters publish updates. The catalogue monitors the handler
+%% process and prunes the subscription on stream close.
 -module(reckon_gateway_stores_service).
 
 -behaviour(reckon_gateway_v_1_stores_service_bhvr).
@@ -19,8 +19,6 @@
     get_store/2,
     watch_stores/2
 ]).
-
--define(WATCH_SNAPSHOT_INTERVAL_MS, 5000).
 
 %%====================================================================
 %% Unary
@@ -44,28 +42,30 @@ get_store(#{store_id := StoreIdBin}, Md) ->
 %% Server-streaming
 %%====================================================================
 
-%% Phase-1 implementation: snapshot every WATCH_SNAPSHOT_INTERVAL_MS,
-%% sending one ANNOUNCED event per entry. Crude but enough to drive
-%% lazyreckon's stores mode while we decide on a phase-2 streaming
-%% aggregator.
 watch_stores(Stream0, _Md) ->
     {_, [Req], Stream} = grpc_stream:recv(Stream0),
+    %% Subscribe FIRST so we don't miss events between snapshot
+    %% and loop entry. The catalogue monitors our pid; if the gRPC
+    %% library kills this process on client disconnect, the
+    %% subscription cleans itself up.
+    ok = reckon_gateway_catalogue:subscribe(self()),
     case maps:get(include_snapshot, Req, true) of
         true  -> emit_snapshot(Stream);
         false -> ok
     end,
-    snapshot_loop(Stream).
+    event_loop(Stream).
 
 emit_snapshot(Stream) ->
     Entries = reckon_gateway_catalogue:list_entries(),
     lists:foreach(fun(E) -> send_event(Stream, announced, E) end, Entries).
 
-snapshot_loop(Stream) ->
+event_loop(Stream) ->
     receive
-        _ -> snapshot_loop(Stream)
-    after ?WATCH_SNAPSHOT_INTERVAL_MS ->
-        emit_snapshot(Stream),
-        snapshot_loop(Stream)
+        {store_event, EventType, Entry} ->
+            send_event(Stream, EventType, Entry),
+            event_loop(Stream);
+        _ ->
+            event_loop(Stream)
     end.
 
 send_event(Stream, EventType, Entry) ->
