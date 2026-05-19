@@ -26,8 +26,8 @@ record_snapshot(#{store_id := StoreIdBin,
                 metadata => json:decode(Metadata),
                 version => Version
             },
-            ok = reckon_gater_api:record_snapshot(
-                StoreId, SourceUuid, StreamUuid, Version, SnapshotRecord),
+            ok = reckon_gateway_dispatch:call(record_snapshot, [
+                StoreId, SourceUuid, StreamUuid, Version, SnapshotRecord]),
             {ok, #{}, Md}
     end.
 
@@ -39,7 +39,7 @@ read_snapshot(#{store_id := StoreIdBin,
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:read_snapshot(StoreId, SourceUuid, StreamUuid, Version) of
+            case reckon_gateway_dispatch:call(read_snapshot, [StoreId, SourceUuid, StreamUuid, Version]) of
                 {ok, Snapshot} ->
                     {ok, reckon_gateway_convert:snapshot_to_proto(Snapshot), Md};
                 {error, _Reason} ->
@@ -55,7 +55,7 @@ delete_snapshot(#{store_id := StoreIdBin,
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            ok = reckon_gater_api:delete_snapshot(StoreId, SourceUuid, StreamUuid, Version),
+            ok = reckon_gateway_dispatch:call(delete_snapshot, [StoreId, SourceUuid, StreamUuid, Version]),
             {ok, #{}, Md}
     end.
 
@@ -66,7 +66,7 @@ list_snapshots(#{store_id := StoreIdBin,
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:list_snapshots(StoreId, SourceUuid, StreamUuid) of
+            case reckon_gateway_dispatch:call(list_snapshots, [StoreId, SourceUuid, StreamUuid]) of
                 {ok, Snapshots} ->
                     ProtoSnapshots = [reckon_gateway_convert:snapshot_to_proto(S) || S <- Snapshots],
                     {ok, #{snapshots => ProtoSnapshots}, Md};
@@ -80,7 +80,7 @@ list_all_snapshots(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:list_all_snapshots(StoreId) of
+            case reckon_gateway_dispatch:call(list_all_snapshots, [StoreId]) of
                 {ok, Snapshots} ->
                     ProtoSnapshots = [reckon_gateway_convert:snapshot_to_proto(S) || S <- Snapshots],
                     {ok, #{snapshots => ProtoSnapshots}, Md};

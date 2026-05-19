@@ -24,6 +24,7 @@
 -type store_entry() :: #{store_id := atom(), _ => term()}.
 
 -type cluster_info() :: #{members      := [node()],
+                          api_module   := atom(),
                           stores       := [store_entry()],
                           status       := up | degraded | unreachable,
                           last_refresh := integer() | undefined}.
@@ -70,10 +71,11 @@ publish(ClusterId, Info) when is_atom(ClusterId), is_map(Info) ->
 remove(ClusterId) when is_atom(ClusterId) ->
     gen_server:cast(?MODULE, {remove, ClusterId}).
 
-%% @doc Resolve a store_id to its owning cluster + currently-known
-%% members. Used by the dispatch layer.
+%% @doc Resolve a store_id to its owning cluster, currently-known
+%% members, and the api_module that cluster exposes. Used by the
+%% dispatch layer.
 -spec lookup(atom()) ->
-    {ok, atom(), [node()]} | {error, not_found | unreachable}.
+    {ok, atom(), [node()], atom()} | {error, not_found | unreachable}.
 lookup(StoreId) when is_atom(StoreId) ->
     gen_server:call(?MODULE, {lookup, StoreId}).
 
@@ -113,8 +115,9 @@ handle_call({lookup, StoreId}, _From,
             case maps:get(ClusterId, CMap, undefined) of
                 undefined ->
                     {error, not_found};
-                #{members := Members, status := Status} when Status =/= unreachable, Members =/= [] ->
-                    {ok, ClusterId, Members};
+                #{members := Members, status := Status, api_module := Api}
+                  when Status =/= unreachable, Members =/= [] ->
+                    {ok, ClusterId, Members, Api};
                 _ ->
                     {error, unreachable}
             end

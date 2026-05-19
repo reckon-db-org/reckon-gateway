@@ -14,7 +14,7 @@ get_effects(#{store_id := StoreIdBin, event_id := EventId}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_effects(StoreId, EventId) of
+            case reckon_gateway_dispatch:call(get_effects, [StoreId, EventId]) of
                 {ok, Events} ->
                     Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
                     {ok, #{events => Recorded}, Md};
@@ -28,7 +28,7 @@ get_cause(#{store_id := StoreIdBin, event_id := EventId}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_cause(StoreId, EventId) of
+            case reckon_gateway_dispatch:call(get_cause, [StoreId, EventId]) of
                 {ok, Event} ->
                     {ok, #{event => reckon_gateway_convert:event_to_recorded(Event)}, Md};
                 {error, _Reason} ->
@@ -41,7 +41,7 @@ get_causation_chain(#{store_id := StoreIdBin, event_id := EventId}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_causation_chain(StoreId, EventId) of
+            case reckon_gateway_dispatch:call(get_causation_chain, [StoreId, EventId]) of
                 {ok, Events} ->
                     Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
                     {ok, #{events => Recorded}, Md};
@@ -55,7 +55,7 @@ get_correlated(#{store_id := StoreIdBin, correlation_id := CorrelationId}, Md) -
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_correlated(StoreId, CorrelationId) of
+            case reckon_gateway_dispatch:call(get_correlated, [StoreId, CorrelationId]) of
                 {ok, Events} ->
                     Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
                     {ok, #{events => Recorded}, Md};
@@ -69,7 +69,7 @@ build_causation_graph(#{store_id := StoreIdBin, event_id := EventId}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:build_causation_graph(StoreId, EventId) of
+            case reckon_gateway_dispatch:call(build_causation_graph, [StoreId, EventId]) of
                 {ok, Graph} ->
                     {ok, #{root => graph_to_proto(Graph)}, Md};
                 {error, _Reason} ->

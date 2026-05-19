@@ -30,8 +30,8 @@ subscribe(Stream, _Md) ->
             _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
             Self = self(),
             process_flag(trap_exit, true),
-            case reckon_gater_api:save_subscription(
-                    StoreId, SubType, Selector, Name, StartFrom, Self) of
+            case reckon_gateway_dispatch:call(save_subscription, [
+                    StoreId, SubType, Selector, Name, StartFrom, Self]) of
                 {ok, _Key} ->
                     try
                         stream_events_loop(Stream1, StoreId, Name)
@@ -39,8 +39,8 @@ subscribe(Stream, _Md) ->
                         %% Best-effort cleanup. remove_subscription is
                         %% idempotent (not_found → ok); the worker logs
                         %% any genuine error itself.
-                        _ = reckon_gater_api:remove_subscription(
-                                StoreId, SubType, Selector, Name)
+                        _ = reckon_gateway_dispatch:call(remove_subscription, [
+                                StoreId, SubType, Selector, Name])
                     end;
                 {error, Reason} ->
                     logger:warning(
@@ -61,7 +61,7 @@ handle_ack({error, invalid_store_id}, _StreamId, _Name, _EvtNum, _Md) ->
     {error, <<"3">>};
 handle_ack({ok, StoreId}, StreamId, Name, EventNumber, Md) ->
     AckMap = #{event_number => EventNumber},
-    reply_ack(reckon_gater_api:ack_event(StoreId, StreamId, self(), AckMap), Name, Md).
+    reply_ack(reckon_gateway_dispatch:call(ack_event, [StoreId, StreamId, self(), AckMap]), Name, Md).
 
 reply_ack(ok, _Name, Md) ->
     {ok, #{}, Md};
@@ -81,8 +81,8 @@ create_subscription(#{store_id := StoreIdBin,
         {ok, StoreId} ->
             SubType = reckon_gateway_convert:subscription_type(Type),
             _PS = case PoolSize of 0 -> 1; _ -> PoolSize end,
-            case reckon_gater_api:save_subscription(
-                    StoreId, SubType, Selector, Name, StartFrom, undefined) of
+            case reckon_gateway_dispatch:call(save_subscription, [
+                    StoreId, SubType, Selector, Name, StartFrom, undefined]) of
                 {ok, _Key} ->
                     SubId = iolist_to_binary(
                         [atom_to_binary(StoreId), <<":">>, Name]),
@@ -106,7 +106,7 @@ handle_remove({error, invalid_store_id}, _Type, _Sel, _Name, _Md) ->
     {error, <<"3">>};
 handle_remove({ok, StoreId}, Type, Selector, Name, Md) ->
     SubType = reckon_gateway_convert:subscription_type(Type),
-    reply_remove(reckon_gater_api:remove_subscription(StoreId, SubType, Selector, Name),
+    reply_remove(reckon_gateway_dispatch:call(remove_subscription, [StoreId, SubType, Selector, Name]),
                  Name, Md).
 
 reply_remove(ok, _Name, Md) ->
@@ -120,7 +120,7 @@ list_subscriptions(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_subscriptions(StoreId) of
+            case reckon_gateway_dispatch:call(get_subscriptions, [StoreId]) of
                 {ok, Subs} ->
                     ProtoSubs = [reckon_gateway_convert:subscription_to_proto(S) || S <- Subs],
                     {ok, #{subscriptions => ProtoSubs}, Md};
@@ -135,7 +135,7 @@ get_subscription(#{store_id := StoreIdBin,
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_subscription(StoreId, Name) of
+            case reckon_gateway_dispatch:call(get_subscription, [StoreId, Name]) of
                 {ok, Sub} ->
                     {ok, reckon_gateway_convert:subscription_to_proto(Sub), Md};
                 {error, _Reason} ->
@@ -149,7 +149,7 @@ get_subscription_lag(#{store_id := StoreIdBin,
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:subscription_lag(StoreId, Name) of
+            case reckon_gateway_dispatch:call(subscription_lag, [StoreId, Name]) of
                 {ok, LagInfo} ->
                     %% reckon_db_store_inspector:subscription_lag/2 returns
                     %% #{checkpoint, latest_position, lag_events, ...}. Older

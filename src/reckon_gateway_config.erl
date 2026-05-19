@@ -28,7 +28,8 @@
 
 -type cluster_spec() :: #{cluster_id := atom(),
                          members    := [node()],
-                         cookie     := binary()}.
+                         cookie     := binary(),
+                         api_module => atom()}.   %% defaults to reckon_gater_api
 -export_type([cluster_spec/0]).
 
 -spec load_clusters() -> {ok, [cluster_spec()]} | {error, term()}.
@@ -81,8 +82,14 @@ normalise(#{cluster_id := Id, members := Members, cookie := Cookie} = Spec)
     when is_atom(Id), is_list(Members), is_binary(Cookie),
          byte_size(Cookie) > 0, Members =/= [] ->
     case lists:all(fun erlang:is_atom/1, Members) of
-        true  -> {ok, Spec};
-        false -> {error, {invalid_cluster_spec, redact(Spec)}}
+        false -> {error, {invalid_cluster_spec, redact(Spec)}};
+        true ->
+            case maps:get(api_module, Spec, reckon_gater_api) of
+                Mod when is_atom(Mod) ->
+                    {ok, Spec#{api_module => Mod}};
+                _ ->
+                    {error, {invalid_cluster_spec, redact(Spec)}}
+            end
     end;
 normalise(Other) ->
     {error, {invalid_cluster_spec, redact(Other)}}.

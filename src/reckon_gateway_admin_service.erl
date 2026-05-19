@@ -29,7 +29,7 @@ get_store_stats(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:store_stats(StoreId) of
+            case reckon_gateway_dispatch:call(store_stats, [StoreId]) of
                 {ok, Stats} ->
                     {ok, #{total_streams => maps:get(total_streams, Stats, 0),
                            total_events => maps:get(total_events, Stats, 0),
@@ -46,7 +46,7 @@ get_stream_info(#{store_id := StoreIdBin, stream_id := StreamId}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:stream_info(StoreId, StreamId) of
+            case reckon_gateway_dispatch:call(stream_info, [StoreId, StreamId]) of
                 {ok, Info} ->
                     {ok, #{stream_id => StreamId,
                            version => maps:get(version, Info, 0),
@@ -64,7 +64,7 @@ get_event_type_summary(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:event_type_summary(StoreId) of
+            case reckon_gateway_dispatch:call(event_type_summary, [StoreId]) of
                 {ok, Summary} ->
                     Entries = [#{event_type => maps:get(event_type, S, <<>>),
                                  count => maps:get(count, S, 0)}
@@ -84,7 +84,7 @@ scavenge(#{store_id := StoreIdBin, stream_id := StreamId, options := Opts}, Md) 
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:scavenge(StoreId, StreamId, Opts) of
+            case reckon_gateway_dispatch:call(scavenge, [StoreId, StreamId, Opts]) of
                 {ok, Result} ->
                     {ok, scavenge_result_to_proto(Result), Md};
                 {error, Reason} ->
@@ -97,7 +97,7 @@ scavenge_matching(#{store_id := StoreIdBin, pattern := Pattern, options := Opts}
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:scavenge_matching(StoreId, Pattern, Opts) of
+            case reckon_gateway_dispatch:call(scavenge_matching, [StoreId, Pattern, Opts]) of
                 {ok, Results} ->
                     ProtoResults = [scavenge_result_to_proto(R) || R <- Results],
                     {ok, #{results => ProtoResults}, Md};
@@ -111,7 +111,7 @@ scavenge_dry_run(#{store_id := StoreIdBin, stream_id := StreamId, options := Opt
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:scavenge_dry_run(StoreId, StreamId, Opts) of
+            case reckon_gateway_dispatch:call(scavenge_dry_run, [StoreId, StreamId, Opts]) of
                 {ok, Result} ->
                     {ok, scavenge_result_to_proto(Result), Md};
                 {error, Reason} ->
@@ -139,7 +139,7 @@ create_link(#{store_id := StoreIdBin} = Req, Md) ->
             LinkSpec = #{name => maps:get(name, Req, <<>>),
                          source => maps:get(source, Req, <<>>),
                          target => maps:get(target, Req, <<>>)},
-            ok = reckon_gater_api:create_link(StoreId, LinkSpec),
+            ok = reckon_gateway_dispatch:call(create_link, [StoreId, LinkSpec]),
             {ok, #{}, Md}
     end.
 
@@ -148,7 +148,7 @@ delete_link(#{store_id := StoreIdBin, name := Name}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            ok = reckon_gater_api:delete_link(StoreId, Name),
+            ok = reckon_gateway_dispatch:call(delete_link, [StoreId, Name]),
             {ok, #{}, Md}
     end.
 
@@ -157,7 +157,7 @@ get_link(#{store_id := StoreIdBin, name := Name}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_link(StoreId, Name) of
+            case reckon_gateway_dispatch:call(get_link, [StoreId, Name]) of
                 {ok, Link} ->
                     {ok, link_to_proto(Link), Md};
                 {error, _Reason} ->
@@ -170,7 +170,7 @@ list_links(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:list_links(StoreId) of
+            case reckon_gateway_dispatch:call(list_links, [StoreId]) of
                 {ok, Links} ->
                     {ok, #{links => [link_to_proto(L) || L <- Links]}, Md};
                 {error, _Reason} ->
@@ -183,7 +183,7 @@ start_link(#{store_id := StoreIdBin, name := Name}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            ok = reckon_gater_api:start_link(StoreId, Name),
+            ok = reckon_gateway_dispatch:call(start_link, [StoreId, Name]),
             {ok, #{}, Md}
     end.
 
@@ -192,7 +192,7 @@ stop_link(#{store_id := StoreIdBin, name := Name}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            ok = reckon_gater_api:stop_link(StoreId, Name),
+            ok = reckon_gateway_dispatch:call(stop_link, [StoreId, Name]),
             {ok, #{}, Md}
     end.
 
@@ -201,7 +201,7 @@ get_link_info(#{store_id := StoreIdBin, name := Name}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:link_info(StoreId, Name) of
+            case reckon_gateway_dispatch:call(link_info, [StoreId, Name]) of
                 {ok, Info} ->
                     {ok, #{name => Name,
                            status => maps:get(status, Info, <<"unknown">>),

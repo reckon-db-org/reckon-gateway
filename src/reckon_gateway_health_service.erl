@@ -24,7 +24,7 @@ check(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:quick_health_check(StoreId) of
+            case reckon_gateway_dispatch:call(quick_health_check, [StoreId]) of
                 {ok, _} ->
                     {ok, #{status => 'HEALTH_STATUS_HEALTHY', details => #{}}, Md};
                 {error, _} ->
@@ -33,7 +33,7 @@ check(#{store_id := StoreIdBin}, Md) ->
     end.
 
 health(#{}, Md) ->
-    case reckon_gater_api:health() of
+    case reckon_gateway_dispatch:call(health, []) of
         {ok, #{status := Status} = Info} ->
             ProtoStatus = case Status of
                 healthy -> 'HEALTH_STATUS_HEALTHY';
@@ -60,7 +60,7 @@ verify_cluster_consistency(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:verify_cluster_consistency(StoreId) of
+            case reckon_gateway_dispatch:call(verify_cluster_consistency, [StoreId]) of
                 {ok, #{status := Status} = Info} ->
                     {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
                 {error, _} -> {error, <<"13">>}
@@ -72,7 +72,7 @@ verify_membership_consensus(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:verify_membership_consensus(StoreId) of
+            case reckon_gateway_dispatch:call(verify_membership_consensus, [StoreId]) of
                 {ok, #{status := Status} = Info} ->
                     {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
                 {error, _} -> {error, <<"13">>}
@@ -84,7 +84,7 @@ check_raft_log_consistency(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:check_raft_log_consistency(StoreId) of
+            case reckon_gateway_dispatch:call(check_raft_log_consistency, [StoreId]) of
                 {ok, #{status := Status} = Info} ->
                     {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
                 {error, _} -> {error, <<"13">>}
@@ -96,7 +96,7 @@ get_memory_level(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_memory_level(StoreId) of
+            case reckon_gateway_dispatch:call(get_memory_level, [StoreId]) of
                 {ok, Level} ->
                     ProtoLevel = case Level of
                         low -> 'MEMORY_LEVEL_LOW'; normal -> 'MEMORY_LEVEL_NORMAL';
@@ -113,7 +113,7 @@ get_memory_stats(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_memory_stats(StoreId) of
+            case reckon_gateway_dispatch:call(get_memory_stats, [StoreId]) of
                 {ok, Stats} ->
                     {ok, #{used_bytes => maps:get(used, Stats, 0),
                            total_bytes => maps:get(total, Stats, 0),

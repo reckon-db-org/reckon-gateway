@@ -29,6 +29,7 @@
     cluster_id     :: atom(),
     configured     :: [node()],                %% from clusters.eterm
     cookie         :: atom(),                  %% per-peer cookie
+    api_module     :: atom(),                  %% e.g. reckon_gater_api | esdb_gater_api
     members        :: [node()],                %% currently connected
     status         :: not_yet_connected | up | unreachable | degraded,
     last_refresh   :: integer() | undefined,
@@ -70,15 +71,18 @@ status(Id) ->
 %% gen_server callbacks
 %%====================================================================
 
-init(#{cluster_id := Id, members := Configured, cookie := CookieBin}) ->
+init(#{cluster_id := Id, members := Configured, cookie := CookieBin} = Spec) ->
     Cookie = binary_to_atom(CookieBin, utf8),
+    ApiModule = maps:get(api_module, Spec, reckon_gater_api),
     RefreshMs = application:get_env(reckon_gateway, refresh_interval_ms, 30_000),
-    logger:info("[reckon_gateway_cluster ~p] init members=~p cookie=<~b bytes> refresh=~bms",
-                [Id, Configured, byte_size(CookieBin), RefreshMs]),
+    logger:info("[reckon_gateway_cluster ~p] init members=~p cookie=<~b bytes> "
+                "api=~p refresh=~bms",
+                [Id, Configured, byte_size(CookieBin), ApiModule, RefreshMs]),
     State = #state{
         cluster_id    = Id,
         configured    = Configured,
         cookie        = Cookie,
+        api_module    = ApiModule,
         members       = [],
         status        = not_yet_connected,
         refresh_ms    = RefreshMs
@@ -90,6 +94,7 @@ handle_continue(connect, State) ->
 
 handle_call(get_status, _From, #state{cluster_id = Id,
                                        configured = Configured,
+                                       api_module = ApiModule,
                                        members    = Members,
                                        status     = Status,
                                        last_refresh = LR,
@@ -97,6 +102,7 @@ handle_call(get_status, _From, #state{cluster_id = Id,
     Reply = #{
         cluster_id    => Id,
         configured    => Configured,
+        api_module    => ApiModule,
         members       => Members,
         status        => Status,
         last_refresh  => LR,
@@ -144,6 +150,7 @@ terminate(Reason, #state{cluster_id = Id, members = Members}) ->
 do_connect(#state{cluster_id = Id,
                   configured = Configured,
                   cookie     = Cookie,
+                  api_module = ApiModule,
                   refresh_ms = RefreshMs} = State) ->
     Self = node(),
     Targets = [N || N <- Configured, N =/= Self],
@@ -155,7 +162,7 @@ do_connect(#state{cluster_id = Id,
                 [Id, length(Connected), length(Targets), Connected, Status]),
     Now = erlang:system_time(millisecond),
     Stores = discover_stores(Id, Connected),
-    publish_catalogue(Id, Connected, Stores, Status, Now),
+    publish_catalogue(Id, Connected, ApiModule, Stores, Status, Now),
     State#state{members      = Connected,
                 status       = Status,
                 last_refresh = Now,
@@ -195,6 +202,7 @@ refresh(#state{cluster_id = Id,
                configured = Configured,
                members    = Members,
                cookie     = Cookie,
+               api_module = ApiModule,
                refresh_ms = RefreshMs} = State) ->
     Self = node(),
     Targets = [N || N <- Configured, N =/= Self],
@@ -210,7 +218,7 @@ refresh(#state{cluster_id = Id,
     Timer = erlang:send_after(RefreshMs, self(), refresh),
     Now = erlang:system_time(millisecond),
     Stores = discover_stores(Id, NewMembers),
-    publish_catalogue(Id, NewMembers, Stores, Status, Now),
+    publish_catalogue(Id, NewMembers, ApiModule, Stores, Status, Now),
     State#state{members       = NewMembers,
                 status        = Status,
                 last_refresh  = Now,
@@ -255,9 +263,10 @@ dedup_entries(Entries) ->
         end, {sets:new(), []}, Entries),
     lists:reverse(Out).
 
-publish_catalogue(ClusterId, Members, Stores, Status, Now) ->
+publish_catalogue(ClusterId, Members, ApiModule, Stores, Status, Now) ->
     reckon_gateway_catalogue:publish(ClusterId, #{
         members      => Members,
+        api_module   => ApiModule,
         stores       => Stores,
         status       => Status,
         last_refresh => Now

@@ -1,6 +1,8 @@
 %% @doc gRPC StreamService implementation (emqx/grpc-erl).
 %%
-%% Delegates all stream operations to reckon_gater_api.
+%% Catalogue mode: every reckon_gater_api call goes through
+%% reckon_gateway_dispatch, which looks up the owning cluster +
+%% rpc-invokes the API function on the BEAM that holds the store.
 -module(reckon_gateway_stream_service).
 
 -include_lib("reckon_gater/include/reckon_gater_types.hrl").
@@ -28,7 +30,7 @@ append_events(#{store_id := StoreIdBin,
         {ok, StoreId} ->
             Events = [reckon_gateway_convert:proposed_to_event(E, StreamId)
                       || E <- ProposedEvents],
-            case reckon_gater_api:append_events(StoreId, StreamId, ExpectedVersion, Events) of
+            case reckon_gateway_dispatch:call(append_events, [StoreId, StreamId, ExpectedVersion, Events]) of
                 {ok, NewVersion} ->
                     {ok, #{version => NewVersion,
                            position => 0,
@@ -47,7 +49,7 @@ read_stream_forward(#{store_id := StoreIdBin,
             {error, <<"3">>};
         {ok, StoreId} ->
             SafeCount = safe_count(Count),
-            case reckon_gater_api:stream_forward(StoreId, StreamId, StartVersion, SafeCount) of
+            case reckon_gateway_dispatch:call(stream_forward, [StoreId, StreamId, StartVersion, SafeCount]) of
                 {ok, Events} ->
                     Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
                     {ok, #{events => Recorded}, Md};
@@ -65,7 +67,7 @@ read_stream_backward(#{store_id := StoreIdBin,
             {error, <<"3">>};
         {ok, StoreId} ->
             SafeCount = safe_count(Count),
-            case reckon_gater_api:stream_backward(StoreId, StreamId, StartVersion, SafeCount) of
+            case reckon_gateway_dispatch:call(stream_backward, [StoreId, StreamId, StartVersion, SafeCount]) of
                 {ok, Events} ->
                     Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
                     {ok, #{events => Recorded}, Md};
@@ -86,7 +88,7 @@ stream_events_forward(Stream, _Md) ->
             {error, <<"3">>};
         {ok, StoreId} ->
             SafeCount = safe_count(Count),
-            case reckon_gater_api:stream_forward(StoreId, StreamId, StartVersion, SafeCount) of
+            case reckon_gateway_dispatch:call(stream_forward, [StoreId, StreamId, StartVersion, SafeCount]) of
                 {ok, Events} ->
                     lists:foreach(
                         fun(E) ->
@@ -105,7 +107,7 @@ get_stream_version(#{store_id := StoreIdBin,
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_version(StoreId, StreamId) of
+            case reckon_gateway_dispatch:call(get_version, [StoreId, StreamId]) of
                 {ok, Version} ->
                     {ok, #{version => Version}, Md};
                 {error, _Reason} ->
@@ -118,7 +120,7 @@ list_streams(#{store_id := StoreIdBin}, Md) ->
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:get_streams(StoreId) of
+            case reckon_gateway_dispatch:call(get_streams, [StoreId]) of
                 {ok, Streams} ->
                     {ok, #{stream_ids => Streams}, Md};
                 {error, _Reason} ->
@@ -132,7 +134,7 @@ delete_stream(#{store_id := StoreIdBin,
         {error, invalid_store_id} ->
             {error, <<"3">>};
         {ok, StoreId} ->
-            case reckon_gater_api:delete_stream(StoreId, StreamId) of
+            case reckon_gateway_dispatch:call(delete_stream, [StoreId, StreamId]) of
                 ok ->
                     {ok, #{}, Md};
                 {error, _Reason} ->
@@ -148,7 +150,7 @@ read_by_event_types(#{store_id := StoreIdBin,
             {error, <<"3">>};
         {ok, StoreId} ->
             BS = safe_count(BatchSize),
-            case reckon_gater_api:read_by_event_types(StoreId, EventTypes, BS) of
+            case reckon_gateway_dispatch:call(read_by_event_types, [StoreId, EventTypes, BS]) of
                 {ok, Events} ->
                     Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
                     {ok, #{events => Recorded}, Md};
@@ -170,7 +172,7 @@ read_by_tags(#{store_id := StoreIdBin,
                 _ -> any
             end,
             Opts = #{match => MatchAtom, batch_size => safe_count(BatchSize)},
-            case reckon_gater_api:read_by_tags(StoreId, Tags, Opts) of
+            case reckon_gateway_dispatch:call(read_by_tags, [StoreId, Tags, Opts]) of
                 {ok, Events} ->
                     Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
                     {ok, #{events => Recorded}, Md};
@@ -187,7 +189,7 @@ read_all_global(#{store_id := StoreIdBin,
             {error, <<"3">>};
         {ok, StoreId} ->
             L = safe_count(Limit),
-            case reckon_gater_api:read_all_global(StoreId, Offset, L) of
+            case reckon_gateway_dispatch:call(read_all_global, [StoreId, Offset, L]) of
                 {ok, Events} ->
                     Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Events],
                     {ok, #{events => Recorded}, Md};
