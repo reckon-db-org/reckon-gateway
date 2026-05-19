@@ -59,3 +59,11 @@
     -> {ok, reckon_admin_pb:link_runtime_info(), grpc:metadata()}
      | {error, grpc_stream:error_response()}.
 
+-callback reload_catalogue(reckon_admin_pb:reload_catalogue_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:reload_catalogue_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
+
+-callback get_catalogue_status(reckon_admin_pb:get_catalogue_status_request(), grpc:metadata())
+    -> {ok, reckon_admin_pb:get_catalogue_status_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
+

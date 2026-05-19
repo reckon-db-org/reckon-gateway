@@ -181,9 +181,39 @@
         details                 => #{unicode:chardata() => unicode:chardata()} % = 4
        }.
 
--export_type(['store_stats_request'/0, 'store_stats_response'/0, 'stream_info_request'/0, 'stream_info_response'/0, 'event_type_summary_request'/0, 'event_type_summary_entry'/0, 'event_type_summary_response'/0, 'scavenge_request'/0, 'scavenge_response'/0, 'scavenge_matching_request'/0, 'scavenge_matching_response'/0, 'create_link_request'/0, 'create_link_response'/0, 'delete_link_request'/0, 'delete_link_response'/0, 'get_link_request'/0, 'link_info'/0, 'start_link_request'/0, 'start_link_response'/0, 'stop_link_request'/0, 'stop_link_response'/0, 'list_links_request'/0, 'list_links_response'/0, 'link_runtime_info'/0]).
--type '$msg_name'() :: store_stats_request | store_stats_response | stream_info_request | stream_info_response | event_type_summary_request | event_type_summary_entry | event_type_summary_response | scavenge_request | scavenge_response | scavenge_matching_request | scavenge_matching_response | create_link_request | create_link_response | delete_link_request | delete_link_response | get_link_request | link_info | start_link_request | start_link_response | stop_link_request | stop_link_response | list_links_request | list_links_response | link_runtime_info.
--type '$msg'() :: store_stats_request() | store_stats_response() | stream_info_request() | stream_info_response() | event_type_summary_request() | event_type_summary_entry() | event_type_summary_response() | scavenge_request() | scavenge_response() | scavenge_matching_request() | scavenge_matching_response() | create_link_request() | create_link_response() | delete_link_request() | delete_link_response() | get_link_request() | link_info() | start_link_request() | start_link_response() | stop_link_request() | stop_link_response() | list_links_request() | list_links_response() | link_runtime_info().
+-type reload_catalogue_request() ::
+      #{
+       }.
+
+-type reload_catalogue_response() ::
+      #{added                   => [unicode:chardata()], % = 1, repeated
+        removed                 => [unicode:chardata()], % = 2, repeated
+        restarted               => [unicode:chardata()], % = 3, repeated
+        error                   => unicode:chardata() % = 4, optional
+       }.
+
+-type get_catalogue_status_request() ::
+      #{
+       }.
+
+-type get_catalogue_status_response() ::
+      #{catalogue_size          => integer(),       % = 1, optional, 32 bits
+        gateway_uptime_ms       => integer(),       % = 2, optional, 64 bits
+        clusters                => [cluster_status()] % = 3, repeated
+       }.
+
+-type cluster_status() ::
+      #{cluster_id              => unicode:chardata(), % = 1, optional
+        members                 => [unicode:chardata()], % = 2, repeated
+        store_count             => integer(),       % = 3, optional, 32 bits
+        status                  => unicode:chardata(), % = 4, optional
+        last_refresh            => unicode:chardata(), % = 5, optional
+        last_error              => unicode:chardata() % = 6, optional
+       }.
+
+-export_type(['store_stats_request'/0, 'store_stats_response'/0, 'stream_info_request'/0, 'stream_info_response'/0, 'event_type_summary_request'/0, 'event_type_summary_entry'/0, 'event_type_summary_response'/0, 'scavenge_request'/0, 'scavenge_response'/0, 'scavenge_matching_request'/0, 'scavenge_matching_response'/0, 'create_link_request'/0, 'create_link_response'/0, 'delete_link_request'/0, 'delete_link_response'/0, 'get_link_request'/0, 'link_info'/0, 'start_link_request'/0, 'start_link_response'/0, 'stop_link_request'/0, 'stop_link_response'/0, 'list_links_request'/0, 'list_links_response'/0, 'link_runtime_info'/0, 'reload_catalogue_request'/0, 'reload_catalogue_response'/0, 'get_catalogue_status_request'/0, 'get_catalogue_status_response'/0, 'cluster_status'/0]).
+-type '$msg_name'() :: store_stats_request | store_stats_response | stream_info_request | stream_info_response | event_type_summary_request | event_type_summary_entry | event_type_summary_response | scavenge_request | scavenge_response | scavenge_matching_request | scavenge_matching_response | create_link_request | create_link_response | delete_link_request | delete_link_response | get_link_request | link_info | start_link_request | start_link_response | stop_link_request | stop_link_response | list_links_request | list_links_response | link_runtime_info | reload_catalogue_request | reload_catalogue_response | get_catalogue_status_request | get_catalogue_status_response | cluster_status.
+-type '$msg'() :: store_stats_request() | store_stats_response() | stream_info_request() | stream_info_response() | event_type_summary_request() | event_type_summary_entry() | event_type_summary_response() | scavenge_request() | scavenge_response() | scavenge_matching_request() | scavenge_matching_response() | create_link_request() | create_link_response() | delete_link_request() | delete_link_response() | get_link_request() | link_info() | start_link_request() | start_link_response() | stop_link_request() | stop_link_response() | list_links_request() | list_links_response() | link_runtime_info() | reload_catalogue_request() | reload_catalogue_response() | get_catalogue_status_request() | get_catalogue_status_response() | cluster_status().
 -export_type(['$msg_name'/0, '$msg'/0]).
 
 -if(?OTP_RELEASE >= 24).
@@ -226,7 +256,12 @@ encode_msg(Msg, MsgName, Opts) ->
         stop_link_response -> encode_msg_stop_link_response(id(Msg, TrUserData), TrUserData);
         list_links_request -> encode_msg_list_links_request(id(Msg, TrUserData), TrUserData);
         list_links_response -> encode_msg_list_links_response(id(Msg, TrUserData), TrUserData);
-        link_runtime_info -> encode_msg_link_runtime_info(id(Msg, TrUserData), TrUserData)
+        link_runtime_info -> encode_msg_link_runtime_info(id(Msg, TrUserData), TrUserData);
+        reload_catalogue_request -> encode_msg_reload_catalogue_request(id(Msg, TrUserData), TrUserData);
+        reload_catalogue_response -> encode_msg_reload_catalogue_response(id(Msg, TrUserData), TrUserData);
+        get_catalogue_status_request -> encode_msg_get_catalogue_status_request(id(Msg, TrUserData), TrUserData);
+        get_catalogue_status_response -> encode_msg_get_catalogue_status_response(id(Msg, TrUserData), TrUserData);
+        cluster_status -> encode_msg_cluster_status(id(Msg, TrUserData), TrUserData)
     end.
 
 
@@ -864,6 +899,150 @@ encode_msg_link_runtime_info(#{} = M, Bin, TrUserData) ->
         _ -> B3
     end.
 
+encode_msg_reload_catalogue_request(_Msg, _TrUserData) -> <<>>.
+
+encode_msg_reload_catalogue_response(Msg, TrUserData) -> encode_msg_reload_catalogue_response(Msg, <<>>, TrUserData).
+
+
+encode_msg_reload_catalogue_response(#{} = M, Bin, TrUserData) ->
+    B1 = case M of
+             #{added := F1} ->
+                 TrF1 = id(F1, TrUserData),
+                 if TrF1 == [] -> Bin;
+                    true -> e_field_reload_catalogue_response_added(TrF1, Bin, TrUserData)
+                 end;
+             _ -> Bin
+         end,
+    B2 = case M of
+             #{removed := F2} ->
+                 TrF2 = id(F2, TrUserData),
+                 if TrF2 == [] -> B1;
+                    true -> e_field_reload_catalogue_response_removed(TrF2, B1, TrUserData)
+                 end;
+             _ -> B1
+         end,
+    B3 = case M of
+             #{restarted := F3} ->
+                 TrF3 = id(F3, TrUserData),
+                 if TrF3 == [] -> B2;
+                    true -> e_field_reload_catalogue_response_restarted(TrF3, B2, TrUserData)
+                 end;
+             _ -> B2
+         end,
+    case M of
+        #{error := F4} ->
+            begin
+                TrF4 = id(F4, TrUserData),
+                case is_empty_string(TrF4) of
+                    true -> B3;
+                    false -> e_type_string(TrF4, <<B3/binary, 34>>, TrUserData)
+                end
+            end;
+        _ -> B3
+    end.
+
+encode_msg_get_catalogue_status_request(_Msg, _TrUserData) -> <<>>.
+
+encode_msg_get_catalogue_status_response(Msg, TrUserData) -> encode_msg_get_catalogue_status_response(Msg, <<>>, TrUserData).
+
+
+encode_msg_get_catalogue_status_response(#{} = M, Bin, TrUserData) ->
+    B1 = case M of
+             #{catalogue_size := F1} ->
+                 begin
+                     TrF1 = id(F1, TrUserData),
+                     if TrF1 =:= 0 -> Bin;
+                        true -> e_type_int32(TrF1, <<Bin/binary, 8>>, TrUserData)
+                     end
+                 end;
+             _ -> Bin
+         end,
+    B2 = case M of
+             #{gateway_uptime_ms := F2} ->
+                 begin
+                     TrF2 = id(F2, TrUserData),
+                     if TrF2 =:= 0 -> B1;
+                        true -> e_type_int64(TrF2, <<B1/binary, 16>>, TrUserData)
+                     end
+                 end;
+             _ -> B1
+         end,
+    case M of
+        #{clusters := F3} ->
+            TrF3 = id(F3, TrUserData),
+            if TrF3 == [] -> B2;
+               true -> e_field_get_catalogue_status_response_clusters(TrF3, B2, TrUserData)
+            end;
+        _ -> B2
+    end.
+
+encode_msg_cluster_status(Msg, TrUserData) -> encode_msg_cluster_status(Msg, <<>>, TrUserData).
+
+
+encode_msg_cluster_status(#{} = M, Bin, TrUserData) ->
+    B1 = case M of
+             #{cluster_id := F1} ->
+                 begin
+                     TrF1 = id(F1, TrUserData),
+                     case is_empty_string(TrF1) of
+                         true -> Bin;
+                         false -> e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData)
+                     end
+                 end;
+             _ -> Bin
+         end,
+    B2 = case M of
+             #{members := F2} ->
+                 TrF2 = id(F2, TrUserData),
+                 if TrF2 == [] -> B1;
+                    true -> e_field_cluster_status_members(TrF2, B1, TrUserData)
+                 end;
+             _ -> B1
+         end,
+    B3 = case M of
+             #{store_count := F3} ->
+                 begin
+                     TrF3 = id(F3, TrUserData),
+                     if TrF3 =:= 0 -> B2;
+                        true -> e_type_int32(TrF3, <<B2/binary, 24>>, TrUserData)
+                     end
+                 end;
+             _ -> B2
+         end,
+    B4 = case M of
+             #{status := F4} ->
+                 begin
+                     TrF4 = id(F4, TrUserData),
+                     case is_empty_string(TrF4) of
+                         true -> B3;
+                         false -> e_type_string(TrF4, <<B3/binary, 34>>, TrUserData)
+                     end
+                 end;
+             _ -> B3
+         end,
+    B5 = case M of
+             #{last_refresh := F5} ->
+                 begin
+                     TrF5 = id(F5, TrUserData),
+                     case is_empty_string(TrF5) of
+                         true -> B4;
+                         false -> e_type_string(TrF5, <<B4/binary, 42>>, TrUserData)
+                     end
+                 end;
+             _ -> B4
+         end,
+    case M of
+        #{last_error := F6} ->
+            begin
+                TrF6 = id(F6, TrUserData),
+                case is_empty_string(TrF6) of
+                    true -> B5;
+                    false -> e_type_string(TrF6, <<B5/binary, 50>>, TrUserData)
+                end
+            end;
+        _ -> B5
+    end.
+
 e_mfield_store_stats_response_details(Msg, Bin, TrUserData) ->
     SubBin = 'encode_msg_map<string,string>'(Msg, <<>>, TrUserData),
     Bin2 = e_varint(byte_size(SubBin), Bin),
@@ -979,6 +1158,41 @@ e_field_link_runtime_info_details([Elem | Rest], Bin, TrUserData) ->
     Bin3 = e_mfield_link_runtime_info_details('tr_encode_link_runtime_info.details[x]'(Elem, TrUserData), Bin2, TrUserData),
     e_field_link_runtime_info_details(Rest, Bin3, TrUserData);
 e_field_link_runtime_info_details([], Bin, _TrUserData) -> Bin.
+
+e_field_reload_catalogue_response_added([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 10>>,
+    Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_reload_catalogue_response_added(Rest, Bin3, TrUserData);
+e_field_reload_catalogue_response_added([], Bin, _TrUserData) -> Bin.
+
+e_field_reload_catalogue_response_removed([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 18>>,
+    Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_reload_catalogue_response_removed(Rest, Bin3, TrUserData);
+e_field_reload_catalogue_response_removed([], Bin, _TrUserData) -> Bin.
+
+e_field_reload_catalogue_response_restarted([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 26>>,
+    Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_reload_catalogue_response_restarted(Rest, Bin3, TrUserData);
+e_field_reload_catalogue_response_restarted([], Bin, _TrUserData) -> Bin.
+
+e_mfield_get_catalogue_status_response_clusters(Msg, Bin, TrUserData) ->
+    SubBin = encode_msg_cluster_status(Msg, <<>>, TrUserData),
+    Bin2 = e_varint(byte_size(SubBin), Bin),
+    <<Bin2/binary, SubBin/binary>>.
+
+e_field_get_catalogue_status_response_clusters([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 26>>,
+    Bin3 = e_mfield_get_catalogue_status_response_clusters(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_get_catalogue_status_response_clusters(Rest, Bin3, TrUserData);
+e_field_get_catalogue_status_response_clusters([], Bin, _TrUserData) -> Bin.
+
+e_field_cluster_status_members([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 18>>,
+    Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_cluster_status_members(Rest, Bin3, TrUserData);
+e_field_cluster_status_members([], Bin, _TrUserData) -> Bin.
 
 'encode_msg_map<string,string>'(#{key := F1, value := F2}, Bin, TrUserData) ->
     B1 = begin TrF1 = id(F1, TrUserData), e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData) end,
@@ -1145,7 +1359,12 @@ decode_msg_2_doit(stop_link_request, Bin, TrUserData) -> id(decode_msg_stop_link
 decode_msg_2_doit(stop_link_response, Bin, TrUserData) -> id(decode_msg_stop_link_response(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(list_links_request, Bin, TrUserData) -> id(decode_msg_list_links_request(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(list_links_response, Bin, TrUserData) -> id(decode_msg_list_links_response(Bin, TrUserData), TrUserData);
-decode_msg_2_doit(link_runtime_info, Bin, TrUserData) -> id(decode_msg_link_runtime_info(Bin, TrUserData), TrUserData).
+decode_msg_2_doit(link_runtime_info, Bin, TrUserData) -> id(decode_msg_link_runtime_info(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(reload_catalogue_request, Bin, TrUserData) -> id(decode_msg_reload_catalogue_request(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(reload_catalogue_response, Bin, TrUserData) -> id(decode_msg_reload_catalogue_response(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(get_catalogue_status_request, Bin, TrUserData) -> id(decode_msg_get_catalogue_status_request(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(get_catalogue_status_response, Bin, TrUserData) -> id(decode_msg_get_catalogue_status_response(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(cluster_status, Bin, TrUserData) -> id(decode_msg_cluster_status(Bin, TrUserData), TrUserData).
 
 
 
@@ -2436,6 +2655,288 @@ skip_32_link_runtime_info(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@
 
 skip_64_link_runtime_info(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_link_runtime_info(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
 
+decode_msg_reload_catalogue_request(Bin, TrUserData) -> dfp_read_field_def_reload_catalogue_request(Bin, 0, 0, 0, TrUserData).
+
+dfp_read_field_def_reload_catalogue_request(<<>>, 0, 0, _, _) -> #{};
+dfp_read_field_def_reload_catalogue_request(Other, Z1, Z2, F, TrUserData) -> dg_read_field_def_reload_catalogue_request(Other, Z1, Z2, F, TrUserData).
+
+dg_read_field_def_reload_catalogue_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, TrUserData) when N < 32 - 7 -> dg_read_field_def_reload_catalogue_request(Rest, N + 7, X bsl N + Acc, F, TrUserData);
+dg_read_field_def_reload_catalogue_request(<<0:1, X:7, Rest/binary>>, N, Acc, _, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key band 7 of
+        0 -> skip_varint_reload_catalogue_request(Rest, 0, 0, Key bsr 3, TrUserData);
+        1 -> skip_64_reload_catalogue_request(Rest, 0, 0, Key bsr 3, TrUserData);
+        2 -> skip_length_delimited_reload_catalogue_request(Rest, 0, 0, Key bsr 3, TrUserData);
+        3 -> skip_group_reload_catalogue_request(Rest, 0, 0, Key bsr 3, TrUserData);
+        5 -> skip_32_reload_catalogue_request(Rest, 0, 0, Key bsr 3, TrUserData)
+    end;
+dg_read_field_def_reload_catalogue_request(<<>>, 0, 0, _, _) -> #{}.
+
+skip_varint_reload_catalogue_request(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, TrUserData) -> skip_varint_reload_catalogue_request(Rest, Z1, Z2, F, TrUserData);
+skip_varint_reload_catalogue_request(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, TrUserData) -> dfp_read_field_def_reload_catalogue_request(Rest, Z1, Z2, F, TrUserData).
+
+skip_length_delimited_reload_catalogue_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, TrUserData) when N < 57 -> skip_length_delimited_reload_catalogue_request(Rest, N + 7, X bsl N + Acc, F, TrUserData);
+skip_length_delimited_reload_catalogue_request(<<0:1, X:7, Rest/binary>>, N, Acc, F, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_reload_catalogue_request(Rest2, 0, 0, F, TrUserData).
+
+skip_group_reload_catalogue_request(Bin, _, Z2, FNum, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_reload_catalogue_request(Rest, 0, Z2, FNum, TrUserData).
+
+skip_32_reload_catalogue_request(<<_:32, Rest/binary>>, Z1, Z2, F, TrUserData) -> dfp_read_field_def_reload_catalogue_request(Rest, Z1, Z2, F, TrUserData).
+
+skip_64_reload_catalogue_request(<<_:64, Rest/binary>>, Z1, Z2, F, TrUserData) -> dfp_read_field_def_reload_catalogue_request(Rest, Z1, Z2, F, TrUserData).
+
+decode_msg_reload_catalogue_response(Bin, TrUserData) -> dfp_read_field_def_reload_catalogue_response(Bin, 0, 0, 0, id([], TrUserData), id([], TrUserData), id([], TrUserData), id(<<>>, TrUserData), TrUserData).
+
+dfp_read_field_def_reload_catalogue_response(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_reload_catalogue_response_added(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_reload_catalogue_response(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_reload_catalogue_response_removed(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_reload_catalogue_response(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_reload_catalogue_response_restarted(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_reload_catalogue_response(<<34, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_reload_catalogue_response_error(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_reload_catalogue_response(<<>>, 0, 0, _, R1, R2, R3, F@_4, TrUserData) -> #{added => lists_reverse(R1, TrUserData), removed => lists_reverse(R2, TrUserData), restarted => lists_reverse(R3, TrUserData), error => F@_4};
+dfp_read_field_def_reload_catalogue_response(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dg_read_field_def_reload_catalogue_response(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+dg_read_field_def_reload_catalogue_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 32 - 7 -> dg_read_field_def_reload_catalogue_response(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dg_read_field_def_reload_catalogue_response(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        10 -> d_field_reload_catalogue_response_added(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        18 -> d_field_reload_catalogue_response_removed(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        26 -> d_field_reload_catalogue_response_restarted(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        34 -> d_field_reload_catalogue_response_error(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_reload_catalogue_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                1 -> skip_64_reload_catalogue_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                2 -> skip_length_delimited_reload_catalogue_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                3 -> skip_group_reload_catalogue_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                5 -> skip_32_reload_catalogue_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData)
+            end
+    end;
+dg_read_field_def_reload_catalogue_response(<<>>, 0, 0, _, R1, R2, R3, F@_4, TrUserData) -> #{added => lists_reverse(R1, TrUserData), removed => lists_reverse(R2, TrUserData), restarted => lists_reverse(R3, TrUserData), error => F@_4}.
+
+d_field_reload_catalogue_response_added(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_reload_catalogue_response_added(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_reload_catalogue_response_added(<<0:1, X:7, Rest/binary>>, N, Acc, F, Prev, F@_2, F@_3, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_reload_catalogue_response(RestF, 0, 0, F, cons(NewFValue, Prev, TrUserData), F@_2, F@_3, F@_4, TrUserData).
+
+d_field_reload_catalogue_response_removed(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_reload_catalogue_response_removed(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_reload_catalogue_response_removed(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, Prev, F@_3, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_reload_catalogue_response(RestF, 0, 0, F, F@_1, cons(NewFValue, Prev, TrUserData), F@_3, F@_4, TrUserData).
+
+d_field_reload_catalogue_response_restarted(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_reload_catalogue_response_restarted(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_reload_catalogue_response_restarted(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, Prev, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_reload_catalogue_response(RestF, 0, 0, F, F@_1, F@_2, cons(NewFValue, Prev, TrUserData), F@_4, TrUserData).
+
+d_field_reload_catalogue_response_error(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_reload_catalogue_response_error(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_reload_catalogue_response_error(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_reload_catalogue_response(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, TrUserData).
+
+skip_varint_reload_catalogue_response(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> skip_varint_reload_catalogue_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+skip_varint_reload_catalogue_response(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_reload_catalogue_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_length_delimited_reload_catalogue_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 ->
+    skip_length_delimited_reload_catalogue_response(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+skip_length_delimited_reload_catalogue_response(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_reload_catalogue_response(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_group_reload_catalogue_response(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_reload_catalogue_response(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_32_reload_catalogue_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_reload_catalogue_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_64_reload_catalogue_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_reload_catalogue_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+decode_msg_get_catalogue_status_request(Bin, TrUserData) -> dfp_read_field_def_get_catalogue_status_request(Bin, 0, 0, 0, TrUserData).
+
+dfp_read_field_def_get_catalogue_status_request(<<>>, 0, 0, _, _) -> #{};
+dfp_read_field_def_get_catalogue_status_request(Other, Z1, Z2, F, TrUserData) -> dg_read_field_def_get_catalogue_status_request(Other, Z1, Z2, F, TrUserData).
+
+dg_read_field_def_get_catalogue_status_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, TrUserData) when N < 32 - 7 -> dg_read_field_def_get_catalogue_status_request(Rest, N + 7, X bsl N + Acc, F, TrUserData);
+dg_read_field_def_get_catalogue_status_request(<<0:1, X:7, Rest/binary>>, N, Acc, _, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key band 7 of
+        0 -> skip_varint_get_catalogue_status_request(Rest, 0, 0, Key bsr 3, TrUserData);
+        1 -> skip_64_get_catalogue_status_request(Rest, 0, 0, Key bsr 3, TrUserData);
+        2 -> skip_length_delimited_get_catalogue_status_request(Rest, 0, 0, Key bsr 3, TrUserData);
+        3 -> skip_group_get_catalogue_status_request(Rest, 0, 0, Key bsr 3, TrUserData);
+        5 -> skip_32_get_catalogue_status_request(Rest, 0, 0, Key bsr 3, TrUserData)
+    end;
+dg_read_field_def_get_catalogue_status_request(<<>>, 0, 0, _, _) -> #{}.
+
+skip_varint_get_catalogue_status_request(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, TrUserData) -> skip_varint_get_catalogue_status_request(Rest, Z1, Z2, F, TrUserData);
+skip_varint_get_catalogue_status_request(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, TrUserData) -> dfp_read_field_def_get_catalogue_status_request(Rest, Z1, Z2, F, TrUserData).
+
+skip_length_delimited_get_catalogue_status_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, TrUserData) when N < 57 -> skip_length_delimited_get_catalogue_status_request(Rest, N + 7, X bsl N + Acc, F, TrUserData);
+skip_length_delimited_get_catalogue_status_request(<<0:1, X:7, Rest/binary>>, N, Acc, F, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_get_catalogue_status_request(Rest2, 0, 0, F, TrUserData).
+
+skip_group_get_catalogue_status_request(Bin, _, Z2, FNum, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_get_catalogue_status_request(Rest, 0, Z2, FNum, TrUserData).
+
+skip_32_get_catalogue_status_request(<<_:32, Rest/binary>>, Z1, Z2, F, TrUserData) -> dfp_read_field_def_get_catalogue_status_request(Rest, Z1, Z2, F, TrUserData).
+
+skip_64_get_catalogue_status_request(<<_:64, Rest/binary>>, Z1, Z2, F, TrUserData) -> dfp_read_field_def_get_catalogue_status_request(Rest, Z1, Z2, F, TrUserData).
+
+decode_msg_get_catalogue_status_response(Bin, TrUserData) -> dfp_read_field_def_get_catalogue_status_response(Bin, 0, 0, 0, id(0, TrUserData), id(0, TrUserData), id([], TrUserData), TrUserData).
+
+dfp_read_field_def_get_catalogue_status_response(<<8, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> d_field_get_catalogue_status_response_catalogue_size(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData);
+dfp_read_field_def_get_catalogue_status_response(<<16, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> d_field_get_catalogue_status_response_gateway_uptime_ms(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData);
+dfp_read_field_def_get_catalogue_status_response(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> d_field_get_catalogue_status_response_clusters(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData);
+dfp_read_field_def_get_catalogue_status_response(<<>>, 0, 0, _, F@_1, F@_2, R1, TrUserData) ->
+    S1 = #{catalogue_size => F@_1, gateway_uptime_ms => F@_2},
+    if R1 == '$undef' -> S1;
+       true -> S1#{clusters => lists_reverse(R1, TrUserData)}
+    end;
+dfp_read_field_def_get_catalogue_status_response(Other, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> dg_read_field_def_get_catalogue_status_response(Other, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData).
+
+dg_read_field_def_get_catalogue_status_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, TrUserData) when N < 32 - 7 -> dg_read_field_def_get_catalogue_status_response(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, TrUserData);
+dg_read_field_def_get_catalogue_status_response(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        8 -> d_field_get_catalogue_status_response_catalogue_size(Rest, 0, 0, 0, F@_1, F@_2, F@_3, TrUserData);
+        16 -> d_field_get_catalogue_status_response_gateway_uptime_ms(Rest, 0, 0, 0, F@_1, F@_2, F@_3, TrUserData);
+        26 -> d_field_get_catalogue_status_response_clusters(Rest, 0, 0, 0, F@_1, F@_2, F@_3, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_get_catalogue_status_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, TrUserData);
+                1 -> skip_64_get_catalogue_status_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, TrUserData);
+                2 -> skip_length_delimited_get_catalogue_status_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, TrUserData);
+                3 -> skip_group_get_catalogue_status_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, TrUserData);
+                5 -> skip_32_get_catalogue_status_response(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, TrUserData)
+            end
+    end;
+dg_read_field_def_get_catalogue_status_response(<<>>, 0, 0, _, F@_1, F@_2, R1, TrUserData) ->
+    S1 = #{catalogue_size => F@_1, gateway_uptime_ms => F@_2},
+    if R1 == '$undef' -> S1;
+       true -> S1#{clusters => lists_reverse(R1, TrUserData)}
+    end.
+
+d_field_get_catalogue_status_response_catalogue_size(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, TrUserData) when N < 57 -> d_field_get_catalogue_status_response_catalogue_size(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, TrUserData);
+d_field_get_catalogue_status_response_catalogue_size(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, TrUserData) ->
+    {NewFValue, RestF} = {begin <<Res:32/signed-native>> = <<(X bsl N + Acc):32/unsigned-native>>, id(Res, TrUserData) end, Rest},
+    dfp_read_field_def_get_catalogue_status_response(RestF, 0, 0, F, NewFValue, F@_2, F@_3, TrUserData).
+
+d_field_get_catalogue_status_response_gateway_uptime_ms(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, TrUserData) when N < 57 ->
+    d_field_get_catalogue_status_response_gateway_uptime_ms(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, TrUserData);
+d_field_get_catalogue_status_response_gateway_uptime_ms(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, TrUserData) ->
+    {NewFValue, RestF} = {begin <<Res:64/signed-native>> = <<(X bsl N + Acc):64/unsigned-native>>, id(Res, TrUserData) end, Rest},
+    dfp_read_field_def_get_catalogue_status_response(RestF, 0, 0, F, F@_1, NewFValue, F@_3, TrUserData).
+
+d_field_get_catalogue_status_response_clusters(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, TrUserData) when N < 57 -> d_field_get_catalogue_status_response_clusters(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, TrUserData);
+d_field_get_catalogue_status_response_clusters(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, Prev, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bs:Len/binary, Rest2/binary>> = Rest, {id(decode_msg_cluster_status(Bs, TrUserData), TrUserData), Rest2} end,
+    dfp_read_field_def_get_catalogue_status_response(RestF, 0, 0, F, F@_1, F@_2, cons(NewFValue, Prev, TrUserData), TrUserData).
+
+skip_varint_get_catalogue_status_response(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> skip_varint_get_catalogue_status_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData);
+skip_varint_get_catalogue_status_response(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> dfp_read_field_def_get_catalogue_status_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData).
+
+skip_length_delimited_get_catalogue_status_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, TrUserData) when N < 57 -> skip_length_delimited_get_catalogue_status_response(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, TrUserData);
+skip_length_delimited_get_catalogue_status_response(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_get_catalogue_status_response(Rest2, 0, 0, F, F@_1, F@_2, F@_3, TrUserData).
+
+skip_group_get_catalogue_status_response(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_get_catalogue_status_response(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, TrUserData).
+
+skip_32_get_catalogue_status_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> dfp_read_field_def_get_catalogue_status_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData).
+
+skip_64_get_catalogue_status_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> dfp_read_field_def_get_catalogue_status_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData).
+
+decode_msg_cluster_status(Bin, TrUserData) -> dfp_read_field_def_cluster_status(Bin, 0, 0, 0, id(<<>>, TrUserData), id([], TrUserData), id(0, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), TrUserData).
+
+dfp_read_field_def_cluster_status(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_cluster_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_cluster_status(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_members(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_cluster_status(<<24, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_store_count(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_cluster_status(<<34, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_cluster_status(<<42, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_last_refresh(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_cluster_status(<<50, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_last_error(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_cluster_status(<<>>, 0, 0, _, F@_1, R1, F@_3, F@_4, F@_5, F@_6, TrUserData) -> #{cluster_id => F@_1, members => lists_reverse(R1, TrUserData), store_count => F@_3, status => F@_4, last_refresh => F@_5, last_error => F@_6};
+dfp_read_field_def_cluster_status(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dg_read_field_def_cluster_status(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+dg_read_field_def_cluster_status(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 32 - 7 -> dg_read_field_def_cluster_status(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dg_read_field_def_cluster_status(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        10 -> d_field_cluster_status_cluster_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        18 -> d_field_cluster_status_members(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        24 -> d_field_cluster_status_store_count(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        34 -> d_field_cluster_status_status(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        42 -> d_field_cluster_status_last_refresh(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        50 -> d_field_cluster_status_last_error(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                1 -> skip_64_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                2 -> skip_length_delimited_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                3 -> skip_group_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                5 -> skip_32_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData)
+            end
+    end;
+dg_read_field_def_cluster_status(<<>>, 0, 0, _, F@_1, R1, F@_3, F@_4, F@_5, F@_6, TrUserData) -> #{cluster_id => F@_1, members => lists_reverse(R1, TrUserData), store_count => F@_3, status => F@_4, last_refresh => F@_5, last_error => F@_6}.
+
+d_field_cluster_status_cluster_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_cluster_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_cluster_status_cluster_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_cluster_status(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+d_field_cluster_status_members(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_members(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_cluster_status_members(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, Prev, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, cons(NewFValue, Prev, TrUserData), F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+d_field_cluster_status_store_count(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_store_count(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_cluster_status_store_count(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, F@_6, TrUserData) ->
+    {NewFValue, RestF} = {begin <<Res:32/signed-native>> = <<(X bsl N + Acc):32/unsigned-native>>, id(Res, TrUserData) end, Rest},
+    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, F@_6, TrUserData).
+
+d_field_cluster_status_status(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_status(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_cluster_status_status(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, F@_6, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, F@_6, TrUserData).
+
+d_field_cluster_status_last_refresh(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_cluster_status_last_refresh(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_cluster_status_last_refresh(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, NewFValue, F@_6, TrUserData).
+
+d_field_cluster_status_last_error(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_last_error(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_cluster_status_last_error(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, _, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, NewFValue, TrUserData).
+
+skip_varint_cluster_status(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> skip_varint_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+skip_varint_cluster_status(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+skip_length_delimited_cluster_status(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    skip_length_delimited_cluster_status(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+skip_length_delimited_cluster_status(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_cluster_status(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+skip_group_cluster_status(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_cluster_status(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+skip_32_cluster_status(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
+skip_64_cluster_status(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+
 'decode_msg_map<string,string>'(Bin, TrUserData) -> 'dfp_read_field_def_map<string,string>'(Bin, 0, 0, 0, id(<<>>, TrUserData), id(<<>>, TrUserData), TrUserData).
 
 'dfp_read_field_def_map<string,string>'(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, TrUserData) -> 'd_field_map<string,string>_key'(Rest, Z1, Z2, F, F@_1, F@_2, TrUserData);
@@ -2573,7 +3074,12 @@ merge_msgs(Prev, New, MsgName, Opts) ->
         stop_link_response -> merge_msg_stop_link_response(Prev, New, TrUserData);
         list_links_request -> merge_msg_list_links_request(Prev, New, TrUserData);
         list_links_response -> merge_msg_list_links_response(Prev, New, TrUserData);
-        link_runtime_info -> merge_msg_link_runtime_info(Prev, New, TrUserData)
+        link_runtime_info -> merge_msg_link_runtime_info(Prev, New, TrUserData);
+        reload_catalogue_request -> merge_msg_reload_catalogue_request(Prev, New, TrUserData);
+        reload_catalogue_response -> merge_msg_reload_catalogue_response(Prev, New, TrUserData);
+        get_catalogue_status_request -> merge_msg_get_catalogue_status_request(Prev, New, TrUserData);
+        get_catalogue_status_response -> merge_msg_get_catalogue_status_response(Prev, New, TrUserData);
+        cluster_status -> merge_msg_cluster_status(Prev, New, TrUserData)
     end.
 
 -compile({nowarn_unused_function,merge_msg_store_stats_request/3}).
@@ -2939,6 +3445,94 @@ merge_msg_link_runtime_info(PMsg, NMsg, TrUserData) ->
         {_, _} -> S4
     end.
 
+-compile({nowarn_unused_function,merge_msg_reload_catalogue_request/3}).
+merge_msg_reload_catalogue_request(_Prev, New, _TrUserData) -> New.
+
+-compile({nowarn_unused_function,merge_msg_reload_catalogue_response/3}).
+merge_msg_reload_catalogue_response(PMsg, NMsg, TrUserData) ->
+    S1 = #{},
+    S2 = case {PMsg, NMsg} of
+             {#{added := PFadded}, #{added := NFadded}} -> S1#{added => 'erlang_++'(PFadded, NFadded, TrUserData)};
+             {_, #{added := NFadded}} -> S1#{added => NFadded};
+             {#{added := PFadded}, _} -> S1#{added => PFadded};
+             {_, _} -> S1
+         end,
+    S3 = case {PMsg, NMsg} of
+             {#{removed := PFremoved}, #{removed := NFremoved}} -> S2#{removed => 'erlang_++'(PFremoved, NFremoved, TrUserData)};
+             {_, #{removed := NFremoved}} -> S2#{removed => NFremoved};
+             {#{removed := PFremoved}, _} -> S2#{removed => PFremoved};
+             {_, _} -> S2
+         end,
+    S4 = case {PMsg, NMsg} of
+             {#{restarted := PFrestarted}, #{restarted := NFrestarted}} -> S3#{restarted => 'erlang_++'(PFrestarted, NFrestarted, TrUserData)};
+             {_, #{restarted := NFrestarted}} -> S3#{restarted => NFrestarted};
+             {#{restarted := PFrestarted}, _} -> S3#{restarted => PFrestarted};
+             {_, _} -> S3
+         end,
+    case {PMsg, NMsg} of
+        {_, #{error := NFerror}} -> S4#{error => NFerror};
+        {#{error := PFerror}, _} -> S4#{error => PFerror};
+        _ -> S4
+    end.
+
+-compile({nowarn_unused_function,merge_msg_get_catalogue_status_request/3}).
+merge_msg_get_catalogue_status_request(_Prev, New, _TrUserData) -> New.
+
+-compile({nowarn_unused_function,merge_msg_get_catalogue_status_response/3}).
+merge_msg_get_catalogue_status_response(PMsg, NMsg, TrUserData) ->
+    S1 = #{},
+    S2 = case {PMsg, NMsg} of
+             {_, #{catalogue_size := NFcatalogue_size}} -> S1#{catalogue_size => NFcatalogue_size};
+             {#{catalogue_size := PFcatalogue_size}, _} -> S1#{catalogue_size => PFcatalogue_size};
+             _ -> S1
+         end,
+    S3 = case {PMsg, NMsg} of
+             {_, #{gateway_uptime_ms := NFgateway_uptime_ms}} -> S2#{gateway_uptime_ms => NFgateway_uptime_ms};
+             {#{gateway_uptime_ms := PFgateway_uptime_ms}, _} -> S2#{gateway_uptime_ms => PFgateway_uptime_ms};
+             _ -> S2
+         end,
+    case {PMsg, NMsg} of
+        {#{clusters := PFclusters}, #{clusters := NFclusters}} -> S3#{clusters => 'erlang_++'(PFclusters, NFclusters, TrUserData)};
+        {_, #{clusters := NFclusters}} -> S3#{clusters => NFclusters};
+        {#{clusters := PFclusters}, _} -> S3#{clusters => PFclusters};
+        {_, _} -> S3
+    end.
+
+-compile({nowarn_unused_function,merge_msg_cluster_status/3}).
+merge_msg_cluster_status(PMsg, NMsg, TrUserData) ->
+    S1 = #{},
+    S2 = case {PMsg, NMsg} of
+             {_, #{cluster_id := NFcluster_id}} -> S1#{cluster_id => NFcluster_id};
+             {#{cluster_id := PFcluster_id}, _} -> S1#{cluster_id => PFcluster_id};
+             _ -> S1
+         end,
+    S3 = case {PMsg, NMsg} of
+             {#{members := PFmembers}, #{members := NFmembers}} -> S2#{members => 'erlang_++'(PFmembers, NFmembers, TrUserData)};
+             {_, #{members := NFmembers}} -> S2#{members => NFmembers};
+             {#{members := PFmembers}, _} -> S2#{members => PFmembers};
+             {_, _} -> S2
+         end,
+    S4 = case {PMsg, NMsg} of
+             {_, #{store_count := NFstore_count}} -> S3#{store_count => NFstore_count};
+             {#{store_count := PFstore_count}, _} -> S3#{store_count => PFstore_count};
+             _ -> S3
+         end,
+    S5 = case {PMsg, NMsg} of
+             {_, #{status := NFstatus}} -> S4#{status => NFstatus};
+             {#{status := PFstatus}, _} -> S4#{status => PFstatus};
+             _ -> S4
+         end,
+    S6 = case {PMsg, NMsg} of
+             {_, #{last_refresh := NFlast_refresh}} -> S5#{last_refresh => NFlast_refresh};
+             {#{last_refresh := PFlast_refresh}, _} -> S5#{last_refresh => PFlast_refresh};
+             _ -> S5
+         end,
+    case {PMsg, NMsg} of
+        {_, #{last_error := NFlast_error}} -> S6#{last_error => NFlast_error};
+        {#{last_error := PFlast_error}, _} -> S6#{last_error => PFlast_error};
+        _ -> S6
+    end.
+
 
 verify_msg(Msg, MsgName) when is_atom(MsgName) -> verify_msg(Msg, MsgName, []).
 
@@ -2969,6 +3563,11 @@ verify_msg(Msg, MsgName, Opts) ->
         list_links_request -> v_msg_list_links_request(Msg, [MsgName], TrUserData);
         list_links_response -> v_msg_list_links_response(Msg, [MsgName], TrUserData);
         link_runtime_info -> v_msg_link_runtime_info(Msg, [MsgName], TrUserData);
+        reload_catalogue_request -> v_msg_reload_catalogue_request(Msg, [MsgName], TrUserData);
+        reload_catalogue_response -> v_msg_reload_catalogue_response(Msg, [MsgName], TrUserData);
+        get_catalogue_status_request -> v_msg_get_catalogue_status_request(Msg, [MsgName], TrUserData);
+        get_catalogue_status_response -> v_msg_get_catalogue_status_response(Msg, [MsgName], TrUserData);
+        cluster_status -> v_msg_cluster_status(Msg, [MsgName], TrUserData);
         _ -> mk_type_error(not_a_known_message, Msg, [])
     end.
 
@@ -3497,6 +4096,152 @@ v_msg_link_runtime_info(#{} = M, Path, TrUserData) ->
 v_msg_link_runtime_info(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), link_runtime_info}, M, Path);
 v_msg_link_runtime_info(X, Path, _TrUserData) -> mk_type_error({expected_msg, link_runtime_info}, X, Path).
 
+-compile({nowarn_unused_function,v_msg_reload_catalogue_request/3}).
+-dialyzer({nowarn_function,v_msg_reload_catalogue_request/3}).
+v_msg_reload_catalogue_request(#{} = M, Path, _) ->
+    lists:foreach(fun (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path) end, maps:keys(M)),
+    ok;
+v_msg_reload_catalogue_request(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), reload_catalogue_request}, M, Path);
+v_msg_reload_catalogue_request(X, Path, _TrUserData) -> mk_type_error({expected_msg, reload_catalogue_request}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_reload_catalogue_response/3}).
+-dialyzer({nowarn_function,v_msg_reload_catalogue_response/3}).
+v_msg_reload_catalogue_response(#{} = M, Path, TrUserData) ->
+    case M of
+        #{added := F1} ->
+            if is_list(F1) ->
+                   _ = [v_type_string(Elem, [added | Path], TrUserData) || Elem <- F1],
+                   ok;
+               true -> mk_type_error({invalid_list_of, string}, F1, [added | Path])
+            end;
+        _ -> ok
+    end,
+    case M of
+        #{removed := F2} ->
+            if is_list(F2) ->
+                   _ = [v_type_string(Elem, [removed | Path], TrUserData) || Elem <- F2],
+                   ok;
+               true -> mk_type_error({invalid_list_of, string}, F2, [removed | Path])
+            end;
+        _ -> ok
+    end,
+    case M of
+        #{restarted := F3} ->
+            if is_list(F3) ->
+                   _ = [v_type_string(Elem, [restarted | Path], TrUserData) || Elem <- F3],
+                   ok;
+               true -> mk_type_error({invalid_list_of, string}, F3, [restarted | Path])
+            end;
+        _ -> ok
+    end,
+    case M of
+        #{error := F4} -> v_type_string(F4, [error | Path], TrUserData);
+        _ -> ok
+    end,
+    lists:foreach(fun (added) -> ok;
+                      (removed) -> ok;
+                      (restarted) -> ok;
+                      (error) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_reload_catalogue_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), reload_catalogue_response}, M, Path);
+v_msg_reload_catalogue_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, reload_catalogue_response}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_get_catalogue_status_request/3}).
+-dialyzer({nowarn_function,v_msg_get_catalogue_status_request/3}).
+v_msg_get_catalogue_status_request(#{} = M, Path, _) ->
+    lists:foreach(fun (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path) end, maps:keys(M)),
+    ok;
+v_msg_get_catalogue_status_request(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), get_catalogue_status_request}, M, Path);
+v_msg_get_catalogue_status_request(X, Path, _TrUserData) -> mk_type_error({expected_msg, get_catalogue_status_request}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_get_catalogue_status_response/3}).
+-dialyzer({nowarn_function,v_msg_get_catalogue_status_response/3}).
+v_msg_get_catalogue_status_response(#{} = M, Path, TrUserData) ->
+    case M of
+        #{catalogue_size := F1} -> v_type_int32(F1, [catalogue_size | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{gateway_uptime_ms := F2} -> v_type_int64(F2, [gateway_uptime_ms | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{clusters := F3} ->
+            if is_list(F3) ->
+                   _ = [v_submsg_cluster_status(Elem, [clusters | Path], TrUserData) || Elem <- F3],
+                   ok;
+               true -> mk_type_error({invalid_list_of, {msg, cluster_status}}, F3, [clusters | Path])
+            end;
+        _ -> ok
+    end,
+    lists:foreach(fun (catalogue_size) -> ok;
+                      (gateway_uptime_ms) -> ok;
+                      (clusters) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_get_catalogue_status_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), get_catalogue_status_response}, M, Path);
+v_msg_get_catalogue_status_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, get_catalogue_status_response}, X, Path).
+
+-compile({nowarn_unused_function,v_submsg_cluster_status/3}).
+-dialyzer({nowarn_function,v_submsg_cluster_status/3}).
+v_submsg_cluster_status(Msg, Path, TrUserData) -> v_msg_cluster_status(Msg, Path, TrUserData).
+
+-compile({nowarn_unused_function,v_msg_cluster_status/3}).
+-dialyzer({nowarn_function,v_msg_cluster_status/3}).
+v_msg_cluster_status(#{} = M, Path, TrUserData) ->
+    case M of
+        #{cluster_id := F1} -> v_type_string(F1, [cluster_id | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{members := F2} ->
+            if is_list(F2) ->
+                   _ = [v_type_string(Elem, [members | Path], TrUserData) || Elem <- F2],
+                   ok;
+               true -> mk_type_error({invalid_list_of, string}, F2, [members | Path])
+            end;
+        _ -> ok
+    end,
+    case M of
+        #{store_count := F3} -> v_type_int32(F3, [store_count | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{status := F4} -> v_type_string(F4, [status | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{last_refresh := F5} -> v_type_string(F5, [last_refresh | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{last_error := F6} -> v_type_string(F6, [last_error | Path], TrUserData);
+        _ -> ok
+    end,
+    lists:foreach(fun (cluster_id) -> ok;
+                      (members) -> ok;
+                      (store_count) -> ok;
+                      (status) -> ok;
+                      (last_refresh) -> ok;
+                      (last_error) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_cluster_status(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), cluster_status}, M, Path);
+v_msg_cluster_status(X, Path, _TrUserData) -> mk_type_error({expected_msg, cluster_status}, X, Path).
+
+-compile({nowarn_unused_function,v_type_int32/3}).
+-dialyzer({nowarn_function,v_type_int32/3}).
+v_type_int32(N, _Path, _TrUserData) when is_integer(N), -2147483648 =< N, N =< 2147483647 -> ok;
+v_type_int32(N, Path, _TrUserData) when is_integer(N) -> mk_type_error({value_out_of_range, int32, signed, 32}, N, Path);
+v_type_int32(X, Path, _TrUserData) -> mk_type_error({bad_integer, int32, signed, 32}, X, Path).
+
 -compile({nowarn_unused_function,v_type_int64/3}).
 -dialyzer({nowarn_function,v_type_int64/3}).
 v_type_int64(N, _Path, _TrUserData) when is_integer(N), -9223372036854775808 =< N, N =< 9223372036854775807 -> ok;
@@ -3768,7 +4513,25 @@ get_msg_defs() ->
       [#{name => name, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
        #{name => status, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
        #{name => events_processed, fnum => 3, rnum => 4, type => uint64, occurrence => optional, opts => []},
-       #{name => details, fnum => 4, rnum => 5, type => {map, string, string}, occurrence => repeated, opts => []}]}].
+       #{name => details, fnum => 4, rnum => 5, type => {map, string, string}, occurrence => repeated, opts => []}]},
+     {{msg, reload_catalogue_request}, []},
+     {{msg, reload_catalogue_response},
+      [#{name => added, fnum => 1, rnum => 2, type => string, occurrence => repeated, opts => []},
+       #{name => removed, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
+       #{name => restarted, fnum => 3, rnum => 4, type => string, occurrence => repeated, opts => []},
+       #{name => error, fnum => 4, rnum => 5, type => string, occurrence => optional, opts => []}]},
+     {{msg, get_catalogue_status_request}, []},
+     {{msg, get_catalogue_status_response},
+      [#{name => catalogue_size, fnum => 1, rnum => 2, type => int32, occurrence => optional, opts => []},
+       #{name => gateway_uptime_ms, fnum => 2, rnum => 3, type => int64, occurrence => optional, opts => []},
+       #{name => clusters, fnum => 3, rnum => 4, type => {msg, cluster_status}, occurrence => repeated, opts => []}]},
+     {{msg, cluster_status},
+      [#{name => cluster_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+       #{name => members, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
+       #{name => store_count, fnum => 3, rnum => 4, type => int32, occurrence => optional, opts => []},
+       #{name => status, fnum => 4, rnum => 5, type => string, occurrence => optional, opts => []},
+       #{name => last_refresh, fnum => 5, rnum => 6, type => string, occurrence => optional, opts => []},
+       #{name => last_error, fnum => 6, rnum => 7, type => string, occurrence => optional, opts => []}]}].
 
 
 get_msg_names() ->
@@ -3795,7 +4558,12 @@ get_msg_names() ->
      stop_link_response,
      list_links_request,
      list_links_response,
-     link_runtime_info].
+     link_runtime_info,
+     reload_catalogue_request,
+     reload_catalogue_response,
+     get_catalogue_status_request,
+     get_catalogue_status_response,
+     cluster_status].
 
 
 get_group_names() -> [].
@@ -3825,7 +4593,12 @@ get_msg_or_group_names() ->
      stop_link_response,
      list_links_request,
      list_links_response,
-     link_runtime_info].
+     link_runtime_info,
+     reload_catalogue_request,
+     reload_catalogue_response,
+     get_catalogue_status_request,
+     get_catalogue_status_response,
+     cluster_status].
 
 
 get_enum_names() -> [].
@@ -3900,6 +4673,24 @@ find_msg_def(link_runtime_info) ->
      #{name => status, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
      #{name => events_processed, fnum => 3, rnum => 4, type => uint64, occurrence => optional, opts => []},
      #{name => details, fnum => 4, rnum => 5, type => {map, string, string}, occurrence => repeated, opts => []}];
+find_msg_def(reload_catalogue_request) -> [];
+find_msg_def(reload_catalogue_response) ->
+    [#{name => added, fnum => 1, rnum => 2, type => string, occurrence => repeated, opts => []},
+     #{name => removed, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
+     #{name => restarted, fnum => 3, rnum => 4, type => string, occurrence => repeated, opts => []},
+     #{name => error, fnum => 4, rnum => 5, type => string, occurrence => optional, opts => []}];
+find_msg_def(get_catalogue_status_request) -> [];
+find_msg_def(get_catalogue_status_response) ->
+    [#{name => catalogue_size, fnum => 1, rnum => 2, type => int32, occurrence => optional, opts => []},
+     #{name => gateway_uptime_ms, fnum => 2, rnum => 3, type => int64, occurrence => optional, opts => []},
+     #{name => clusters, fnum => 3, rnum => 4, type => {msg, cluster_status}, occurrence => repeated, opts => []}];
+find_msg_def(cluster_status) ->
+    [#{name => cluster_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+     #{name => members, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
+     #{name => store_count, fnum => 3, rnum => 4, type => int32, occurrence => optional, opts => []},
+     #{name => status, fnum => 4, rnum => 5, type => string, occurrence => optional, opts => []},
+     #{name => last_refresh, fnum => 5, rnum => 6, type => string, occurrence => optional, opts => []},
+     #{name => last_error, fnum => 6, rnum => 7, type => string, occurrence => optional, opts => []}];
 find_msg_def(_) -> error.
 
 
@@ -3932,12 +4723,14 @@ get_service_def('reckon.gateway.v1.AdminService') ->
       #{name => 'ListLinks', input => list_links_request, output => list_links_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'StartLink', input => start_link_request, output => start_link_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'StopLink', input => stop_link_request, output => stop_link_response, input_stream => false, output_stream => false, opts => []},
-      #{name => 'GetLinkInfo', input => get_link_request, output => link_runtime_info, input_stream => false, output_stream => false, opts => []}]};
+      #{name => 'GetLinkInfo', input => get_link_request, output => link_runtime_info, input_stream => false, output_stream => false, opts => []},
+      #{name => 'ReloadCatalogue', input => reload_catalogue_request, output => reload_catalogue_response, input_stream => false, output_stream => false, opts => []},
+      #{name => 'GetCatalogueStatus', input => get_catalogue_status_request, output => get_catalogue_status_response, input_stream => false, output_stream => false, opts => []}]};
 get_service_def(_) -> error.
 
 
 get_rpc_names('reckon.gateway.v1.AdminService') ->
-    ['GetStoreStats', 'GetStreamInfo', 'GetEventTypeSummary', 'Scavenge', 'ScavengeMatching', 'ScavengeDryRun', 'CreateLink', 'DeleteLink', 'GetLink', 'ListLinks', 'StartLink', 'StopLink', 'GetLinkInfo'];
+    ['GetStoreStats', 'GetStreamInfo', 'GetEventTypeSummary', 'Scavenge', 'ScavengeMatching', 'ScavengeDryRun', 'CreateLink', 'DeleteLink', 'GetLink', 'ListLinks', 'StartLink', 'StopLink', 'GetLinkInfo', 'ReloadCatalogue', 'GetCatalogueStatus'];
 get_rpc_names(_) -> error.
 
 
@@ -3958,6 +4751,8 @@ find_rpc_def(_, _) -> error.
 'find_rpc_def_reckon.gateway.v1.AdminService'('StartLink') -> #{name => 'StartLink', input => start_link_request, output => start_link_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.AdminService'('StopLink') -> #{name => 'StopLink', input => stop_link_request, output => stop_link_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.AdminService'('GetLinkInfo') -> #{name => 'GetLinkInfo', input => get_link_request, output => link_runtime_info, input_stream => false, output_stream => false, opts => []};
+'find_rpc_def_reckon.gateway.v1.AdminService'('ReloadCatalogue') -> #{name => 'ReloadCatalogue', input => reload_catalogue_request, output => reload_catalogue_response, input_stream => false, output_stream => false, opts => []};
+'find_rpc_def_reckon.gateway.v1.AdminService'('GetCatalogueStatus') -> #{name => 'GetCatalogueStatus', input => get_catalogue_status_request, output => get_catalogue_status_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.AdminService'(_) -> error.
 
 
@@ -3996,6 +4791,8 @@ fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"ListLink
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"StartLink">>) -> {'reckon.gateway.v1.AdminService', 'StartLink'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"StopLink">>) -> {'reckon.gateway.v1.AdminService', 'StopLink'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"GetLinkInfo">>) -> {'reckon.gateway.v1.AdminService', 'GetLinkInfo'};
+fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"ReloadCatalogue">>) -> {'reckon.gateway.v1.AdminService', 'ReloadCatalogue'};
+fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.AdminService">>, <<"GetCatalogueStatus">>) -> {'reckon.gateway.v1.AdminService', 'GetCatalogueStatus'};
 fqbins_to_service_and_rpc_name(S, R) -> error({gpb_error, {badservice_or_rpc, {S, R}}}).
 
 
@@ -4015,6 +4812,8 @@ service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'ListLinks') ->
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'StartLink') -> {<<"reckon.gateway.v1.AdminService">>, <<"StartLink">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'StopLink') -> {<<"reckon.gateway.v1.AdminService">>, <<"StopLink">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'GetLinkInfo') -> {<<"reckon.gateway.v1.AdminService">>, <<"GetLinkInfo">>};
+service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'ReloadCatalogue') -> {<<"reckon.gateway.v1.AdminService">>, <<"ReloadCatalogue">>};
+service_and_rpc_name_to_fqbins('reckon.gateway.v1.AdminService', 'GetCatalogueStatus') -> {<<"reckon.gateway.v1.AdminService">>, <<"GetCatalogueStatus">>};
 service_and_rpc_name_to_fqbins(S, R) -> error({gpb_error, {badservice_or_rpc, {S, R}}}).
 
 
@@ -4042,6 +4841,11 @@ fqbin_to_msg_name(<<"reckon.gateway.v1.StopLinkResponse">>) -> stop_link_respons
 fqbin_to_msg_name(<<"reckon.gateway.v1.ListLinksRequest">>) -> list_links_request;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ListLinksResponse">>) -> list_links_response;
 fqbin_to_msg_name(<<"reckon.gateway.v1.LinkRuntimeInfo">>) -> link_runtime_info;
+fqbin_to_msg_name(<<"reckon.gateway.v1.ReloadCatalogueRequest">>) -> reload_catalogue_request;
+fqbin_to_msg_name(<<"reckon.gateway.v1.ReloadCatalogueResponse">>) -> reload_catalogue_response;
+fqbin_to_msg_name(<<"reckon.gateway.v1.GetCatalogueStatusRequest">>) -> get_catalogue_status_request;
+fqbin_to_msg_name(<<"reckon.gateway.v1.GetCatalogueStatusResponse">>) -> get_catalogue_status_response;
+fqbin_to_msg_name(<<"reckon.gateway.v1.ClusterStatus">>) -> cluster_status;
 fqbin_to_msg_name(E) -> error({gpb_error, {badmsg, E}}).
 
 
@@ -4069,6 +4873,11 @@ msg_name_to_fqbin(stop_link_response) -> <<"reckon.gateway.v1.StopLinkResponse">
 msg_name_to_fqbin(list_links_request) -> <<"reckon.gateway.v1.ListLinksRequest">>;
 msg_name_to_fqbin(list_links_response) -> <<"reckon.gateway.v1.ListLinksResponse">>;
 msg_name_to_fqbin(link_runtime_info) -> <<"reckon.gateway.v1.LinkRuntimeInfo">>;
+msg_name_to_fqbin(reload_catalogue_request) -> <<"reckon.gateway.v1.ReloadCatalogueRequest">>;
+msg_name_to_fqbin(reload_catalogue_response) -> <<"reckon.gateway.v1.ReloadCatalogueResponse">>;
+msg_name_to_fqbin(get_catalogue_status_request) -> <<"reckon.gateway.v1.GetCatalogueStatusRequest">>;
+msg_name_to_fqbin(get_catalogue_status_response) -> <<"reckon.gateway.v1.GetCatalogueStatusResponse">>;
+msg_name_to_fqbin(cluster_status) -> <<"reckon.gateway.v1.ClusterStatus">>;
 msg_name_to_fqbin(E) -> error({gpb_error, {badmsg, E}}).
 
 
@@ -4108,18 +4917,23 @@ get_all_proto_names() -> ["reckon_admin"].
 
 
 get_msg_containment("reckon_admin") ->
-    [create_link_request,
+    [cluster_status,
+     create_link_request,
      create_link_response,
      delete_link_request,
      delete_link_response,
      event_type_summary_entry,
      event_type_summary_request,
      event_type_summary_response,
+     get_catalogue_status_request,
+     get_catalogue_status_response,
      get_link_request,
      link_info,
      link_runtime_info,
      list_links_request,
      list_links_response,
+     reload_catalogue_request,
+     reload_catalogue_response,
      scavenge_matching_request,
      scavenge_matching_response,
      scavenge_request,
@@ -4156,7 +4970,9 @@ get_rpc_containment("reckon_admin") ->
      {'reckon.gateway.v1.AdminService', 'ListLinks'},
      {'reckon.gateway.v1.AdminService', 'StartLink'},
      {'reckon.gateway.v1.AdminService', 'StopLink'},
-     {'reckon.gateway.v1.AdminService', 'GetLinkInfo'}];
+     {'reckon.gateway.v1.AdminService', 'GetLinkInfo'},
+     {'reckon.gateway.v1.AdminService', 'ReloadCatalogue'},
+     {'reckon.gateway.v1.AdminService', 'GetCatalogueStatus'}];
 get_rpc_containment(P) -> error({gpb_error, {badproto, P}}).
 
 
@@ -4164,14 +4980,17 @@ get_enum_containment("reckon_admin") -> [];
 get_enum_containment(P) -> error({gpb_error, {badproto, P}}).
 
 
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ClusterStatus">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StreamInfoRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StoreStatsRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StopLinkRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StartLinkRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ScavengeRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ScavengeMatchingRequest">>) -> "reckon_admin";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ReloadCatalogueRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ListLinksRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.GetLinkRequest">>) -> "reckon_admin";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.GetCatalogueStatusRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.EventTypeSummaryRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.DeleteLinkRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.CreateLinkRequest">>) -> "reckon_admin";
@@ -4181,7 +5000,9 @@ get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StopLinkResponse">>) -> "rec
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StartLinkResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ScavengeResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ScavengeMatchingResponse">>) -> "reckon_admin";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ReloadCatalogueResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ListLinksResponse">>) -> "reckon_admin";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.GetCatalogueStatusResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.EventTypeSummaryResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.DeleteLinkResponse">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.CreateLinkResponse">>) -> "reckon_admin";

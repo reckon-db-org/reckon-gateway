@@ -17,7 +17,10 @@
     list_links/2,
     start_link/2,
     stop_link/2,
-    get_link_info/2
+    get_link_info/2,
+    %% Catalogue (0.5+)
+    reload_catalogue/2,
+    get_catalogue_status/2
 ]).
 
 %%====================================================================
@@ -236,3 +239,63 @@ maps_to_strings(Map) when is_map(Map) ->
             Acc#{Key => Val}
         end, #{}, Map);
 maps_to_strings(_) -> #{}.
+
+%%====================================================================
+%% Catalogue
+%%====================================================================
+
+reload_catalogue(_Req, Md) ->
+    case reckon_gateway_clusters_sup:reload_from_disk() of
+        {ok, #{added := Added, removed := Removed, restarted := Restarted}} ->
+            {ok, #{
+                added     => [atom_to_binary(Id, utf8) || Id <- Added],
+                removed   => [atom_to_binary(Id, utf8) || Id <- Removed],
+                restarted => [atom_to_binary(Id, utf8) || Id <- Restarted],
+                error     => <<>>
+            }, Md};
+        {error, Reason} ->
+            ErrBin = iolist_to_binary(io_lib:format("~p", [Reason])),
+            {ok, #{
+                added     => [],
+                removed   => [],
+                restarted => [],
+                error     => ErrBin
+            }, Md}
+    end.
+
+get_catalogue_status(_Req, Md) ->
+    #{catalogue_size := Size,
+      clusters       := Clusters} = reckon_gateway_catalogue:status(),
+    UptimeMs = uptime_ms(),
+    {ok, #{
+        catalogue_size    => Size,
+        gateway_uptime_ms => UptimeMs,
+        clusters          => [cluster_to_proto(C) || C <- Clusters]
+    }, Md}.
+
+cluster_to_proto(#{cluster_id   := Id,
+                   members      := Members,
+                   store_count  := Count,
+                   status       := Status,
+                   last_refresh := LR}) ->
+    #{
+        cluster_id   => atom_to_binary(Id, utf8),
+        members      => [atom_to_binary(N, utf8) || N <- Members],
+        store_count  => Count,
+        status       => atom_to_binary(Status, utf8),
+        last_refresh => iso8601(LR),
+        last_error   => <<>>     %% wired in when connector exposes last_error in status
+    }.
+
+iso8601(undefined) -> <<>>;
+iso8601(Ms) when is_integer(Ms) ->
+    %% ms -> universal datetime tuple -> ISO-8601 binary.
+    Seconds = Ms div 1000,
+    {{Y,Mo,D}, {H,Mi,S}} = calendar:system_time_to_universal_time(Seconds, second),
+    iolist_to_binary(
+        io_lib:format("~4..0w-~2..0w-~2..0wT~2..0w:~2..0w:~2..0wZ",
+                      [Y, Mo, D, H, Mi, S])).
+
+uptime_ms() ->
+    {Ms, _} = erlang:statistics(wall_clock),
+    Ms.

@@ -283,3 +283,43 @@ get_link_info(Req, Metadata, Options) ->
                            get_link_request, link_runtime_info, <<"reckon.gateway.v1.GetLinkRequest">>),
                       Req, Metadata, Options).
 
+-spec reload_catalogue(reckon_admin_pb:reload_catalogue_request())
+    -> {ok, reckon_admin_pb:reload_catalogue_response(), grpc:metadata()}
+     | {error, term()}.
+reload_catalogue(Req) ->
+    reload_catalogue(Req, #{}, #{}).
+
+-spec reload_catalogue(reckon_admin_pb:reload_catalogue_request(), grpc:options())
+    -> {ok, reckon_admin_pb:reload_catalogue_response(), grpc:metadata()}
+     | {error, term()}.
+reload_catalogue(Req, Options) ->
+    reload_catalogue(Req, #{}, Options).
+
+-spec reload_catalogue(reckon_admin_pb:reload_catalogue_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:reload_catalogue_response(), grpc:metadata()}
+     | {error, term()}.
+reload_catalogue(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/ReloadCatalogue">>,
+                           reload_catalogue_request, reload_catalogue_response, <<"reckon.gateway.v1.ReloadCatalogueRequest">>),
+                      Req, Metadata, Options).
+
+-spec get_catalogue_status(reckon_admin_pb:get_catalogue_status_request())
+    -> {ok, reckon_admin_pb:get_catalogue_status_response(), grpc:metadata()}
+     | {error, term()}.
+get_catalogue_status(Req) ->
+    get_catalogue_status(Req, #{}, #{}).
+
+-spec get_catalogue_status(reckon_admin_pb:get_catalogue_status_request(), grpc:options())
+    -> {ok, reckon_admin_pb:get_catalogue_status_response(), grpc:metadata()}
+     | {error, term()}.
+get_catalogue_status(Req, Options) ->
+    get_catalogue_status(Req, #{}, Options).
+
+-spec get_catalogue_status(reckon_admin_pb:get_catalogue_status_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_admin_pb:get_catalogue_status_response(), grpc:metadata()}
+     | {error, term()}.
+get_catalogue_status(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.AdminService/GetCatalogueStatus">>,
+                           get_catalogue_status_request, get_catalogue_status_response, <<"reckon.gateway.v1.GetCatalogueStatusRequest">>),
+                      Req, Metadata, Options).
+
