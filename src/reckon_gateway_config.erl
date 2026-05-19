@@ -1,15 +1,22 @@
 %%% @doc Catalogue config loader for the reckon-gateway.
 %%%
-%%% Reads operator-curated `clusters.eterm` (path taken from app env
+%%% Reads operator-curated `clusters.eterm` (path from app env
 %%% `clusters_config_path`) and validates each cluster spec. The file
 %%% is an Erlang term file containing a single list of maps:
 %%%
 %%%   [
 %%%       #{cluster_id => parksim,
-%%%         seed       => 'parksim_entry2exit@192.168.1.10',
+%%%         members    => ['parksim_entry2exit@192.168.1.10',
+%%%                        'parksim_lot@192.168.1.11',
+%%%                        'parksim_pricing@192.168.1.12',
+%%%                        'parksim_simulator@192.168.1.13'],
 %%%         cookie     => <<"tKcK...">>},
 %%%       ...
 %%%   ].
+%%%
+%%% `members` is an explicit list of every node in the cluster. The
+%%% connector connects to each directly; no reliance on the cluster
+%%% having a healthy internal mesh.
 %%%
 %%% Cookies are secrets — DO NOT log them, return them in error
 %%% messages, or surface them on the gRPC side. They live in the
@@ -20,7 +27,7 @@
 -export([load_clusters/0]).
 
 -type cluster_spec() :: #{cluster_id := atom(),
-                         seed       := atom(),
+                         members    := [node()],
                          cookie     := binary()}.
 -export_type([cluster_spec/0]).
 
@@ -70,9 +77,13 @@ validate_loop([Spec | Rest], Seen, Acc) ->
             E
     end.
 
-normalise(#{cluster_id := Id, seed := Seed, cookie := Cookie} = Spec)
-    when is_atom(Id), is_atom(Seed), is_binary(Cookie), byte_size(Cookie) > 0 ->
-    {ok, Spec};
+normalise(#{cluster_id := Id, members := Members, cookie := Cookie} = Spec)
+    when is_atom(Id), is_list(Members), is_binary(Cookie),
+         byte_size(Cookie) > 0, Members =/= [] ->
+    case lists:all(fun erlang:is_atom/1, Members) of
+        true  -> {ok, Spec};
+        false -> {error, {invalid_cluster_spec, redact(Spec)}}
+    end;
 normalise(Other) ->
     {error, {invalid_cluster_spec, redact(Other)}}.
 

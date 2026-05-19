@@ -10,11 +10,13 @@
 %%                                    data RPC returns store_unknown.
 %%
 %% Erlang dist:
-%%   - Per-peer cookies are set at runtime by reckon_gateway_cluster_connector,
-%%     so the BEAM's default cookie is unused for clusters.eterm targets.
-%%   - dist_auto_connect is set to `never` so the gateway only connects
-%%     to nodes it explicitly pings; this prevents accidental
-%%     auto-connect attempts with the wrong cookie.
+%%   - Per-peer cookies are set at runtime by reckon_gateway_cluster_connector
+%%     before each connect, so the BEAM's default cookie is unused for
+%%     clusters.eterm targets.
+%%   - dist_auto_connect stays at OTP default (`once`): cookie checks
+%%     reject unauthorised peers anyway, and `never` blocks `net_adm:ping`,
+%%     ad-hoc `eval`, and rebar3 release tooling — too steep a cost for
+%%     ops.
 
 [
     {reckon_gateway, [
@@ -33,7 +35,6 @@
     ]},
 
     {kernel, [
-        {dist_auto_connect, never},
         {logger_level, info},
         {logger, [
             {handler, default, logger_std_h, #{
