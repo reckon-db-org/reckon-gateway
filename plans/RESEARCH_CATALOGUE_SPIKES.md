@@ -1,194 +1,273 @@
 # RESEARCH: catalogue-mode load-bearing spike results
 
-**Status:** complete (verdict: NOT ready for implementation yet)
+**Status:** complete (verdict: BLOCKED until parksim is wired per the canonical pattern)
 **Author:** session 2026-05-19
 **Audience:** Raf
 **Related:** [DESIGN_RECKON_GATEWAY_CATALOGUE.md](DESIGN_RECKON_GATEWAY_CATALOGUE.md)
 
-Three short spikes ran against the lab before any catalogue
-implementation work began. Scripts kept in `scripts/`:
+Three pre-implementation spikes ran against the lab. Scripts in
+`scripts/`:
 
-- `scripts/verify-catalogue-assumptions.sh` — the three core spikes.
-- `scripts/probe-parksim-store-state.sh` — follow-up after spike 3
-  surfaced unexpected emptiness.
-- `scripts/probe-existing-gateway.sh` — comparison probe against
-  the live embedded-mode reckon-gateway.
+- `verify-catalogue-assumptions.sh` — the three core spikes.
+- `probe-parksim-store-state.sh` — follow-up after spike 3 surfaced
+  unexpected emptiness.
+- `probe-existing-gateway.sh` — comparison probe against the live
+  embedded-mode reckon-gateway (which DOES have a store).
+- `probe-evoq-surfaces.sh` — diagnostic on the evoq side of the
+  parksim BEAM.
 
 ## Verdict
 
 | Spike | Assumption | Result |
 |-------|------------|--------|
-| 1 | `erlang:set_cookie(Node, Cookie)` enables per-peer dist auth from a BEAM whose default cookie is different | ✅ PASS — `pong` returned; default cookie untouched; only the target node connected |
-| 2 | `rpc:call(Target, pg, which_groups, [Scope])` reaches the remote BEAM's pg state via dist rpc | ✅ PASS — 13 event-topic groups returned from `parksim_entry2exit`'s pg scope |
-| 3 | `reckon_db_store_registry:list_stores/0` on a parksim BEAM returns the configured store_id | ❌ FAIL — registry returns `{ok, []}`; no parksim store is registered |
+| 1 | `erlang:set_cookie(Node, Cookie)` enables per-peer dist auth from a BEAM whose default cookie differs | ✅ PASS — `pong`; default cookie untouched; only target appeared in `nodes()` |
+| 2 | `rpc:call(Target, pg, which_groups, [Scope])` reaches remote BEAM's pg via dist | ✅ PASS — 13 event-topic groups returned |
+| 3 | `reckon_db_store_registry:list_stores/0` on parksim BEAM returns the configured store_id | ❌ FAIL — registry returns `{ok, []}`; no `reckon_db_system_*_store` child present |
 
-Spikes 1 + 2 confirm the catalogue's dist-routing mechanism is
-sound. Spike 3 surfaces a real architectural gap that BLOCKS
+Spikes 1 + 2 confirm the catalogue's dist-routing mechanism. Spike 3
+surfaces a real wiring gap in the parksim CMD apps that blocks
 catalogue implementation as designed.
 
 ## What spike 3 actually shows
 
-`reckon_db_store_registry` IS running on parksim BEAMs (it's part
-of reckon-db, which is in the parksim release). The registry is
-queryable. It just contains no stores, because **parksim never
-starts a `reckon_db_store` process**.
-
-Evidence on `parksim_entry2exit@192.168.1.10`:
+`reckon_db_store_registry` IS running on parksim BEAMs — but
+`reckon_db_sup` only has the registry + a pg-scope as children. No
+`reckon_db_system_*_store` is ever booted.
 
 ```
+%% parksim_entry2exit BEAM
 reckon_db_sup children:
   [{reckon_db_store_registry, <pid>, worker, ...},
    {reckon_db_pg_scope,       <pid>, worker, ...}]
 ```
 
-Compare to the live embedded-mode reckon-gateway on the laptop:
+vs. the live embedded-mode reckon-gateway:
 
 ```
+%% reckon_gateway BEAM (laptop)
 reckon_db_sup children:
-  [{reckon_db_system_default_store, <pid>, supervisor, ...},  %% <-- the actual store
+  [{reckon_db_system_default_store, <pid>, supervisor, ...},  %% the actual store
    {reckon_db_store_registry,       <pid>, worker, ...},
    {reckon_db_pg_scope,             <pid>, worker, ...}]
 ```
 
-The live gateway's registry holds one entry per cluster member:
+`reckon_db_store_registry:list_stores/0` on the gateway returns one
+entry per cluster member; on parksim it returns nothing because
+nothing has been registered.
+
+## Root cause — parksim skips the canonical CMD/PRJ wiring
+
+The canonical wiring for a CMD/PRJ service is documented in two
+places I should have consulted at the start of this design session:
+
+### 1. `hecate-social/hecate-agents/skills/ANTIPATTERNS_EVENT_SOURCING.md`
+
+Explicit, mandatory pattern (quoted):
+
+```erlang
+%% sys.config / config.exs
+{evoq, [
+    {event_store_adapter, reckon_evoq_adapter},
+    {subscription_adapter, reckon_evoq_adapter}
+]}.
+
+%% Store Creation (MANDATORY at app startup)
+Config = #store_config{
+    store_id = my_domain_store,
+    data_dir = "/path/to/store",
+    mode = single
+},
+{ok, _Pid} = reckon_db_sup:start_store(Config).
+```
+
+> "Without both of these, evoq will crash on first dispatch."
+
+### 2. `hecate-social/hecate-daemon/config/sys.config`
+
+The working reference. Comments inside it spell out the contract:
+
+```erlang
+%% ReckonDB Configuration (Embedded Event Store)
+%% NOTE: Stores are NOT configured here. Each domain starts its own
+%% store via reckon_db_sup:start_store/1 in its supervisor's init/1.
+%% This follows VERTICAL SLICING - domains own their infrastructure.
+{reckon_db, [
+    %% Global defaults (used if domain doesn't specify)
+    {writer_pool_size, 5},
+    {reader_pool_size, 5},
+    {gateway_pool_size, 1}
+    %% NO {stores, [...]} here! Domains start their own stores.
+]},
+
+%% Evoq Configuration (CQRS Framework)
+%% NOTE: evoq looks for 'event_store_adapter', NOT 'default_adapter'!
+{evoq, [
+    {event_store_adapter, reckon_evoq_adapter},
+    {subscription_adapter, reckon_evoq_adapter},
+    {store_id, default_store},
+    {consistency, eventual}
+]}
+```
+
+### What parksim's sys.config has instead
+
+```erlang
+[
+    {hecate_parksim_entry2exit, [
+        {http_port,       8470},
+        {data_dir,        "${HECATE_DATA_DIR}"},
+        {event_store_id,  parksim_entry2exit_store},   %% <-- dangling, read by nothing
+        {max_dwell_days,  30}
+    ]},
+    {hecate_om, [...]},
+    {kernel, [...]}
+].
+```
+
+No `{evoq, [{event_store_adapter, ...}]}` block. No `reckon_db_sup:start_store/1`
+call anywhere in parksim's app start path. `event_store_id` sits in
+the parksim_X app env but no module reads it. evoq defaults to
+in-memory `default_store`.
+
+This is the entire bug.
+
+## The fix — apply the canonical pattern to each parksim CMD app
+
+Per `ANTIPATTERNS_EVENT_SOURCING.md`. Two changes per parksim CMD
+app (entry2exit, lot, pricing — the simulator is a producer-only
+client and doesn't need a store).
+
+### Change 1 — sys.config.src (each parksim CMD app)
+
+Append the canonical evoq + reckon_db block:
+
+```erlang
+{reckon_db, [
+    {writer_pool_size, 5},
+    {reader_pool_size, 5},
+    {gateway_pool_size, 1}
+]},
+
+{evoq, [
+    {event_store_adapter, reckon_evoq_adapter},
+    {subscription_adapter, reckon_evoq_adapter},
+    {store_id, parksim_entry2exit_store},
+    {consistency, eventual}
+]},
+```
+
+### Change 2 — start the store + subscription at app boot
+
+In each `hecate_parksim_X_app:start/2`, prepend a store-start
+before `hecate_om:boot/1`:
+
+```erlang
+-include_lib("reckon_db/include/reckon_db.hrl").
+
+start(_StartType, _StartArgs) ->
+    {ok, DataDir} = application:get_env(hecate_parksim_entry2exit, data_dir),
+    {ok, StoreId} = application:get_env(hecate_parksim_entry2exit, event_store_id),
+
+    %% Canonical pattern per ANTIPATTERNS_EVENT_SOURCING.md:
+    %% domain starts its own reckon-db store, then the per-store
+    %% evoq subscription, then the rest of the service.
+    Config = #store_config{
+        store_id          = StoreId,
+        data_dir          = filename:join(DataDir, atom_to_list(StoreId)),
+        mode              = single,
+        writer_pool_size  = 5,
+        reader_pool_size  = 5,
+        gateway_pool_size = 1,
+        options           = #{}
+    },
+    {ok, _} = reckon_db_sup:start_store(Config),
+    ok = wait_for_store(StoreId, 30000),
+    {ok, _} = evoq_store_subscription:start_link(StoreId),
+
+    hecate_om:boot(hecate_parksim_entry2exit_service).
+
+wait_for_store(StoreId, TimeoutMs) ->
+    Deadline = erlang:monotonic_time(millisecond) + TimeoutMs,
+    wait_for_store_loop(StoreId, Deadline).
+
+wait_for_store_loop(StoreId, Deadline) ->
+    case lists:member(StoreId, reckon_db_sup:which_stores()) of
+        true  -> ok;
+        false ->
+            case erlang:monotonic_time(millisecond) > Deadline of
+                true  -> {error, {store_not_ready, StoreId}};
+                false -> timer:sleep(100), wait_for_store_loop(StoreId, Deadline)
+            end
+    end.
+```
+
+Same shape for `hecate_parksim_lot_app` and
+`hecate_parksim_pricing_app` (different store_id).
+
+### Verification
+
+After the fix, redeploy one parksim and re-run
+`scripts/verify-catalogue-assumptions.sh`. Spike 3 should now
+return:
 
 ```
-[#{store_id => default_store, node => reckon_gateway@192.168.1.10, mode => cluster, ...},
- #{store_id => default_store, node => reckon_gateway@192.168.1.11, mode => cluster, ...},
- ...]
+reckon_db_store_registry:list_stores() = {ok, [
+    #{store_id => parksim_entry2exit_store,
+      node     => 'parksim_entry2exit@192.168.1.10',
+      mode     => single, ...}
+]}
 ```
 
-Parksim has the registry but no `reckon_db_system_*_store` child
-sitting alongside it. The store_id `parksim_entry2exit_store` in
-parksim's app env is **dangling** — set, but read by no module.
+At that point the catalogue gateway implementation is fully
+unblocked.
 
-## Why this happened
+## What I got wrong in the earlier draft of this doc
 
-evoq on parksim has its own `{store_id, default_store}` env entry
-and `reckon_evoq`'s env is empty (`[]`). The intended chain was:
+The previous draft of this RESEARCH doc proposed adding a
+`{stores, [...]}` block to parksim's sys.config. **That's the
+wrong shape.** hecate-daemon's sys.config has an explicit comment
+saying "NO `{stores, [...]}` here! Domains start their own
+stores." The canonical pattern is **store_start in the app's
+start/2 (or its first supervisor's init/1)**, not in sys.config.
 
-```
-parksim app env (event_store_id)
-   → evoq app env (store_id)
-   → reckon_evoq adapter
-   → reckon_db_store
-   → reckon_db_store_registry
-```
+I should have consulted `hecate-agents/skills/ANTIPATTERNS_EVENT_SOURCING.md`
+and `hecate-daemon/config/sys.config` before writing the
+recommendation. The session-init hook even loaded the
+hecate-agents files; I ignored them and reasoned in a vacuum. The
+output of that vacuum was a fix that violated the codebase's
+established convention.
 
-In the actual parksim release that chain is broken at the first
-arrow: nothing copies `event_store_id` from parksim's env into
-evoq's env or into reckon_evoq's config. evoq runs in its default
-mode using an in-memory ETS-backed event log. Events sent through
-evoq aggregates (the `evoq_aggregate_partition_sup_*` processes
-are alive) land somewhere ephemeral. There is no persistent
-reckon-db backing on parksim today.
+This doc is rewritten to match the canonical pattern. Future
+parksim-style services should follow `ANTIPATTERNS_EVENT_SOURCING.md`
+and the hecate-daemon reference, not this RESEARCH doc.
 
-## Implications
+## LOC estimate (corrected)
 
-1. **Parksim's event sourcing is ephemeral.** Restart a parksim
-   BEAM and its events are gone. The simulator drives traffic
-   through `macula:call` (dry-run today, even when set to false
-   per the .env, the mesh path is the only consumer) — but even
-   if the entry2exit RPC path fires, the aggregate updates are
-   stored in evoq's default ETS, not in reckon-db.
+Per parksim CMD app:
 
-2. **lazyreckon cannot see anything from parksim,** regardless of
-   how the catalogue gateway is built, because there is no
-   persistent store to discover.
+- `config/sys.config.src`: +12 lines (the reckon_db + evoq blocks)
+- `src/hecate_parksim_X_app.erl`: +25 lines (store-start + wait helper)
+- `rebar.config`: 0 lines (reckon_db is already a dep)
 
-3. **The catalogue design is correct but its premise is unmet.**
-   The spike confirms the dist-routing mechanism, the per-peer
-   cookies, the rpc:call surface. The gateway can be built. It
-   just won't have anything to show.
+Three CMD apps × ~37 LOC = **~110 LOC total**. Simulator unchanged
+(producer-only).
 
-## What needs to change in parksim before catalogue implementation
+## Status
 
-Pick one of three paths. The cheapest is path A.
+`DESIGN_RECKON_GATEWAY_CATALOGUE.md` marked BLOCKED until this
+parksim wiring lands. After the fix:
 
-### Path A — Wire evoq through reckon_evoq → reckon_db (recommended)
-
-For each parksim CMD app (entry2exit, lot, pricing):
-
-1. In `config/sys.config.src`, add the reckon-db config block so a
-   `reckon_db_system_*_store` actually starts at boot. Mirror the
-   shape used by the existing reckon-gateway:
-
-   ```erlang
-   {reckon_db, [
-       {store_mode, single},
-       {data_dir,   "${HECATE_DATA_DIR}"},
-       {stores,     [parksim_entry2exit_store]}
-   ]},
-   {evoq, [
-       {store_id, parksim_entry2exit_store},
-       {aggregate_partitions, 4}
-   ]},
-   {reckon_evoq, [
-       {store_id, parksim_entry2exit_store}
-   ]}
-   ```
-
-2. Verify on rebuild: `reckon_db_sup` has a
-   `reckon_db_system_parksim_entry2exit_store_sup` child;
-   `reckon_db_store_registry:list_stores/0` returns the entry.
-
-3. Drive a write through evoq and confirm it lands in the store.
-
-LOC estimate: ~15 LOC per CMD app × 3 apps = ~45 LOC of config.
-No code changes if the wiring already works via env. If it
-doesn't, modest application-level glue (~50 LOC) to ensure the
-store starts on boot.
-
-### Path B — Drop reckon-db from parksim, use evoq's in-memory only
-
-Accept that parksim events are ephemeral. Don't try to make
-lazyreckon show them. The catalogue gateway is still useful for
-any FUTURE reckon-db-using cluster, but parksim is out of scope.
-
-LOC estimate: ~10 LOC (remove dangling env entries from parksim
-sys.config). Honest, but defeats the original goal.
-
-### Path C — Build a different discovery surface
-
-The catalogue queries something other than `reckon_db_store_registry`.
-For evoq-backed services that don't use reckon-db, query
-`evoq_aggregate_registry` (it's a registered process; needs to
-expose a `list_aggregates/0` or similar). This means the
-catalogue knows two backends and switches based on what each
-cluster exposes.
-
-LOC estimate: +100-200 LOC in the catalogue; doesn't fix parksim
-itself.
-
-## Recommendation
-
-**Path A.** It's the smallest change, restores the original
-event-sourcing claim in the parksim architecture, and lets the
-catalogue work as designed. Do it BEFORE writing any catalogue
-code.
-
-Sub-task list, BLOCKING the catalogue implementation:
-
-1. Add the reckon-db / evoq / reckon_evoq config blocks to each
-   parksim CMD app's `sys.config.src`. Rebuild image, redeploy
-   one beam, re-run `verify-catalogue-assumptions.sh`. Spike 3
-   should now return a non-empty list.
-2. Drive a write through evoq (HTTP API + a dispatch) and
-   confirm it appears in the store via
+1. Verify with `scripts/verify-catalogue-assumptions.sh`.
+2. Confirm spike 3 returns a non-empty store list.
+3. Drive one event through evoq, check it lands in the store via
    `reckon_db_store_registry:get_store_info/1`.
-3. Update parksim's design or comments to acknowledge the wiring.
+4. Unblock the catalogue design; resume the original
+   implementation sub-task list.
 
-After that, the catalogue implementation in
-`DESIGN_RECKON_GATEWAY_CATALOGUE.md` is fully unblocked.
+## Bigger lesson
 
-## What this doc does NOT recommend
-
-- Don't drop the catalogue design. The spike validated its
-  mechanism (spikes 1 + 2). The discovery surface is fine; the
-  ABSENCE of a thing to discover is the issue.
-- Don't start coding the catalogue while parksim is still
-  ephemeral. That's a waste — the catalogue would ship with no
-  way to demonstrate value.
-- Don't bypass the wiring with hacks (e.g. hardcoding store_ids
-  into clusters.eterm). That re-introduces the operator-pinned
-  catalogue we already rejected.
+The session-init hook lists philosophy + skills files for a reason.
+When designing or diagnosing, **consult them first** — they
+encode hard-won decisions. Re-deriving from probe output alone
+produces plausible-looking advice that contradicts the codebase
+convention.
