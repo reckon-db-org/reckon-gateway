@@ -66,39 +66,35 @@ WORKDIR /app
 
 COPY --from=builder --chown=app:app /app/_build/prod/rel/reckon_gateway .
 
-# Data directory for ReckonDB event store
-RUN mkdir -p /app/data && chown -R app:app /app/data
+# /etc/reckon-gateway/clusters.eterm — operator-mounted; cookies live
+# here. The image ships without it; the deploy unit bind-mounts the
+# per-host file (chmod 0600 + read-only).
+RUN mkdir -p /etc/reckon-gateway && chown -R app:app /etc/reckon-gateway
 
 USER app
 
 # gRPC port
 EXPOSE 50051
 
-# Erlang distribution ports (for clustering)
+# Erlang distribution ports (cluster catalogue uses per-peer cookies
+# to talk to N disjoint Erlang clusters at once).
 EXPOSE 4369
 EXPOSE 9100-9200
 
-# ReckonDB discovery (UDP multicast)
-EXPOSE 45892/udp
-
-# Runtime config — all overridable via the container's environment.
-# Defaults make the image run standalone (single-node, default cookie).
-# For clustered deployments set RECKON_DB_STORE_MODE=cluster + a unique
-# NODE_NAME per host + a shared RELEASE_COOKIE + a shared
-# RECKON_DB_CLUSTER_SECRET.
+# Runtime config — overridable via the container environment.
+#
+# Catalogue mode (0.5+): the gateway holds NO data. It joins one or
+# more remote Erlang dist clusters (per the clusters.eterm at
+# RECKON_GATEWAY_CLUSTERS_PATH) and proxies every gRPC request via
+# rpc:call to whichever BEAM owns the target store.
 ENV RECKON_GATEWAY_PORT=50051
-ENV RECKON_DB_DATA_DIR=/app/data
+ENV RECKON_GATEWAY_CLUSTERS_PATH=/etc/reckon-gateway/clusters.eterm
 
-# BEAM distribution — long names. NODE_NAME is the full -name value.
-# Standalone default uses localhost; cluster overrides this per host.
+# BEAM distribution. NODE_NAME must be unique per host; RELEASE_COOKIE
+# is unused for clusters.eterm targets (per-peer cookies override) but
+# must still be set so the BEAM can register a name.
 ENV NODE_NAME=reckon_gateway@127.0.0.1
-ENV RELEASE_COOKIE=reckon_gateway_default_cookie_change_in_prod
-
-# reckon-db store mode + cluster discovery params.
-ENV RECKON_DB_STORE_MODE=single
-ENV RECKON_DB_CLUSTER_PORT=45892
-ENV RECKON_DB_CLUSTER_MULTICAST_ADDR=239.255.0.1
-ENV RECKON_DB_CLUSTER_SECRET=reckon_db_default_secret_change_in_prod
+ENV RELEASE_COOKIE=reckon_gateway_unused_default
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD /app/bin/reckon_gateway ping || exit 1
