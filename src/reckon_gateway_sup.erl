@@ -56,6 +56,8 @@ init([]) ->
         period => 30
     },
     Children = [
+        %% Catalogue first — connectors publish into it.
+        reckon_gateway_catalogue:child_spec(),
         #{id       => clusters_sup,
           start    => {reckon_gateway_clusters_sup, start_link, []},
           restart  => permanent,

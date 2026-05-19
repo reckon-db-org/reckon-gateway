@@ -127,6 +127,9 @@ handle_info(_Msg, State) ->
 terminate(Reason, #state{cluster_id = Id, members = Members}) ->
     logger:info("[reckon_gateway_cluster ~p] terminating: ~p (members=~b)",
                 [Id, Reason, length(Members)]),
+    %% Drop our slice of the catalogue so list_all stops showing
+    %% stores from a retired cluster.
+    catch reckon_gateway_catalogue:remove(Id),
     %% Be explicit — don't leave dangling monitors at shutdown.
     [erlang:monitor_node(N, false) || N <- Members],
     ok.
@@ -150,9 +153,12 @@ do_connect(#state{cluster_id = Id,
     Status = classify(Connected, Targets),
     logger:info("[reckon_gateway_cluster ~p] connected ~b/~b: ~p (status=~p)",
                 [Id, length(Connected), length(Targets), Connected, Status]),
+    Now = erlang:system_time(millisecond),
+    Stores = discover_stores(Id, Connected),
+    publish_catalogue(Id, Connected, Stores, Status, Now),
     State#state{members      = Connected,
                 status       = Status,
-                last_refresh = erlang:system_time(millisecond),
+                last_refresh = Now,
                 last_error   = case Status of
                                    up         -> undefined;
                                    degraded   -> {partial, Targets -- Connected};
@@ -202,8 +208,40 @@ refresh(#state{cluster_id = Id,
     NewMembers = Members ++ Reconnected,
     Status = classify(NewMembers, Targets),
     Timer = erlang:send_after(RefreshMs, self(), refresh),
+    Now = erlang:system_time(millisecond),
+    Stores = discover_stores(Id, NewMembers),
+    publish_catalogue(Id, NewMembers, Stores, Status, Now),
     State#state{members       = NewMembers,
                 status        = Status,
-                last_refresh  = erlang:system_time(millisecond),
+                last_refresh  = Now,
                 refresh_timer = Timer}.
+
+%% @doc Union the live store list across every connected member.
+%% Single-mode reckon-db (as in parksim) keeps a per-node registry
+%% that only reports the stores running on THAT node; cluster-mode
+%% replicates within the cluster but the union+dedup is still safe.
+discover_stores(ClusterId, Members) ->
+    lists:usort(lists:flatten([discover_one(ClusterId, M) || M <- Members])).
+
+discover_one(ClusterId, Member) ->
+    case rpc:call(Member, reckon_db_store_registry, list_stores, []) of
+        {ok, Entries} when is_list(Entries) ->
+            [maps:get(store_id, E) || E <- Entries, is_map(E)];
+        {badrpc, Why} ->
+            logger:warning("[reckon_gateway_cluster ~p] list_stores via ~p failed: ~p",
+                           [ClusterId, Member, Why]),
+            [];
+        Other ->
+            logger:warning("[reckon_gateway_cluster ~p] list_stores via ~p returned unexpected shape: ~p",
+                           [ClusterId, Member, Other]),
+            []
+    end.
+
+publish_catalogue(ClusterId, Members, Stores, Status, Now) ->
+    reckon_gateway_catalogue:publish(ClusterId, #{
+        members      => Members,
+        stores       => Stores,
+        status       => Status,
+        last_refresh => Now
+    }).
 
