@@ -1,17 +1,18 @@
 # DESIGN: reckon-gateway as a multi-cluster catalogue
 
-**Status:** draft (no code yet) — **BLOCKED** by [RESEARCH_CATALOGUE_SPIKES.md](RESEARCH_CATALOGUE_SPIKES.md)
+**Status:** draft (no code yet) — **READY** (parksim wiring landed 2026-05-19; spike 3 passes)
 **Author:** session 2026-05-19
 **Audience:** Raf
 **Supersedes:** [DESIGN_RECKON_GATEWAY_PROXY_MODE.md](DESIGN_RECKON_GATEWAY_PROXY_MODE.md) (historical only)
 
-> Implementation cannot start until the parksim CMD apps actually
-> instantiate reckon-db stores. The dist-routing mechanism this
-> design relies on is verified; the discovery surface
-> (`reckon_db_store_registry`) is correct; what's missing is that
-> parksim configures `event_store_id` but never starts the matching
-> `reckon_db_store`. See RESEARCH_CATALOGUE_SPIKES.md for the
-> finding and the parksim wiring fix it requires.
+> Earlier blocker (parksim never instantiated reckon-db stores) is
+> resolved. `hecate_om` 0.3.0 ships `hecate_om_store` + optional
+> `store_id/0` + `data_dir/0` callbacks on `hecate_om_service`; the
+> three parksim CMD apps now declare them; `scripts/verify-catalogue-assumptions.sh`
+> against all three returns the canonical `{ok, [#{store_id => ...,
+> node => ..., mode => single, data_dir => ...}]}`. The dist-routing
+> mechanism + the discovery surface are both verified. The catalogue
+> sub-task list in this doc is unblocked.
 
 ## Problem
 
