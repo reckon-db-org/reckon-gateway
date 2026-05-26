@@ -100,7 +100,14 @@ ENV RECKON_GATEWAY_STORE_ID=local_store
 ENV RECKON_GATEWAY_DATA_DIR=/data
 ENV RECKON_GATEWAY_STORE_MODE=single
 ENV RECKON_GATEWAY_LOCAL_CLUSTER_ID=local
-ENV RECKON_DB_CLUSTER_SECRET=
+
+# RECKON_DB_CLUSTER_SECRET is intentionally NOT declared here. It's a
+# shared-secret consumed by `reckon_db_discovery` in cluster mode, and
+# baking the name (even with an empty default) trips the Docker
+# `SecretsUsedInArgOrEnv` lint AND lets a stale image carry the name
+# into envs the operator forgot to override. Operators MUST supply it
+# at runtime via compose `environment:`, k8s `secretKeyRef`, systemd
+# `EnvironmentFile=`, or `--env-file` , never bake it into the image.
 
 # Persistent volume for Khepri/Ra WAL + state. Single mount per
 # container (one store per container). Operator binds /data to a
