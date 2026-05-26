@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.1 (2026-05-26)
+
+**Docker: drop `ENV RECKON_DB_CLUSTER_SECRET=`.**
+
+Lint-clean image. Docker's `SecretsUsedInArgOrEnv` rule flags ENV
+declarations for secret-bearing variables (even empty). Removed the
+declaration; cluster-mode operators supply it at runtime via compose
+`environment:`, k8s `secretKeyRef`, systemd `EnvironmentFile=`, or
+`--env-file`. Single-mode unaffected (multicast discovery is gated
+on `STORE_MODE=cluster`).
+
+No application code changed. Pin to `:0.6.1` (or `:latest`) for the
+lint-clean image; `:0.6.0` still works but carries the warning.
+
 ## 0.6.0 (2026-05-26)
 
 **Optional embedded reckon_db store.**
