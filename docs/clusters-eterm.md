@@ -62,6 +62,10 @@ The file that drives catalogue mode. Lists every remote ReckonDB cluster the gat
 
 The gateway fails to start on the latter three. Empty + missing-file is treated as "no clusters configured" , a valid state.
 
+## Hidden-node mode
+
+Catalogue mode benefits from running the gateway with `RECKON_GATEWAY_DIST_HIDDEN_FLAG=-hidden`. Without it, every cluster's nodes learn the names of every OTHER cluster's nodes (via the gateway's `nodes/0`) and try to dist-handshake them; those handshakes bounce on cookie mismatch, generating log noise and wasted attempts. With `-hidden`, the gateway is invisible to each cluster's pg scope and `nodes/0`, so each cluster stays cleanly isolated. See [env-contract.md#hidden-node-flag](env-contract.md#hidden-node-flag).
+
 ## Reload semantics
 
 The connectors re-read `clusters.eterm` every `refresh_interval_ms` (default 30s). Adding a cluster: edit + save , the next refresh picks it up. Removing a cluster: edit + save , the connector drops the entry on next refresh and the catalogue removes its stores. **You do not need to restart the gateway** to pick up clusters.eterm changes.

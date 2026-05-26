@@ -231,7 +231,7 @@
 
   <!-- footer -->
   <text x="20" y="608" font-family="system-ui, sans-serif" font-size="10" fill="#475569">
-    reckon-gateway 0.6.1 &#xb7; 2026-05-26
+    reckon-gateway 0.6.2 &#xb7; 2026-05-26
   </text>
   <text x="1060" y="608" text-anchor="end" font-family="system-ui, sans-serif" font-size="10" fill="#475569">
     See docs/architecture.md for the full sequence.
