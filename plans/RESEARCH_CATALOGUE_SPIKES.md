@@ -60,7 +60,7 @@ nothing has been registered.
 The canonical wiring for a CMD/PRJ service is documented in two
 places I should have consulted at the start of this design session:
 
-### 1. `hecate-social/hecate-agents/skills/ANTIPATTERNS_EVENT_SOURCING.md`
+### 1. `hecate-social/hecate-corpus/skills/ANTIPATTERNS_EVENT_SOURCING.md`
 
 Explicit, mandatory pattern (quoted):
 
@@ -230,10 +230,10 @@ saying "NO `{stores, [...]}` here! Domains start their own
 stores." The canonical pattern is **store_start in the app's
 start/2 (or its first supervisor's init/1)**, not in sys.config.
 
-I should have consulted `hecate-agents/skills/ANTIPATTERNS_EVENT_SOURCING.md`
+I should have consulted `hecate-corpus/skills/ANTIPATTERNS_EVENT_SOURCING.md`
 and `hecate-daemon/config/sys.config` before writing the
 recommendation. The session-init hook even loaded the
-hecate-agents files; I ignored them and reasoned in a vacuum. The
+hecate-corpus files; I ignored them and reasoned in a vacuum. The
 output of that vacuum was a fix that violated the codebase's
 established convention.
 
