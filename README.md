@@ -14,6 +14,7 @@
   <a href="https://github.com/reckon-db-org/reckon-gateway/pkgs/container/reckon-gateway"><img src="https://img.shields.io/badge/ghcr.io-image-0c4a6e" alt="image"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-475569" alt="license"/></a>
   <img src="https://img.shields.io/badge/erlang-OTP%2027%2B-92400e" alt="erlang"/>
+  <a href="https://buymeacoffee.com/rlefever"><img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg" alt="sponsor"/></a>
 </p>
 
 ---
