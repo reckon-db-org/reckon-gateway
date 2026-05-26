@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.6.0 (2026-05-26)
+
+**Optional embedded reckon_db store.**
+
+`reckon-gateway` is now a hybrid catalogue + embedded-store container.
+When `RECKON_GATEWAY_STORE_ENABLED=true`, the gateway boots a local
+`reckon_db` store via `reckon_db_sup:start_store/1` and advertises it
+into the catalogue under the operator-set
+`RECKON_GATEWAY_LOCAL_CLUSTER_ID`. When unset/false (the default), the
+gateway behaves exactly like 0.5: pure catalogue + cluster_connector,
+no local store.
+
+One store per container. `RECKON_GATEWAY_STORE_MODE=single` for
+standalone deployments, `cluster` to participate in Ra/Raft quorum via
+`reckon_db`'s multicast or Kubernetes-DNS discovery (cluster mode
+delegates fully to reckon_db; no new clustering code here).
+
+New env vars (all default-off so 0.5 deployments need no change):
+
+| Var | Meaning |
+|---|---|
+| `RECKON_GATEWAY_STORE_ENABLED` | Master switch (`true` opts in) |
+| `RECKON_GATEWAY_STORE_ID` | Atom name of the local store |
+| `RECKON_GATEWAY_DATA_DIR` | Persistent volume root (default `/data`) |
+| `RECKON_GATEWAY_STORE_MODE` | `single` or `cluster` |
+| `RECKON_GATEWAY_LOCAL_CLUSTER_ID` | Catalogue label for the local store |
+| `RECKON_DB_CLUSTER_SECRET` | Multicast gossip secret (cluster mode only) |
+
+Container changes: `VOLUME /data`, `EXPOSE 5000-5100` for Ra ports.
+Dockerfile ENV defaults all off so a pulled `:latest` keeps catalogue
+behaviour until the operator opts in.
+
+Phase 1 of the hybrid mode plan; see
+`plans/DESIGN_RECKON_GATEWAY_HYBRID_MODE.md`. Phase 2 (3-node cluster
+CT) and Phase 3 (local-dispatch short-circuit) follow.
+
 ## 0.5.4 (2026-05-19)
 
 **HealthService.Health: fix stores field encoding.**
