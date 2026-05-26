@@ -33,7 +33,13 @@ The data plane lives on whatever BEAM owns the target `store_id`. In catalogue m
 | `reckon_gateway_cluster_connector` | Erlang dist `rpc:call/4` to each cluster in `clusters.eterm` | every `refresh_interval_ms` (default 30s) |
 | `reckon_gateway_local_connector` | `reckon_db_store_registry:list_stores/0` on `node()` | every 5s |
 
-The dispatcher consults the catalogue, picks a member, and does `rpc:call/4`. Per-peer cookies for remote clusters are set at runtime by `reckon_gateway_cluster_connector` before each dial , the BEAM's default cookie is unused for federation. In embedded mode the local connector resolves `store_id` to `members = [node()]`, so the same `rpc:call/4` path stays on-node (BEAM short-circuits this internally; Phase 3 of the hybrid plan considers a further optimisation).
+The dispatcher consults the catalogue, picks a member, and does `rpc:call/4`. Per-peer cookies for remote clusters are set at runtime by `reckon_gateway_cluster_connector` via `erlang:set_cookie(Node, Cookie)` before each dial , the BEAM's default cookie is unused for federation. In embedded mode the local connector resolves `store_id` to `members = [node()]`, so the same `rpc:call/4` path stays on-node (BEAM short-circuits this internally; Phase 3 of the hybrid plan considers a further optimisation).
+
+## Hidden-node bridging (catalogue mode)
+
+When the gateway federates cookie-disjoint clusters, set `RECKON_GATEWAY_DIST_HIDDEN_FLAG=-hidden`. The BEAM starts as a hidden dist node and `pg` (which subscribes via `net_kernel:monitor_nodes(true)`, filtering hidden nodes) does not propagate state between the gateway and each cluster. Cluster A's `reckon_gater` pg scope stays isolated from cluster B's. Cookies still authenticate the per-peer dials; `-hidden` just ensures the non-transitive guarantee at the dist layer (see Erlang/OTP Distributed Erlang docs).
+
+Embedded cluster mode (`STORE_MODE=cluster`) is the exception: gateway containers in a Ra quorum are dist peers of each other and **must** be mutually visible for pg sync. Leave the flag empty. See [env-contract.md#hidden-node-flag](env-contract.md#hidden-node-flag) for the full mode table.
 
 ## Boot sequence
 

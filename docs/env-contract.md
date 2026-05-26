@@ -9,6 +9,24 @@ Every operational setting is env-driven. The release's `sys.config.src` interpol
 | `RECKON_GATEWAY_PORT` | `50051` | gRPC listen port. Bound to `0.0.0.0`. |
 | `NODE_NAME` | `reckon_gateway@127.0.0.1` | Erlang long node name. Must be unique per host in a cluster. |
 | `RELEASE_COOKIE` | `reckon_gateway_unused_default` | BEAM dist cookie. Unused for `clusters.eterm` peers (per-peer cookies override). **Must match across cluster-mode embedded-store peers.** |
+| `RECKON_GATEWAY_DIST_HIDDEN_FLAG` | `""` (visible) | Literal BEAM vm.arg substitution. Set to `-hidden` to start the gateway as a hidden dist node. See [Hidden-node flag](#hidden-node-flag) below. |
+
+## Hidden-node flag
+
+`-hidden` is a BEAM startup flag (`erl -hidden`). A hidden node connects to peers individually, is non-transitive, and does NOT appear in peers' `nodes/0` lists. OTP's `pg` module subscribes via `net_kernel:monitor_nodes(true)` which filters hidden nodes, so each cluster's `reckon_gater` pg scope stays isolated from siblings when bridged through a hidden gateway.
+
+**Set `RECKON_GATEWAY_DIST_HIDDEN_FLAG=-hidden` when:**
+
+- Running pure **catalogue mode** (federating cookie-disjoint clusters). Without it, cluster A's nodes see cluster B's nodes via the gateway's `nodes/0`, attempt cross-cluster dist handshakes, and bounce on cookie mismatch , log noise + churn.
+- Running **embedded single-node** mode. No peers to confuse; hidden is neutral but consistent with catalogue.
+- Running **hybrid mode** with `STORE_MODE=single`. Catalogue side wants hidden; embedded single side doesn't care.
+
+**Leave empty (default) when:**
+
+- Running **embedded cluster mode** (`STORE_MODE=cluster`, 3+ containers forming a Ra quorum). Gateway containers are peers of each other; reckon_gater pg + Ra need mutual visibility. `-hidden` breaks this.
+- Running **hybrid mode** with `STORE_MODE=cluster`. Same constraint.
+
+There is **no smart default**; the operator picks. Catalogue and embedded-cluster have opposite needs, and an inferred default would silently break one of them. Be explicit.
 
 ## Catalogue mode
 
@@ -69,9 +87,10 @@ This lets `sys.config.src` (which receives substituted values from rebar3 / `RUN
 ## Cheatsheet
 
 ```bash
-# Catalogue-only (the 0.5 default):
+# Catalogue-only (federates remote clusters; gateway holds no data):
 RECKON_GATEWAY_PORT=50051
 RECKON_GATEWAY_CLUSTERS_PATH=/etc/reckon-gateway/clusters.eterm
+RECKON_GATEWAY_DIST_HIDDEN_FLAG=-hidden
 
 # Embedded single-node (one container = one store):
 RECKON_GATEWAY_PORT=50051
@@ -80,10 +99,12 @@ RECKON_GATEWAY_STORE_ID=my_store
 RECKON_GATEWAY_DATA_DIR=/data
 RECKON_GATEWAY_STORE_MODE=single
 RECKON_GATEWAY_LOCAL_CLUSTER_ID=my_local
+RECKON_GATEWAY_DIST_HIDDEN_FLAG=-hidden
 
 # Embedded cluster (3+ containers form Ra quorum):
 # ... same as single, plus:
 RECKON_GATEWAY_STORE_MODE=cluster
 RECKON_DB_CLUSTER_SECRET=<shared-secret>
 RELEASE_COOKIE=<shared-cookie>
+RECKON_GATEWAY_DIST_HIDDEN_FLAG=                # MUST be empty for cluster peers
 ```

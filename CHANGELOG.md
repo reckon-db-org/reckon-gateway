@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.6.2 (2026-05-26)
+
+**Optional hidden-node mode for clean multi-cluster bridging.**
+
+Adds `RECKON_GATEWAY_DIST_HIDDEN_FLAG` env var (literal vm.arg
+substitution; default empty). Set to `-hidden` for catalogue or
+embedded-single deployments so the gateway starts as a hidden dist
+node and OTP `pg` (used by `reckon_gater`'s worker_registry and
+channel_server) doesn't sync state between cookie-disjoint clusters
+through the gateway bridge.
+
+Mechanism: OTP's `pg` subscribes via `net_kernel:monitor_nodes(true)`
+which filters hidden nodes (verified in kernel-10.4/src/pg.erl), so a
+hidden gateway is invisible to each cluster's pg scope. Per-peer
+cookies (`erlang:set_cookie/2`, OTP-doc-prescribed pattern for
+multi-cookie networks) authenticate each dial; `-hidden` adds the
+non-transitivity guarantee.
+
+**No smart default**, operators pick. Use it for:
+
+- catalogue mode (federating cookie-disjoint clusters)
+- embedded `STORE_MODE=single`
+- hybrid with `STORE_MODE=single`
+
+Leave empty for:
+
+- embedded `STORE_MODE=cluster` (gateway containers are Ra quorum
+  peers; mutual pg visibility required)
+- hybrid with `STORE_MODE=cluster`
+
+Also scrubbed an em-dash from `vm.args.src` (project rule + same
+class of byte-level scanner risk that bit `sys.config.src` in 0.6.0).
+
+See [docs/env-contract.md#hidden-node-flag](docs/env-contract.md#hidden-node-flag).
+
 ## 0.6.1 (2026-05-26)
 
 **Docker: drop `ENV RECKON_DB_CLUSTER_SECRET=`.**

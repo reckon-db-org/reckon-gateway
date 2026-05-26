@@ -1,11 +1,11 @@
-## BEAM distribution config — env-var driven for cluster deployments.
+## BEAM distribution config (env-var driven for cluster deployments).
 ##
 ## Defaults make the image work standalone (single-node, default cookie).
 ## Cluster deployments must set NODE_NAME and RELEASE_COOKIE in the
 ## environment (same RELEASE_COOKIE on every cluster node).
 
 ## Long node name. Format: NAME@HOSTNAME. Hostname must resolve from
-## peers — in container deployments use network_mode: host so the
+## peers; in container deployments use network_mode: host so the
 ## host's hostname is reachable on the lab subnet.
 -name ${NODE_NAME}
 
@@ -13,6 +13,26 @@
 ## a cluster. Treat as a secret (it's the only auth between BEAM
 ## dist nodes).
 -setcookie ${RELEASE_COOKIE}
+
+## Hidden-node flag for multi-cluster catalogue mode.
+##
+## When set to the literal string `-hidden`, the BEAM starts as a
+## hidden dist node: it does NOT appear in peers' nodes/0 lists and
+## connections to it are non-transitive. Required for clean operation
+## when federating cookie-disjoint clusters from one gateway (the
+## docs-prescribed pattern; OTP pg sync uses net_kernel:monitor_nodes(true)
+## which filters hidden nodes, so each cluster's pg scope stays
+## isolated from the others through the gateway bridge).
+##
+## When empty (default), the gateway runs as a regular visible dist
+## node. Required when running an embedded reckon-db store in
+## STORE_MODE=cluster, where gateway containers are peers of each
+## other in a Ra quorum and MUST be mutually visible for pg sync.
+##
+## There is no smart default; operators set RECKON_GATEWAY_DIST_HIDDEN_FLAG
+## explicitly to `-hidden` for catalogue (or embedded-single) mode,
+## or leave it empty for cluster mode. See docs/env-contract.md.
+${RECKON_GATEWAY_DIST_HIDDEN_FLAG}
 
 ## Increase process limit
 +P 1048576

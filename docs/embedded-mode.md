@@ -43,6 +43,8 @@ Multiple containers form a Khepri/Ra cluster. **One store per container** , N te
 
 `reckon_db` uses UDP multicast for peer discovery on a LAN. All peers must share `RECKON_DB_CLUSTER_SECRET` and `RELEASE_COOKIE`.
 
+> **Leave `RECKON_GATEWAY_DIST_HIDDEN_FLAG` empty in cluster mode.** Gateway containers are dist peers of each other; reckon_gater's `pg` scope and Ra/Raft need mutual visibility. Setting `-hidden` breaks pg sync across the quorum. See [env-contract.md#hidden-node-flag](env-contract.md#hidden-node-flag).
+
 ```yaml
 services:
   gw-1:
