@@ -80,18 +80,42 @@ EXPOSE 50051
 EXPOSE 4369
 EXPOSE 9100-9200
 
-# Runtime config — overridable via the container environment.
+# Runtime config (overridable via the container environment).
 #
-# Catalogue mode (0.5+): the gateway holds NO data. It joins one or
-# more remote Erlang dist clusters (per the clusters.eterm at
-# RECKON_GATEWAY_CLUSTERS_PATH) and proxies every gRPC request via
-# rpc:call to whichever BEAM owns the target store.
+# Catalogue mode (default, behaves like 0.5): the gateway holds NO
+# data. It joins one or more remote Erlang dist clusters (per the
+# clusters.eterm at RECKON_GATEWAY_CLUSTERS_PATH) and proxies every
+# gRPC request via rpc:call to whichever BEAM owns the target store.
 ENV RECKON_GATEWAY_PORT=50051
 ENV RECKON_GATEWAY_CLUSTERS_PATH=/etc/reckon-gateway/clusters.eterm
 
-# BEAM distribution. NODE_NAME must be unique per host; RELEASE_COOKIE
-# is unused for clusters.eterm targets (per-peer cookies override) but
-# must still be set so the BEAM can register a name.
+# Embedded-store mode (opt-in, 0.6+): set STORE_ENABLED=true and the
+# gateway boots a local reckon_db store under its supervisor and
+# advertises it in the catalogue under LOCAL_CLUSTER_ID. STORE_MODE
+# `single` runs standalone; `cluster` participates in Ra quorum via
+# discovery (requires RECKON_DB_CLUSTER_SECRET + matching RELEASE_COOKIE
+# across peers).
+ENV RECKON_GATEWAY_STORE_ENABLED=false
+ENV RECKON_GATEWAY_STORE_ID=local_store
+ENV RECKON_GATEWAY_DATA_DIR=/data
+ENV RECKON_GATEWAY_STORE_MODE=single
+ENV RECKON_GATEWAY_LOCAL_CLUSTER_ID=local
+ENV RECKON_DB_CLUSTER_SECRET=
+
+# Persistent volume for Khepri/Ra WAL + state. Single mount per
+# container (one store per container). Operator binds /data to a
+# persistent host volume in compose/k8s.
+VOLUME /data
+
+# Ra ports (used only when STORE_MODE=cluster). Discovery picks
+# from this range per node, and peer-to-peer dist traffic flows on
+# 9100-9200 (already exposed above).
+EXPOSE 5000-5100
+
+# BEAM distribution. NODE_NAME must be unique per host. In catalogue
+# mode RELEASE_COOKIE is unused for remote clusters (per-peer cookies
+# from clusters.eterm override). In cluster STORE_MODE, RELEASE_COOKIE
+# IS the embedded-store quorum's auth and MUST match across peers.
 ENV NODE_NAME=reckon_gateway@127.0.0.1
 ENV RELEASE_COOKIE=reckon_gateway_unused_default
 

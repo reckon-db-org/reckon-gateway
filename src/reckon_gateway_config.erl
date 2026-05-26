@@ -24,13 +24,20 @@
 %%% MUST be outside any gitops repo, ideally chmod 0600).
 -module(reckon_gateway_config).
 
--export([load_clusters/0]).
+-export([load_clusters/0, embedded_store_spec/0]).
 
 -type cluster_spec() :: #{cluster_id := atom(),
                          members    := [node()],
                          cookie     := binary(),
                          api_module => atom()}.   %% defaults to reckon_gater_api
--export_type([cluster_spec/0]).
+
+-type embedded_store_spec() :: disabled |
+                               #{store_id   := atom(),
+                                 data_dir   := string(),
+                                 mode       := single | cluster,
+                                 cluster_id := atom()}.
+
+-export_type([cluster_spec/0, embedded_store_spec/0]).
 
 -spec load_clusters() -> {ok, [cluster_spec()]} | {error, term()}.
 load_clusters() ->
@@ -99,3 +106,87 @@ normalise(Other) ->
 redact(#{cookie := _} = M) -> M#{cookie => <<"<redacted>">>};
 redact(M) when is_map(M)   -> M;
 redact(Other)              -> Other.
+
+%%====================================================================
+%% Embedded store config — env-driven, optional
+%%====================================================================
+
+%% @doc Return the embedded-store spec or `disabled' based on app env.
+%%
+%% Reads (in order): app env → OS env → default. The release's
+%% `sys.config.src' substitutes `${RECKON_GATEWAY_STORE_*}' into app
+%% env at boot, so OS env wins by the time we get here.
+-spec embedded_store_spec() -> embedded_store_spec().
+embedded_store_spec() ->
+    case enabled() of
+        false -> disabled;
+        true ->
+            #{store_id   => store_id(),
+              data_dir   => data_dir(),
+              mode       => store_mode(),
+              cluster_id => local_cluster_id()}
+    end.
+
+%% @private Tolerantly detect the on/off flag.
+enabled() ->
+    case env_string(store_enabled, "RECKON_GATEWAY_STORE_ENABLED", "false") of
+        "true" -> true;
+        "1"    -> true;
+        "yes"  -> true;
+        _      -> false
+    end.
+
+store_id() ->
+    case env_string(store_id, "RECKON_GATEWAY_STORE_ID", "") of
+        ""   -> erlang:error({embedded_store_misconfigured, missing_store_id});
+        Name -> list_to_atom(Name)
+    end.
+
+data_dir() ->
+    case env_string(data_dir, "RECKON_GATEWAY_DATA_DIR", "") of
+        ""   -> erlang:error({embedded_store_misconfigured, missing_data_dir});
+        Path -> Path
+    end.
+
+store_mode() ->
+    case env_string(store_mode, "RECKON_GATEWAY_STORE_MODE", "single") of
+        "single"  -> single;
+        "cluster" -> cluster;
+        Other ->
+            erlang:error({embedded_store_misconfigured,
+                          {invalid_store_mode, Other}})
+    end.
+
+local_cluster_id() ->
+    list_to_atom(env_string(local_cluster_id,
+                            "RECKON_GATEWAY_LOCAL_CLUSTER_ID", "local")).
+
+%% Read app env → OS env → default. App env wins because the release's
+%% sys.config.src interpolates OS env into it; this pattern lets the
+%% test harness override via application:set_env/3 without touching
+%% the OS environment. Un-substituted `${VAR}' placeholders fall through
+%% to the OS env path.
+env_string(AppKey, OsKey, Default) ->
+    case application:get_env(reckon_gateway, AppKey) of
+        {ok, V} ->
+            case to_string(V) of
+                ""        -> from_os(OsKey, Default);
+                "${" ++ _ -> from_os(OsKey, Default);
+                S         -> S
+            end;
+        _ ->
+            from_os(OsKey, Default)
+    end.
+
+to_string(V) when is_list(V)   -> V;
+to_string(V) when is_atom(V)   -> atom_to_list(V);
+to_string(V) when is_binary(V) -> binary_to_list(V);
+to_string(_)                   -> "".
+
+from_os(OsKey, Default) ->
+    case os:getenv(OsKey) of
+        false     -> Default;
+        ""        -> Default;
+        "${" ++ _ -> Default;
+        V         -> V
+    end.

@@ -1,29 +1,42 @@
-%% Runtime config — env-var driven where it varies per deployment.
+%% Runtime config ,  env-var driven where it varies per deployment.
 %%
-%% Variables read from env (with sensible defaults in the Containerfile):
-%%
+%% Catalogue mode (always):
 %%   RECKON_GATEWAY_PORT             gRPC listen port (default 50051)
 %%   RECKON_GATEWAY_CLUSTERS_PATH    Absolute path to clusters.eterm
 %%                                    (operator-curated cookies; OUT of
 %%                                    gitops). When unset the catalogue
-%%                                    boots with zero clusters and every
-%%                                    data RPC returns store_unknown.
+%%                                    boots with zero remote clusters.
+%%
+%% Embedded store mode (opt-in via RECKON_GATEWAY_STORE_ENABLED=true):
+%%   RECKON_GATEWAY_STORE_ID         Atom name of the local store
+%%   RECKON_GATEWAY_DATA_DIR         Persistent volume root for Khepri/Ra
+%%   RECKON_GATEWAY_STORE_MODE       single | cluster (default single)
+%%   RECKON_GATEWAY_LOCAL_CLUSTER_ID Label for the local store in the
+%%                                    catalogue (default `local`)
+%%
+%% Cluster-mode shared (when RECKON_GATEWAY_STORE_MODE=cluster):
+%%   RECKON_DB_CLUSTER_SECRET        Shared secret for multicast gossip
+%%   RECKON_DB_MULTICAST_ADDR        Multicast address override (optional)
 %%
 %% Erlang dist:
 %%   - Per-peer cookies are set at runtime by reckon_gateway_cluster_connector
 %%     before each connect, so the BEAM's default cookie is unused for
 %%     clusters.eterm targets.
-%%   - dist_auto_connect stays at OTP default (`once`): cookie checks
-%%     reject unauthorised peers anyway, and `never` blocks `net_adm:ping`,
-%%     ad-hoc `eval`, and rebar3 release tooling — too steep a cost for
-%%     ops.
+%%   - In cluster mode the BEAM's default cookie (RELEASE_COOKIE) must
+%%     match across embedded-store peers ,  that IS the cluster's auth.
 
 [
     {reckon_gateway, [
         {listen_port,          ${RECKON_GATEWAY_PORT}},
         {listen_ip,            {0, 0, 0, 0}},
         {clusters_config_path, "${RECKON_GATEWAY_CLUSTERS_PATH}"},
-        {refresh_interval_ms,  30000}
+        {refresh_interval_ms,  30000},
+        %% Embedded store env (all default-off for backward compat with 0.5)
+        {store_enabled,        "${RECKON_GATEWAY_STORE_ENABLED}"},
+        {store_id,             "${RECKON_GATEWAY_STORE_ID}"},
+        {data_dir,             "${RECKON_GATEWAY_DATA_DIR}"},
+        {store_mode,           "${RECKON_GATEWAY_STORE_MODE}"},
+        {local_cluster_id,     "${RECKON_GATEWAY_LOCAL_CLUSTER_ID}"}
     ]},
 
     {reckon_gater, [
@@ -32,6 +45,12 @@
             {max_delay_ms,  30000},
             {max_attempts,  10}
         ]}
+    ]},
+
+    {reckon_db, [
+        %% Multicast discovery ,  only consulted when a store starts in
+        %% cluster mode. Single-mode stores ignore these.
+        {cluster_secret, "${RECKON_DB_CLUSTER_SECRET}"}
     ]},
 
     {kernel, [

@@ -55,8 +55,19 @@ init([]) ->
         intensity => 5,
         period => 30
     },
+    %% Embedded store mode is opt-in via env. When disabled,
+    %% StoreChildren is empty and the gateway runs in pure catalogue
+    %% mode (the 0.5 default). When enabled, the starter boots the
+    %% local store via reckon_db_sup:start_store/1, and the local
+    %% connector publishes its registry entries into the catalogue.
+    StoreChildren = case reckon_gateway_config:embedded_store_spec() of
+        disabled -> [];
+        #{cluster_id := LocalClusterId} ->
+            [reckon_gateway_store_starter:child_spec(),
+             reckon_gateway_local_connector:child_spec(LocalClusterId)]
+    end,
     Children = [
-        %% Catalogue first — connectors publish into it.
+        %% Catalogue first — every connector publishes into it.
         reckon_gateway_catalogue:child_spec(),
         #{id       => clusters_sup,
           start    => {reckon_gateway_clusters_sup, start_link, []},
@@ -64,5 +75,5 @@ init([]) ->
           shutdown => 5000,
           type     => supervisor,
           modules  => [reckon_gateway_clusters_sup]}
-    ],
+    ] ++ StoreChildren,
     {ok, {SupFlags, Children}}.

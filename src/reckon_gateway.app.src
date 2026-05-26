@@ -1,9 +1,11 @@
 {application, reckon_gateway, [
-    {description, "Multi-cluster catalogue gateway for ReckonDB. "
-                  "Pure gRPC ingress; routes each request via Erlang dist "
-                  "rpc:call/4 to whichever BEAM owns the target store. "
-                  "Does NOT carry data."},
-    {vsn, "0.5.4"},
+    {description, "Multi-cluster catalogue gateway for ReckonDB with "
+                  "optional embedded-store mode. By default a pure gRPC "
+                  "ingress that routes via `rpc:call/4` to remote BEAMs; "
+                  "with `RECKON_GATEWAY_STORE_ENABLED=true` also boots "
+                  "a local reckon-db store and serves it from the same "
+                  "image. See DESIGN_RECKON_GATEWAY_HYBRID_MODE.md."},
+    {vsn, "0.6.0"},
     {registered, [reckon_gateway_sup]},
     {mod, {reckon_gateway_app, []}},
     {applications, [
@@ -11,6 +13,7 @@
         stdlib,
         grpc,
         reckon_gater,
+        reckon_db,
         telemetry
     ]},
     {env, [
