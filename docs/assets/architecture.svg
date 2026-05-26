@@ -1,0 +1,239 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 620" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+    <marker id="arr" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrLocal" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#bfdbfe"/>
+    </marker>
+    <marker id="arrCluster" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 3.5 L 0 7 z" fill="#fde68a"/>
+    </marker>
+  </defs>
+
+  <rect width="1080" height="620" fill="url(#bg)"/>
+  <g opacity="0.06">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#fff" stroke-width="0.5"/>
+    </pattern>
+    <rect width="1080" height="620" fill="url(#grid)"/>
+  </g>
+
+  <text x="540" y="38" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="bold" fill="#fff">
+    reckon-gateway &#xb7; Three operational modes
+  </text>
+  <text x="540" y="60" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#94a3b8">
+    Same image, same gRPC surface. Mode is selected at boot via environment.
+  </text>
+
+  <!-- ============== MODE A: CATALOGUE ============== -->
+  <g transform="translate(20, 95)">
+    <rect width="340" height="490" rx="14" fill="#0c4a6e" opacity="0.15" stroke="#0c4a6e" stroke-width="1.5"/>
+    <text x="170" y="28" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="bold" fill="#bae6fd">
+      Catalogue mode (default)
+    </text>
+    <text x="170" y="46" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#7dd3fc">
+      STORE_ENABLED=false &#xb7; CLUSTERS_PATH=set
+    </text>
+
+    <!-- gRPC client -->
+    <g filter="url(#sh)">
+      <rect x="60" y="65" width="220" height="42" rx="8" fill="#1f2937"/>
+      <text x="170" y="91" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#e5e7eb">gRPC client (Go/.NET/Rust/Py)</text>
+    </g>
+
+    <!-- gateway box -->
+    <g filter="url(#sh)">
+      <rect x="40" y="145" width="260" height="98" rx="10" fill="#0c4a6e"/>
+      <text x="170" y="167" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#fff">reckon-gateway</text>
+      <line x1="60" y1="178" x2="280" y2="178" stroke="#0369a1" stroke-width="0.6"/>
+      <text x="170" y="196" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#bae6fd">grpc-erl (cowboy/HTTP2)</text>
+      <text x="170" y="212" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#bae6fd">reckon_gateway_catalogue</text>
+      <text x="170" y="228" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#bae6fd">reckon_gateway_dispatch</text>
+    </g>
+
+    <!-- dist arrows out -->
+    <line x1="100" y1="245" x2="80" y2="298" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+    <line x1="170" y1="245" x2="170" y2="298" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+    <line x1="240" y1="245" x2="260" y2="298" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+    <text x="170" y="285" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#94a3b8">rpc:call/4 + per-peer cookies</text>
+
+    <!-- 3 remote stores -->
+    <g filter="url(#sh)">
+      <rect x="20" y="298" width="100" height="60" rx="8" fill="#4c1d95"/>
+      <text x="70" y="322" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">cluster A</text>
+      <text x="70" y="338" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">remote BEAM</text>
+      <text x="70" y="350" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">reckon-db</text>
+    </g>
+    <g filter="url(#sh)">
+      <rect x="130" y="298" width="100" height="60" rx="8" fill="#4c1d95"/>
+      <text x="180" y="322" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">cluster B</text>
+      <text x="180" y="338" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">remote BEAM</text>
+      <text x="180" y="350" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">reckon-db</text>
+    </g>
+    <g filter="url(#sh)">
+      <rect x="240" y="298" width="80" height="60" rx="8" fill="#4c1d95"/>
+      <text x="280" y="322" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">cluster C</text>
+      <text x="280" y="338" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">remote</text>
+      <text x="280" y="350" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">reckon-db</text>
+    </g>
+
+    <text x="170" y="395" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#bae6fd" font-style="italic">
+      One gRPC endpoint federates
+    </text>
+    <text x="170" y="410" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#bae6fd" font-style="italic">
+      N disjoint Erlang clusters.
+    </text>
+
+    <text x="170" y="445" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#7dd3fc">
+      clusters.eterm carries member lists + cookies
+    </text>
+    <text x="170" y="461" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#7dd3fc">
+      (out of gitops, chmod 0600).
+    </text>
+    <text x="170" y="478" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#7dd3fc">
+      Holds NO data locally.
+    </text>
+  </g>
+
+  <!-- ============== MODE B: EMBEDDED ============== -->
+  <g transform="translate(370, 95)">
+    <rect width="340" height="490" rx="14" fill="#065f46" opacity="0.15" stroke="#065f46" stroke-width="1.5"/>
+    <text x="170" y="28" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="bold" fill="#a7f3d0">
+      Embedded mode
+    </text>
+    <text x="170" y="46" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#6ee7b7">
+      STORE_ENABLED=true &#xb7; CLUSTERS_PATH=unset
+    </text>
+
+    <!-- client -->
+    <g filter="url(#sh)">
+      <rect x="60" y="65" width="220" height="42" rx="8" fill="#1f2937"/>
+      <text x="170" y="91" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#e5e7eb">gRPC client</text>
+    </g>
+
+    <!-- container box (combined gateway + store) -->
+    <g filter="url(#sh)">
+      <rect x="40" y="145" width="260" height="245" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+      <text x="170" y="165" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#94a3b8">single container, one BEAM</text>
+
+      <!-- inner gateway -->
+      <rect x="60" y="180" width="220" height="76" rx="8" fill="#0c4a6e"/>
+      <text x="170" y="201" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#fff">reckon-gateway</text>
+      <line x1="80" y1="210" x2="260" y2="210" stroke="#0369a1" stroke-width="0.6"/>
+      <text x="170" y="226" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#bae6fd">grpc-erl + dispatch</text>
+      <text x="170" y="242" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#bae6fd">+ local_connector + store_starter</text>
+
+      <!-- arrow down -->
+      <line x1="170" y1="258" x2="170" y2="284" stroke="#bfdbfe" stroke-width="2" marker-end="url(#arrLocal)"/>
+      <text x="220" y="276" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#bfdbfe">rpc:call(node(), ...)</text>
+
+      <!-- inner store -->
+      <rect x="60" y="284" width="220" height="76" rx="8" fill="#4c1d95"/>
+      <text x="170" y="307" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#fff">reckon-db</text>
+      <line x1="80" y1="316" x2="260" y2="316" stroke="#7c3aed" stroke-width="0.6"/>
+      <text x="170" y="334" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#e9d5ff">single Khepri store</text>
+      <text x="170" y="350" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#e9d5ff">on /data (VOLUME)</text>
+    </g>
+
+    <text x="170" y="420" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#a7f3d0" font-style="italic">
+      One container = one store,
+    </text>
+    <text x="170" y="435" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#a7f3d0" font-style="italic">
+      served over gRPC.
+    </text>
+
+    <text x="170" y="468" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#6ee7b7">
+      STORE_MODE=single (standalone) or
+    </text>
+    <text x="170" y="484" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#6ee7b7">
+      cluster (Ra quorum via discovery).
+    </text>
+  </g>
+
+  <!-- ============== MODE C: HYBRID ============== -->
+  <g transform="translate(720, 95)">
+    <rect width="340" height="490" rx="14" fill="#831843" opacity="0.15" stroke="#831843" stroke-width="1.5"/>
+    <text x="170" y="28" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="bold" fill="#fbcfe8">
+      Hybrid mode
+    </text>
+    <text x="170" y="46" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#f9a8d4">
+      STORE_ENABLED=true &#xb7; CLUSTERS_PATH=set
+    </text>
+
+    <!-- client -->
+    <g filter="url(#sh)">
+      <rect x="60" y="65" width="220" height="42" rx="8" fill="#1f2937"/>
+      <text x="170" y="91" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#e5e7eb">gRPC client</text>
+    </g>
+
+    <!-- gateway -->
+    <g filter="url(#sh)">
+      <rect x="40" y="145" width="260" height="98" rx="10" fill="#0c4a6e"/>
+      <text x="170" y="167" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#fff">reckon-gateway</text>
+      <line x1="60" y1="178" x2="280" y2="178" stroke="#0369a1" stroke-width="0.6"/>
+      <text x="170" y="196" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#bae6fd">grpc-erl + dispatch</text>
+      <text x="170" y="212" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#bae6fd">catalogue holds remote + local</text>
+      <text x="170" y="228" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#bae6fd">members</text>
+    </g>
+
+    <!-- local store (left) -->
+    <line x1="100" y1="245" x2="70" y2="295" stroke="#bfdbfe" stroke-width="2" marker-end="url(#arrLocal)"/>
+    <text x="60" y="278" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#bfdbfe">local</text>
+
+    <g filter="url(#sh)">
+      <rect x="20" y="295" width="100" height="60" rx="8" fill="#4c1d95"/>
+      <text x="70" y="319" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">embedded</text>
+      <text x="70" y="334" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">reckon-db</text>
+      <text x="70" y="347" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">on /data</text>
+    </g>
+
+    <!-- remote stores (right) -->
+    <line x1="200" y1="245" x2="180" y2="295" stroke="#fde68a" stroke-width="2" marker-end="url(#arrCluster)"/>
+    <line x1="260" y1="245" x2="280" y2="295" stroke="#fde68a" stroke-width="2" marker-end="url(#arrCluster)"/>
+    <text x="225" y="278" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#fde68a">remote</text>
+
+    <g filter="url(#sh)">
+      <rect x="130" y="295" width="80" height="60" rx="8" fill="#4c1d95" opacity="0.85"/>
+      <text x="170" y="319" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">cluster A</text>
+      <text x="170" y="335" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">remote BEAM</text>
+    </g>
+    <g filter="url(#sh)">
+      <rect x="220" y="295" width="80" height="60" rx="8" fill="#4c1d95" opacity="0.85"/>
+      <text x="260" y="319" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fff">cluster B</text>
+      <text x="260" y="335" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#e9d5ff">remote BEAM</text>
+    </g>
+
+    <text x="170" y="395" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#fbcfe8" font-style="italic">
+      Same gRPC endpoint serves
+    </text>
+    <text x="170" y="410" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#fbcfe8" font-style="italic">
+      a local store AND remote ones.
+    </text>
+
+    <text x="170" y="445" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#f9a8d4">
+      Local resolves to node(); remote
+    </text>
+    <text x="170" y="461" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#f9a8d4">
+      via clusters.eterm members.
+    </text>
+    <text x="170" y="478" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#f9a8d4">
+      All addressed by store_id.
+    </text>
+  </g>
+
+  <!-- footer -->
+  <text x="20" y="608" font-family="system-ui, sans-serif" font-size="10" fill="#475569">
+    reckon-gateway 0.6.1 &#xb7; 2026-05-26
+  </text>
+  <text x="1060" y="608" text-anchor="end" font-family="system-ui, sans-serif" font-size="10" fill="#475569">
+    See docs/architecture.md for the full sequence.
+  </text>
+</svg>

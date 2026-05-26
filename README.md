@@ -1,126 +1,125 @@
-# ReckonDB gRPC Gateway
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="ReckonDB" width="120"/>
+</p>
 
-gRPC gateway for [ReckonDB](https://codeberg.org/reckon-db-org/reckon-db) — exposes the BEAM-native event store to polyglot clients over gRPC.
+<h1 align="center">reckon-gateway</h1>
 
-## Overview
+<p align="center">
+  <strong>gRPC ingress for <a href="https://codeberg.org/reckon-db-org/reckon-db">ReckonDB</a>.</strong><br/>
+  Federate N remote Erlang clusters over one endpoint, or boot a local store in the same image.
+</p>
 
-ReckonDB is a distributed event store built on Khepri/Ra (Raft consensus). It runs natively on the BEAM VM. This gateway wraps the full ReckonDB API in gRPC services, enabling Go, .NET, Rust, Python, and any gRPC-capable language to use ReckonDB as their event store.
+<p align="center">
+  <a href="https://codeberg.org/reckon-db-org/reckon-gateway/releases"><img src="https://img.shields.io/badge/release-v0.6.1-1e40af" alt="release"/></a>
+  <a href="https://github.com/reckon-db-org/reckon-gateway/pkgs/container/reckon-gateway"><img src="https://img.shields.io/badge/ghcr.io-image-0c4a6e" alt="image"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-475569" alt="license"/></a>
+  <img src="https://img.shields.io/badge/erlang-OTP%2027%2B-92400e" alt="erlang"/>
+</p>
 
-## Services
+---
 
-| Service | Proto File | Description |
-|---------|-----------|-------------|
-| **StreamService** | `reckon_streams.proto` | Append, read, list, delete event streams |
-| **SubscriptionService** | `reckon_subscriptions.proto` | Persistent subscriptions with server-streaming |
-| **SnapshotService** | `reckon_snapshots.proto` | Aggregate state snapshots |
-| **HealthService** | `reckon_health.proto` | Health checks, cluster diagnostics, memory pressure |
-| **TemporalService** | `reckon_temporal.proto` | Time-based event queries |
-| **CausationService** | `reckon_causation.proto` | Event lineage and correlation tracking |
-| **SchemaService** | `reckon_schema.proto` | Event schema registration and upcasting |
-| **AdminService** | `reckon_admin.proto` | Store inspection, scavenging, stream links |
+## What it is
 
-## Quick Start
+`reckon-gateway` is a single OCI image that exposes the [ReckonDB](https://codeberg.org/reckon-db-org/reckon-db) event-store API over gRPC. Polyglot clients (Go, .NET, Rust, Python) get the full feature surface without speaking Erlang dist.
 
-### Docker
+Three operational modes, selected by environment at boot:
+
+| Mode | `STORE_ENABLED` | `CLUSTERS_PATH` | Use case |
+|---|---|---|---|
+| **Catalogue** (default) | `false` | set | Federate N remote ReckonDB clusters over one gRPC endpoint. Gateway holds no data. |
+| **Embedded** | `true` | unset | One container = one ReckonDB store, served over gRPC. |
+| **Hybrid** | `true` | set | Local store **and** federated remote clusters from the same endpoint. |
+
+![architecture overview](docs/assets/architecture.svg)
+
+## Quick start
+
+### Pull the image
 
 ```bash
-docker build -t reckon-gateway .
-docker run -p 50051:50051 -v reckon-data:/app/data reckon-gateway
+podman pull ghcr.io/reckon-db-org/reckon-gateway:0.6.1
 ```
 
-### From Source
+### Run embedded (one container, one store)
 
 ```bash
-# Generate gRPC stubs from proto files
-rebar3 grpc gen
-
-# Compile
-rebar3 compile
-
-# Run in shell
-rebar3 shell
+podman run -d --name reckon-gw \
+  -p 50051:50051 \
+  -v reckon-data:/data \
+  -e RECKON_GATEWAY_STORE_ENABLED=true \
+  -e RECKON_GATEWAY_STORE_ID=my_store \
+  -e RECKON_GATEWAY_LOCAL_CLUSTER_ID=local \
+  ghcr.io/reckon-db-org/reckon-gateway:0.6.1
 ```
 
-### Client (Go example)
+### Run catalogue (federate remote clusters)
+
+```bash
+podman run -d --name reckon-gw \
+  -p 50051:50051 \
+  -v /etc/reckon-gateway/clusters.eterm:/etc/reckon-gateway/clusters.eterm:ro \
+  ghcr.io/reckon-db-org/reckon-gateway:0.6.1
+```
+
+See [docs/clusters-eterm.md](docs/clusters-eterm.md) for the `clusters.eterm` schema.
+
+### Call from a client
 
 ```go
-conn, _ := grpc.Dial("localhost:50051", grpc.WithInsecure())
-client := gatewayv1.NewStreamServiceClient(conn)
+conn, _ := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+client := streampb.NewStreamServiceClient(conn)
 
-// Append events
-resp, _ := client.AppendEvents(ctx, &gatewayv1.AppendEventsRequest{
-    StoreId:         "default_store",
-    StreamId:        "user-123",
-    ExpectedVersion: -1, // NO_STREAM
-    Events: []*gatewayv1.ProposedEvent{{
+resp, _ := client.AppendEvents(ctx, &streampb.AppendEventsRequest{
+    StoreId:         "my_store",
+    StreamId:        "user-7c4b9...",
+    ExpectedVersion: -1,
+    Events: []*streampb.ProposedEvent{{
         EventType: "user_registered_v1",
-        Data:      []byte(`{"name":"Alice","email":"alice@example.com"}`),
+        Data:      []byte(`{"name":"Alice"}`),
     }},
 })
 ```
 
-## Proto Files
+Full example: [docs/examples/go-quickstart.md](docs/examples/go-quickstart.md).
 
-Proto definitions live in `proto/` and are the source of truth for all client SDKs. Generate client code for your language:
+## gRPC services
 
-```bash
-# Go
-protoc --go_out=. --go-grpc_out=. proto/*.proto
+| Service | Description |
+|---|---|
+| `StreamService` | Append, read, list, delete event streams |
+| `SubscriptionService` | Persistent server-streaming subscriptions |
+| `SnapshotService` | Aggregate state snapshots |
+| `TemporalService` | Time-based event queries |
+| `CausationService` | Event lineage and correlation |
+| `SchemaService` | Event schema registration + upcasting |
+| `AdminService` | Store inspection, scavenging, stream links |
+| `StoresService` | Store enumeration via the catalogue |
+| `HealthService` | Health checks, cluster diagnostics, memory pressure |
 
-# .NET
-dotnet-grpc refresh
+Proto definitions are the source of truth and live in [reckon-proto](https://codeberg.org/reckon-db-org/reckon-proto). The gateway fetches them as a rebar3 dep at build time.
 
-# Python
-python -m grpc_tools.protoc -Iproto --python_out=. --grpc_python_out=. proto/*.proto
-```
+## Documentation
 
-## Architecture
+Deeper dives in [`docs/`](docs/):
 
-```
-Client (Go, .NET, Rust, Python, ...)
-    │ gRPC (HTTP/2)
-    ▼
-┌─────────────────────────┐
-│  reckon-gateway         │  ← This package
-│  (grpcbox server)       │
-│                         │
-│  Converts proto ↔ gater │
-└─────────────────────────┘
-    │ Erlang function calls
-    ▼
-┌─────────────────────────┐
-│  reckon-gater           │  ← Gateway API + worker registry
-│  (esdb_gater_api)       │
-└─────────────────────────┘
-    │ pg process groups
-    ▼
-┌─────────────────────────┐
-│  reckon-db              │  ← Event store (Khepri/Ra)
-│  (Raft consensus)       │
-└─────────────────────────┘
-```
+- [Architecture](docs/architecture.md) , how the gateway dispatches across catalogue + embedded layers
+- [Environment contract](docs/env-contract.md) , every env var with semantics and precedence
+- [Embedded mode](docs/embedded-mode.md) , single-node and cluster Ra/Raft setups
+- [`clusters.eterm` reference](docs/clusters-eterm.md) , federation config format
+- [Building from source](docs/building.md) , rebar3, Rust toolchain, gRPC stub generation
+- [Go client quick start](docs/examples/go-quickstart.md)
 
-## Configuration
+## Versioning
 
-See `config/sys.config` for all options. Key settings:
+| Component | Version (2026-05) |
+|---|---|
+| `reckon_gateway` | 0.6.1 |
+| `reckon_gater` (deps) | ~> 2.2 |
+| `reckon_db` (deps, opt) | ~> 3.0 |
+| Erlang/OTP | 27+ |
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `listen_port` | `50051` | gRPC server port |
-| `listen_ip` | `{0,0,0,0}` | Bind address |
-| `stores` | `[{default_store, [...]}]` | ReckonDB store configuration |
-
-## Expected Version Constants
-
-For optimistic concurrency control in `AppendEvents`:
-
-| Constant | Value | Meaning |
-|----------|-------|---------|
-| `NO_STREAM` | `-1` | Stream must not exist (first write) |
-| `ANY_VERSION` | `-2` | No version check |
-| `STREAM_EXISTS` | `-4` | Stream must already exist |
-| `>= 0` | exact | Exact version match |
+Pin to the semver tag (`:0.6.1`) for reproducible deploys; `:latest` tracks `main`.
 
 ## License
 
-Apache-2.0
+Apache-2.0 , see [LICENSE](LICENSE).
