@@ -105,13 +105,15 @@ Proto definitions are the source of truth and live in [reckon-proto](https://cod
 
 ## Documentation
 
-Deeper dives in [`docs/`](docs/):
+Full index: **[docs/README.md](docs/README.md)** , audience-grouped, with suggested reading orders.
 
-- [Architecture](docs/architecture.md) , how the gateway dispatches across catalogue + embedded layers
-- [Environment contract](docs/env-contract.md) , every env var with semantics and precedence
-- [Embedded mode](docs/embedded-mode.md) , single-node and cluster Ra/Raft setups
-- [`clusters.eterm` reference](docs/clusters-eterm.md) , federation config format
-- [Building from source](docs/building.md) , rebar3, Rust toolchain, gRPC stub generation
+Quick jumps:
+
+- [Architecture](docs/architecture.md)
+- [Environment contract](docs/env-contract.md) (incl. `RECKON_GATEWAY_DIST_HIDDEN_FLAG`)
+- [Embedded mode](docs/embedded-mode.md)
+- [`clusters.eterm` reference](docs/clusters-eterm.md)
+- [Building from source](docs/building.md)
 - [Go client quick start](docs/examples/go-quickstart.md)
 
 ## Versioning
