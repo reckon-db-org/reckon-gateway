@@ -199,10 +199,10 @@
 -type get_catalogue_status_response() ::
       #{catalogue_size          => integer(),       % = 1, optional, 32 bits
         gateway_uptime_ms       => integer(),       % = 2, optional, 64 bits
-        clusters                => [cluster_status()] % = 3, repeated
+        clusters                => [catalogue_cluster_status()] % = 3, repeated
        }.
 
--type cluster_status() ::
+-type catalogue_cluster_status() ::
       #{cluster_id              => unicode:chardata(), % = 1, optional
         members                 => [unicode:chardata()], % = 2, repeated
         store_count             => integer(),       % = 3, optional, 32 bits
@@ -211,9 +211,9 @@
         last_error              => unicode:chardata() % = 6, optional
        }.
 
--export_type(['store_stats_request'/0, 'store_stats_response'/0, 'stream_info_request'/0, 'stream_info_response'/0, 'event_type_summary_request'/0, 'event_type_summary_entry'/0, 'event_type_summary_response'/0, 'scavenge_request'/0, 'scavenge_response'/0, 'scavenge_matching_request'/0, 'scavenge_matching_response'/0, 'create_link_request'/0, 'create_link_response'/0, 'delete_link_request'/0, 'delete_link_response'/0, 'get_link_request'/0, 'link_info'/0, 'start_link_request'/0, 'start_link_response'/0, 'stop_link_request'/0, 'stop_link_response'/0, 'list_links_request'/0, 'list_links_response'/0, 'link_runtime_info'/0, 'reload_catalogue_request'/0, 'reload_catalogue_response'/0, 'get_catalogue_status_request'/0, 'get_catalogue_status_response'/0, 'cluster_status'/0]).
--type '$msg_name'() :: store_stats_request | store_stats_response | stream_info_request | stream_info_response | event_type_summary_request | event_type_summary_entry | event_type_summary_response | scavenge_request | scavenge_response | scavenge_matching_request | scavenge_matching_response | create_link_request | create_link_response | delete_link_request | delete_link_response | get_link_request | link_info | start_link_request | start_link_response | stop_link_request | stop_link_response | list_links_request | list_links_response | link_runtime_info | reload_catalogue_request | reload_catalogue_response | get_catalogue_status_request | get_catalogue_status_response | cluster_status.
--type '$msg'() :: store_stats_request() | store_stats_response() | stream_info_request() | stream_info_response() | event_type_summary_request() | event_type_summary_entry() | event_type_summary_response() | scavenge_request() | scavenge_response() | scavenge_matching_request() | scavenge_matching_response() | create_link_request() | create_link_response() | delete_link_request() | delete_link_response() | get_link_request() | link_info() | start_link_request() | start_link_response() | stop_link_request() | stop_link_response() | list_links_request() | list_links_response() | link_runtime_info() | reload_catalogue_request() | reload_catalogue_response() | get_catalogue_status_request() | get_catalogue_status_response() | cluster_status().
+-export_type(['store_stats_request'/0, 'store_stats_response'/0, 'stream_info_request'/0, 'stream_info_response'/0, 'event_type_summary_request'/0, 'event_type_summary_entry'/0, 'event_type_summary_response'/0, 'scavenge_request'/0, 'scavenge_response'/0, 'scavenge_matching_request'/0, 'scavenge_matching_response'/0, 'create_link_request'/0, 'create_link_response'/0, 'delete_link_request'/0, 'delete_link_response'/0, 'get_link_request'/0, 'link_info'/0, 'start_link_request'/0, 'start_link_response'/0, 'stop_link_request'/0, 'stop_link_response'/0, 'list_links_request'/0, 'list_links_response'/0, 'link_runtime_info'/0, 'reload_catalogue_request'/0, 'reload_catalogue_response'/0, 'get_catalogue_status_request'/0, 'get_catalogue_status_response'/0, 'catalogue_cluster_status'/0]).
+-type '$msg_name'() :: store_stats_request | store_stats_response | stream_info_request | stream_info_response | event_type_summary_request | event_type_summary_entry | event_type_summary_response | scavenge_request | scavenge_response | scavenge_matching_request | scavenge_matching_response | create_link_request | create_link_response | delete_link_request | delete_link_response | get_link_request | link_info | start_link_request | start_link_response | stop_link_request | stop_link_response | list_links_request | list_links_response | link_runtime_info | reload_catalogue_request | reload_catalogue_response | get_catalogue_status_request | get_catalogue_status_response | catalogue_cluster_status.
+-type '$msg'() :: store_stats_request() | store_stats_response() | stream_info_request() | stream_info_response() | event_type_summary_request() | event_type_summary_entry() | event_type_summary_response() | scavenge_request() | scavenge_response() | scavenge_matching_request() | scavenge_matching_response() | create_link_request() | create_link_response() | delete_link_request() | delete_link_response() | get_link_request() | link_info() | start_link_request() | start_link_response() | stop_link_request() | stop_link_response() | list_links_request() | list_links_response() | link_runtime_info() | reload_catalogue_request() | reload_catalogue_response() | get_catalogue_status_request() | get_catalogue_status_response() | catalogue_cluster_status().
 -export_type(['$msg_name'/0, '$msg'/0]).
 
 -if(?OTP_RELEASE >= 24).
@@ -261,7 +261,7 @@ encode_msg(Msg, MsgName, Opts) ->
         reload_catalogue_response -> encode_msg_reload_catalogue_response(id(Msg, TrUserData), TrUserData);
         get_catalogue_status_request -> encode_msg_get_catalogue_status_request(id(Msg, TrUserData), TrUserData);
         get_catalogue_status_response -> encode_msg_get_catalogue_status_response(id(Msg, TrUserData), TrUserData);
-        cluster_status -> encode_msg_cluster_status(id(Msg, TrUserData), TrUserData)
+        catalogue_cluster_status -> encode_msg_catalogue_cluster_status(id(Msg, TrUserData), TrUserData)
     end.
 
 
@@ -976,10 +976,10 @@ encode_msg_get_catalogue_status_response(#{} = M, Bin, TrUserData) ->
         _ -> B2
     end.
 
-encode_msg_cluster_status(Msg, TrUserData) -> encode_msg_cluster_status(Msg, <<>>, TrUserData).
+encode_msg_catalogue_cluster_status(Msg, TrUserData) -> encode_msg_catalogue_cluster_status(Msg, <<>>, TrUserData).
 
 
-encode_msg_cluster_status(#{} = M, Bin, TrUserData) ->
+encode_msg_catalogue_cluster_status(#{} = M, Bin, TrUserData) ->
     B1 = case M of
              #{cluster_id := F1} ->
                  begin
@@ -995,7 +995,7 @@ encode_msg_cluster_status(#{} = M, Bin, TrUserData) ->
              #{members := F2} ->
                  TrF2 = id(F2, TrUserData),
                  if TrF2 == [] -> B1;
-                    true -> e_field_cluster_status_members(TrF2, B1, TrUserData)
+                    true -> e_field_catalogue_cluster_status_members(TrF2, B1, TrUserData)
                  end;
              _ -> B1
          end,
@@ -1178,7 +1178,7 @@ e_field_reload_catalogue_response_restarted([Elem | Rest], Bin, TrUserData) ->
 e_field_reload_catalogue_response_restarted([], Bin, _TrUserData) -> Bin.
 
 e_mfield_get_catalogue_status_response_clusters(Msg, Bin, TrUserData) ->
-    SubBin = encode_msg_cluster_status(Msg, <<>>, TrUserData),
+    SubBin = encode_msg_catalogue_cluster_status(Msg, <<>>, TrUserData),
     Bin2 = e_varint(byte_size(SubBin), Bin),
     <<Bin2/binary, SubBin/binary>>.
 
@@ -1188,11 +1188,11 @@ e_field_get_catalogue_status_response_clusters([Elem | Rest], Bin, TrUserData) -
     e_field_get_catalogue_status_response_clusters(Rest, Bin3, TrUserData);
 e_field_get_catalogue_status_response_clusters([], Bin, _TrUserData) -> Bin.
 
-e_field_cluster_status_members([Elem | Rest], Bin, TrUserData) ->
+e_field_catalogue_cluster_status_members([Elem | Rest], Bin, TrUserData) ->
     Bin2 = <<Bin/binary, 18>>,
     Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
-    e_field_cluster_status_members(Rest, Bin3, TrUserData);
-e_field_cluster_status_members([], Bin, _TrUserData) -> Bin.
+    e_field_catalogue_cluster_status_members(Rest, Bin3, TrUserData);
+e_field_catalogue_cluster_status_members([], Bin, _TrUserData) -> Bin.
 
 'encode_msg_map<string,string>'(#{key := F1, value := F2}, Bin, TrUserData) ->
     B1 = begin TrF1 = id(F1, TrUserData), e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData) end,
@@ -1364,7 +1364,7 @@ decode_msg_2_doit(reload_catalogue_request, Bin, TrUserData) -> id(decode_msg_re
 decode_msg_2_doit(reload_catalogue_response, Bin, TrUserData) -> id(decode_msg_reload_catalogue_response(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(get_catalogue_status_request, Bin, TrUserData) -> id(decode_msg_get_catalogue_status_request(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(get_catalogue_status_response, Bin, TrUserData) -> id(decode_msg_get_catalogue_status_response(Bin, TrUserData), TrUserData);
-decode_msg_2_doit(cluster_status, Bin, TrUserData) -> id(decode_msg_cluster_status(Bin, TrUserData), TrUserData).
+decode_msg_2_doit(catalogue_cluster_status, Bin, TrUserData) -> id(decode_msg_catalogue_cluster_status(Bin, TrUserData), TrUserData).
 
 
 
@@ -2836,7 +2836,7 @@ d_field_get_catalogue_status_response_gateway_uptime_ms(<<0:1, X:7, Rest/binary>
 
 d_field_get_catalogue_status_response_clusters(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, TrUserData) when N < 57 -> d_field_get_catalogue_status_response_clusters(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, TrUserData);
 d_field_get_catalogue_status_response_clusters(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, Prev, TrUserData) ->
-    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bs:Len/binary, Rest2/binary>> = Rest, {id(decode_msg_cluster_status(Bs, TrUserData), TrUserData), Rest2} end,
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bs:Len/binary, Rest2/binary>> = Rest, {id(decode_msg_catalogue_cluster_status(Bs, TrUserData), TrUserData), Rest2} end,
     dfp_read_field_def_get_catalogue_status_response(RestF, 0, 0, F, F@_1, F@_2, cons(NewFValue, Prev, TrUserData), TrUserData).
 
 skip_varint_get_catalogue_status_response(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> skip_varint_get_catalogue_status_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData);
@@ -2856,86 +2856,94 @@ skip_32_get_catalogue_status_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@
 
 skip_64_get_catalogue_status_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData) -> dfp_read_field_def_get_catalogue_status_response(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, TrUserData).
 
-decode_msg_cluster_status(Bin, TrUserData) -> dfp_read_field_def_cluster_status(Bin, 0, 0, 0, id(<<>>, TrUserData), id([], TrUserData), id(0, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), TrUserData).
+decode_msg_catalogue_cluster_status(Bin, TrUserData) ->
+    dfp_read_field_def_catalogue_cluster_status(Bin, 0, 0, 0, id(<<>>, TrUserData), id([], TrUserData), id(0, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), TrUserData).
 
-dfp_read_field_def_cluster_status(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_cluster_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_cluster_status(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_members(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_cluster_status(<<24, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_store_count(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_cluster_status(<<34, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_cluster_status(<<42, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_last_refresh(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_cluster_status(<<50, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_cluster_status_last_error(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_cluster_status(<<>>, 0, 0, _, F@_1, R1, F@_3, F@_4, F@_5, F@_6, TrUserData) -> #{cluster_id => F@_1, members => lists_reverse(R1, TrUserData), store_count => F@_3, status => F@_4, last_refresh => F@_5, last_error => F@_6};
-dfp_read_field_def_cluster_status(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dg_read_field_def_cluster_status(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+dfp_read_field_def_catalogue_cluster_status(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_catalogue_cluster_status_cluster_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_catalogue_cluster_status(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_catalogue_cluster_status_members(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_catalogue_cluster_status(<<24, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_catalogue_cluster_status_store_count(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_catalogue_cluster_status(<<34, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_catalogue_cluster_status_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_catalogue_cluster_status(<<42, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_catalogue_cluster_status_last_refresh(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_catalogue_cluster_status(<<50, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_catalogue_cluster_status_last_error(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dfp_read_field_def_catalogue_cluster_status(<<>>, 0, 0, _, F@_1, R1, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+    #{cluster_id => F@_1, members => lists_reverse(R1, TrUserData), store_count => F@_3, status => F@_4, last_refresh => F@_5, last_error => F@_6};
+dfp_read_field_def_catalogue_cluster_status(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dg_read_field_def_catalogue_cluster_status(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-dg_read_field_def_cluster_status(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 32 - 7 -> dg_read_field_def_cluster_status(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dg_read_field_def_cluster_status(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+dg_read_field_def_catalogue_cluster_status(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 32 - 7 ->
+    dg_read_field_def_catalogue_cluster_status(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+dg_read_field_def_catalogue_cluster_status(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
-        10 -> d_field_cluster_status_cluster_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        18 -> d_field_cluster_status_members(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        24 -> d_field_cluster_status_store_count(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        34 -> d_field_cluster_status_status(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        42 -> d_field_cluster_status_last_refresh(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        50 -> d_field_cluster_status_last_error(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        10 -> d_field_catalogue_cluster_status_cluster_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        18 -> d_field_catalogue_cluster_status_members(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        24 -> d_field_catalogue_cluster_status_store_count(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        34 -> d_field_catalogue_cluster_status_status(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        42 -> d_field_catalogue_cluster_status_last_refresh(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        50 -> d_field_catalogue_cluster_status_last_error(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
         _ ->
             case Key band 7 of
-                0 -> skip_varint_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-                1 -> skip_64_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-                2 -> skip_length_delimited_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-                3 -> skip_group_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-                5 -> skip_32_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData)
+                0 -> skip_varint_catalogue_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                1 -> skip_64_catalogue_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                2 -> skip_length_delimited_catalogue_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                3 -> skip_group_catalogue_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+                5 -> skip_32_catalogue_cluster_status(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData)
             end
     end;
-dg_read_field_def_cluster_status(<<>>, 0, 0, _, F@_1, R1, F@_3, F@_4, F@_5, F@_6, TrUserData) -> #{cluster_id => F@_1, members => lists_reverse(R1, TrUserData), store_count => F@_3, status => F@_4, last_refresh => F@_5, last_error => F@_6}.
+dg_read_field_def_catalogue_cluster_status(<<>>, 0, 0, _, F@_1, R1, F@_3, F@_4, F@_5, F@_6, TrUserData) -> #{cluster_id => F@_1, members => lists_reverse(R1, TrUserData), store_count => F@_3, status => F@_4, last_refresh => F@_5, last_error => F@_6}.
 
-d_field_cluster_status_cluster_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_cluster_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_cluster_status_cluster_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+d_field_catalogue_cluster_status_cluster_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_catalogue_cluster_status_cluster_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_catalogue_cluster_status_cluster_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_cluster_status(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_catalogue_cluster_status(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-d_field_cluster_status_members(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_members(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_cluster_status_members(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, Prev, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+d_field_catalogue_cluster_status_members(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_catalogue_cluster_status_members(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_catalogue_cluster_status_members(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, Prev, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, cons(NewFValue, Prev, TrUserData), F@_3, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_catalogue_cluster_status(RestF, 0, 0, F, F@_1, cons(NewFValue, Prev, TrUserData), F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-d_field_cluster_status_store_count(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_store_count(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_cluster_status_store_count(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, F@_6, TrUserData) ->
+d_field_catalogue_cluster_status_store_count(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_catalogue_cluster_status_store_count(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_catalogue_cluster_status_store_count(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, F@_6, TrUserData) ->
     {NewFValue, RestF} = {begin <<Res:32/signed-native>> = <<(X bsl N + Acc):32/unsigned-native>>, id(Res, TrUserData) end, Rest},
-    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_catalogue_cluster_status(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, F@_6, TrUserData).
 
-d_field_cluster_status_status(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_status(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_cluster_status_status(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, F@_6, TrUserData) ->
+d_field_catalogue_cluster_status_status(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_catalogue_cluster_status_status(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_catalogue_cluster_status_status(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, F@_6, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_catalogue_cluster_status(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, F@_6, TrUserData).
 
-d_field_cluster_status_last_refresh(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
-    d_field_cluster_status_last_refresh(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_cluster_status_last_refresh(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, TrUserData) ->
+d_field_catalogue_cluster_status_last_refresh(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_catalogue_cluster_status_last_refresh(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_catalogue_cluster_status_last_refresh(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, NewFValue, F@_6, TrUserData).
+    dfp_read_field_def_catalogue_cluster_status(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, NewFValue, F@_6, TrUserData).
 
-d_field_cluster_status_last_error(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_cluster_status_last_error(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_cluster_status_last_error(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, _, TrUserData) ->
+d_field_catalogue_cluster_status_last_error(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    d_field_catalogue_cluster_status_last_error(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+d_field_catalogue_cluster_status_last_error(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, _, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_cluster_status(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, NewFValue, TrUserData).
+    dfp_read_field_def_catalogue_cluster_status(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, NewFValue, TrUserData).
 
-skip_varint_cluster_status(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> skip_varint_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-skip_varint_cluster_status(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+skip_varint_catalogue_cluster_status(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> skip_varint_catalogue_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+skip_varint_catalogue_cluster_status(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_catalogue_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-skip_length_delimited_cluster_status(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
-    skip_length_delimited_cluster_status(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-skip_length_delimited_cluster_status(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+skip_length_delimited_catalogue_cluster_status(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
+    skip_length_delimited_catalogue_cluster_status(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+skip_length_delimited_catalogue_cluster_status(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_cluster_status(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_catalogue_cluster_status(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-skip_group_cluster_status(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+skip_group_catalogue_cluster_status(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_cluster_status(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_catalogue_cluster_status(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-skip_32_cluster_status(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+skip_32_catalogue_cluster_status(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_catalogue_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
-skip_64_cluster_status(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+skip_64_catalogue_cluster_status(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_catalogue_cluster_status(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
 
 'decode_msg_map<string,string>'(Bin, TrUserData) -> 'dfp_read_field_def_map<string,string>'(Bin, 0, 0, 0, id(<<>>, TrUserData), id(<<>>, TrUserData), TrUserData).
 
@@ -3079,7 +3087,7 @@ merge_msgs(Prev, New, MsgName, Opts) ->
         reload_catalogue_response -> merge_msg_reload_catalogue_response(Prev, New, TrUserData);
         get_catalogue_status_request -> merge_msg_get_catalogue_status_request(Prev, New, TrUserData);
         get_catalogue_status_response -> merge_msg_get_catalogue_status_response(Prev, New, TrUserData);
-        cluster_status -> merge_msg_cluster_status(Prev, New, TrUserData)
+        catalogue_cluster_status -> merge_msg_catalogue_cluster_status(Prev, New, TrUserData)
     end.
 
 -compile({nowarn_unused_function,merge_msg_store_stats_request/3}).
@@ -3498,8 +3506,8 @@ merge_msg_get_catalogue_status_response(PMsg, NMsg, TrUserData) ->
         {_, _} -> S3
     end.
 
--compile({nowarn_unused_function,merge_msg_cluster_status/3}).
-merge_msg_cluster_status(PMsg, NMsg, TrUserData) ->
+-compile({nowarn_unused_function,merge_msg_catalogue_cluster_status/3}).
+merge_msg_catalogue_cluster_status(PMsg, NMsg, TrUserData) ->
     S1 = #{},
     S2 = case {PMsg, NMsg} of
              {_, #{cluster_id := NFcluster_id}} -> S1#{cluster_id => NFcluster_id};
@@ -3567,7 +3575,7 @@ verify_msg(Msg, MsgName, Opts) ->
         reload_catalogue_response -> v_msg_reload_catalogue_response(Msg, [MsgName], TrUserData);
         get_catalogue_status_request -> v_msg_get_catalogue_status_request(Msg, [MsgName], TrUserData);
         get_catalogue_status_response -> v_msg_get_catalogue_status_response(Msg, [MsgName], TrUserData);
-        cluster_status -> v_msg_cluster_status(Msg, [MsgName], TrUserData);
+        catalogue_cluster_status -> v_msg_catalogue_cluster_status(Msg, [MsgName], TrUserData);
         _ -> mk_type_error(not_a_known_message, Msg, [])
     end.
 
@@ -4171,9 +4179,9 @@ v_msg_get_catalogue_status_response(#{} = M, Path, TrUserData) ->
     case M of
         #{clusters := F3} ->
             if is_list(F3) ->
-                   _ = [v_submsg_cluster_status(Elem, [clusters | Path], TrUserData) || Elem <- F3],
+                   _ = [v_submsg_catalogue_cluster_status(Elem, [clusters | Path], TrUserData) || Elem <- F3],
                    ok;
-               true -> mk_type_error({invalid_list_of, {msg, cluster_status}}, F3, [clusters | Path])
+               true -> mk_type_error({invalid_list_of, {msg, catalogue_cluster_status}}, F3, [clusters | Path])
             end;
         _ -> ok
     end,
@@ -4187,13 +4195,13 @@ v_msg_get_catalogue_status_response(#{} = M, Path, TrUserData) ->
 v_msg_get_catalogue_status_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), get_catalogue_status_response}, M, Path);
 v_msg_get_catalogue_status_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, get_catalogue_status_response}, X, Path).
 
--compile({nowarn_unused_function,v_submsg_cluster_status/3}).
--dialyzer({nowarn_function,v_submsg_cluster_status/3}).
-v_submsg_cluster_status(Msg, Path, TrUserData) -> v_msg_cluster_status(Msg, Path, TrUserData).
+-compile({nowarn_unused_function,v_submsg_catalogue_cluster_status/3}).
+-dialyzer({nowarn_function,v_submsg_catalogue_cluster_status/3}).
+v_submsg_catalogue_cluster_status(Msg, Path, TrUserData) -> v_msg_catalogue_cluster_status(Msg, Path, TrUserData).
 
--compile({nowarn_unused_function,v_msg_cluster_status/3}).
--dialyzer({nowarn_function,v_msg_cluster_status/3}).
-v_msg_cluster_status(#{} = M, Path, TrUserData) ->
+-compile({nowarn_unused_function,v_msg_catalogue_cluster_status/3}).
+-dialyzer({nowarn_function,v_msg_catalogue_cluster_status/3}).
+v_msg_catalogue_cluster_status(#{} = M, Path, TrUserData) ->
     case M of
         #{cluster_id := F1} -> v_type_string(F1, [cluster_id | Path], TrUserData);
         _ -> ok
@@ -4233,8 +4241,8 @@ v_msg_cluster_status(#{} = M, Path, TrUserData) ->
                   end,
                   maps:keys(M)),
     ok;
-v_msg_cluster_status(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), cluster_status}, M, Path);
-v_msg_cluster_status(X, Path, _TrUserData) -> mk_type_error({expected_msg, cluster_status}, X, Path).
+v_msg_catalogue_cluster_status(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), catalogue_cluster_status}, M, Path);
+v_msg_catalogue_cluster_status(X, Path, _TrUserData) -> mk_type_error({expected_msg, catalogue_cluster_status}, X, Path).
 
 -compile({nowarn_unused_function,v_type_int32/3}).
 -dialyzer({nowarn_function,v_type_int32/3}).
@@ -4524,8 +4532,8 @@ get_msg_defs() ->
      {{msg, get_catalogue_status_response},
       [#{name => catalogue_size, fnum => 1, rnum => 2, type => int32, occurrence => optional, opts => []},
        #{name => gateway_uptime_ms, fnum => 2, rnum => 3, type => int64, occurrence => optional, opts => []},
-       #{name => clusters, fnum => 3, rnum => 4, type => {msg, cluster_status}, occurrence => repeated, opts => []}]},
-     {{msg, cluster_status},
+       #{name => clusters, fnum => 3, rnum => 4, type => {msg, catalogue_cluster_status}, occurrence => repeated, opts => []}]},
+     {{msg, catalogue_cluster_status},
       [#{name => cluster_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
        #{name => members, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
        #{name => store_count, fnum => 3, rnum => 4, type => int32, occurrence => optional, opts => []},
@@ -4563,7 +4571,7 @@ get_msg_names() ->
      reload_catalogue_response,
      get_catalogue_status_request,
      get_catalogue_status_response,
-     cluster_status].
+     catalogue_cluster_status].
 
 
 get_group_names() -> [].
@@ -4598,7 +4606,7 @@ get_msg_or_group_names() ->
      reload_catalogue_response,
      get_catalogue_status_request,
      get_catalogue_status_response,
-     cluster_status].
+     catalogue_cluster_status].
 
 
 get_enum_names() -> [].
@@ -4683,8 +4691,8 @@ find_msg_def(get_catalogue_status_request) -> [];
 find_msg_def(get_catalogue_status_response) ->
     [#{name => catalogue_size, fnum => 1, rnum => 2, type => int32, occurrence => optional, opts => []},
      #{name => gateway_uptime_ms, fnum => 2, rnum => 3, type => int64, occurrence => optional, opts => []},
-     #{name => clusters, fnum => 3, rnum => 4, type => {msg, cluster_status}, occurrence => repeated, opts => []}];
-find_msg_def(cluster_status) ->
+     #{name => clusters, fnum => 3, rnum => 4, type => {msg, catalogue_cluster_status}, occurrence => repeated, opts => []}];
+find_msg_def(catalogue_cluster_status) ->
     [#{name => cluster_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
      #{name => members, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
      #{name => store_count, fnum => 3, rnum => 4, type => int32, occurrence => optional, opts => []},
@@ -4845,7 +4853,7 @@ fqbin_to_msg_name(<<"reckon.gateway.v1.ReloadCatalogueRequest">>) -> reload_cata
 fqbin_to_msg_name(<<"reckon.gateway.v1.ReloadCatalogueResponse">>) -> reload_catalogue_response;
 fqbin_to_msg_name(<<"reckon.gateway.v1.GetCatalogueStatusRequest">>) -> get_catalogue_status_request;
 fqbin_to_msg_name(<<"reckon.gateway.v1.GetCatalogueStatusResponse">>) -> get_catalogue_status_response;
-fqbin_to_msg_name(<<"reckon.gateway.v1.ClusterStatus">>) -> cluster_status;
+fqbin_to_msg_name(<<"reckon.gateway.v1.CatalogueClusterStatus">>) -> catalogue_cluster_status;
 fqbin_to_msg_name(E) -> error({gpb_error, {badmsg, E}}).
 
 
@@ -4877,7 +4885,7 @@ msg_name_to_fqbin(reload_catalogue_request) -> <<"reckon.gateway.v1.ReloadCatalo
 msg_name_to_fqbin(reload_catalogue_response) -> <<"reckon.gateway.v1.ReloadCatalogueResponse">>;
 msg_name_to_fqbin(get_catalogue_status_request) -> <<"reckon.gateway.v1.GetCatalogueStatusRequest">>;
 msg_name_to_fqbin(get_catalogue_status_response) -> <<"reckon.gateway.v1.GetCatalogueStatusResponse">>;
-msg_name_to_fqbin(cluster_status) -> <<"reckon.gateway.v1.ClusterStatus">>;
+msg_name_to_fqbin(catalogue_cluster_status) -> <<"reckon.gateway.v1.CatalogueClusterStatus">>;
 msg_name_to_fqbin(E) -> error({gpb_error, {badmsg, E}}).
 
 
@@ -4917,7 +4925,7 @@ get_all_proto_names() -> ["reckon_admin"].
 
 
 get_msg_containment("reckon_admin") ->
-    [cluster_status,
+    [catalogue_cluster_status,
      create_link_request,
      create_link_response,
      delete_link_request,
@@ -4980,7 +4988,7 @@ get_enum_containment("reckon_admin") -> [];
 get_enum_containment(P) -> error({gpb_error, {badproto, P}}).
 
 
-get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ClusterStatus">>) -> "reckon_admin";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.CatalogueClusterStatus">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StreamInfoRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StoreStatsRequest">>) -> "reckon_admin";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.StopLinkRequest">>) -> "reckon_admin";
