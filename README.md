@@ -100,6 +100,7 @@ Full example: [docs/examples/go-quickstart.md](docs/examples/go-quickstart.md).
 | `AdminService` | Store inspection, scavenging, stream links |
 | `StoresService` | Store enumeration via the catalogue |
 | `HealthService` | Health checks, cluster diagnostics, memory pressure |
+| `DcbService` | Dynamic Consistency Boundary: tag-filter conditional append + context read *(0.7.0+, requires reckon-db 3.1.1+ backing)* — see [the DCB guide](https://codeberg.org/reckon-db-org/reckon-db/src/branch/main/guides/dcb.md) |
 
 Proto definitions are the source of truth and live in [reckon-proto](https://codeberg.org/reckon-db-org/reckon-proto). The gateway fetches them as a rebar3 dep at build time.
 
