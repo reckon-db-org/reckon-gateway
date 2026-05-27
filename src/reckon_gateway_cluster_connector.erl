@@ -15,7 +15,7 @@
 %%%                                 next refresh tick will try to
 %%%                                 reconnect.
 %%%
-%%% Registered name: `reckon_gateway_cluster_<id>`.
+%%% Registered name: reckon_gateway_cluster_(id).
 %%%
 %%% Cookie is held in process state; never logged or returned.
 -module(reckon_gateway_cluster_connector).

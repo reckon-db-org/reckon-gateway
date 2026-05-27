@@ -1,7 +1,7 @@
 %%% @doc Catalogue config loader for the reckon-gateway.
 %%%
-%%% Reads operator-curated `clusters.eterm` (path from app env
-%%% `clusters_config_path`) and validates each cluster spec. The file
+%%% Reads operator-curated clusters.eterm (path from app env
+%%% clusters_config_path) and validates each cluster spec. The file
 %%% is an Erlang term file containing a single list of maps:
 %%%
 %%%   [
@@ -10,15 +10,15 @@
 %%%                        'parksim_lot@192.168.1.11',
 %%%                        'parksim_pricing@192.168.1.12',
 %%%                        'parksim_simulator@192.168.1.13'],
-%%%         cookie     => <<"tKcK...">>},
+%%%         cookie     => the binary "tKcK..."},
 %%%       ...
 %%%   ].
 %%%
-%%% `members` is an explicit list of every node in the cluster. The
-%%% connector connects to each directly; no reliance on the cluster
-%%% having a healthy internal mesh.
+%%% The members key is an explicit list of every node in the cluster.
+%%% The connector connects to each directly; no reliance on the
+%%% cluster having a healthy internal mesh.
 %%%
-%%% Cookies are secrets — DO NOT log them, return them in error
+%%% Cookies are secrets; DO NOT log them, return them in error
 %%% messages, or surface them on the gRPC side. They live in the
 %%% gateway BEAM's memory + on disk at the configured path (which
 %%% MUST be outside any gitops repo, ideally chmod 0600).
