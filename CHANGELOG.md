@@ -1,5 +1,84 @@
 # Changelog
 
+## 0.7.0 (2026-05-27)
+
+**DCB (Dynamic Consistency Boundary) over gRPC.**
+
+Exposes the DCB primitive shipped in reckon-db 3.1.1 to polyglot
+clients via a new `DcbService`. Paired with `reckon-proto 0.4.0`.
+
+### Added — `DcbService` (two RPCs)
+
+- `AppendIfNoTagMatches(AppendIfNoTagMatchesRequest)` — conditional
+  append under the DCB pseudo-stream. Server rejects when any event
+  matching `tag_filter` has seq strictly above `seq_cutoff`. Returns
+  a structured `oneof { Committed | Conflict }` so the conflict path
+  is a successful response shape, not a gRPC error. gRPC status
+  codes stay reserved for transport / backend errors (`UNAVAILABLE`,
+  `UNIMPLEMENTED`, `INTERNAL`).
+- `ReadDcbContext(ReadDcbContextRequest)` — read events matching a
+  `TagFilter` from the DCB pseudo-stream, ordered by seq ascending,
+  with the highest seq alongside. Use this to compute the
+  `seq_cutoff` for a subsequent `AppendIfNoTagMatches`.
+
+`TagFilter` is a recursive `oneof` with four variants
+(`match_any` / `match_all` / `conjunction` / `disjunction`) mapping
+1:1 to the Erlang term shape used by `reckon_gater_types:tag_filter()`.
+`seq_cutoff` is `sint64` so the `-1` "saw nothing" sentinel is a
+single byte on the wire.
+
+Per-event semantics for `ReadDcbContext` mirror
+`evoq_decision_runtime:match_filter/2` so polyglot consumers see
+exactly the same matches the BEAM-side runtime sees.
+
+### Error translation table
+
+| dispatch reason         | gRPC code            |
+|-------------------------|----------------------|
+| `invalid_store_id`      | 3  `INVALID_ARGUMENT` |
+| `malformed_tag_filter`  | 3  `INVALID_ARGUMENT` |
+| `no_events`             | 3  `INVALID_ARGUMENT` |
+| `store_unknown`         | 5  `NOT_FOUND`        |
+| `not_supported`         | 12 `UNIMPLEMENTED`    |
+| `cluster_unavailable`   | 14 `UNAVAILABLE`      |
+| anything else           | 13 `INTERNAL`         |
+
+Pre-DCB backing clusters (reckon-db &lt; 3.1.1) surface as
+`UNIMPLEMENTED`. No partial-support path; operators upgrade the
+backing.
+
+### Federation behaviour (catalogue mode)
+
+Backing clusters routed by `store_id` must run reckon-db 3.1.1+ to
+serve DCB. Routing is unchanged from the stream-version API.
+
+### Tests
+
+- 24 eunit cases on the pure filter algebra (`decode_filter`,
+  `collect_tags`, `event_matches`).
+- 16 CT cases on the handler glue: happy path, conflict, all five
+  error-code translations, compound-filter dispatch, vacuous filter,
+  DCB-stream filtering, max_seq computation, end-to-end Decision
+  loop (read → conflict → refresh → commit).
+
+A live-cluster suite using a real reckon_db store is deferred until
+reckon-db's CT harness lands a reusable test-cluster fixture.
+
+### Dep bumps
+
+- `reckon_proto`: v0.3.1 → v0.4.0 (adds `reckon_dcb.proto`).
+- `reckon_gater`: constraint widened to `~> 2.3` (was `~> 2.2`).
+  Requires the DCB wire types and `append_if_no_tag_matches/4`
+  shipped in reckon-gater 2.3.1.
+
+### Chore — edoc build fixed
+
+`rebar3 ex_doc` was broken on 0.6.2 by two pre-existing
+XML-parser-tripping `@doc` patterns (`` `reckon_gateway_cluster_<id>` ``,
+``<<"tKcK...">>``) and two missing `extras` entries in `rebar.config`
+(`guides/getting_started.md`, `guides/proto_reference.md`). All
+fixed; ex_doc now runs clean as a release gate.
+
 ## 0.6.2 (2026-05-26)
 
 **Optional hidden-node mode for clean multi-cluster bridging.**

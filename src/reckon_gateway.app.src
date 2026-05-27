@@ -5,7 +5,7 @@
                   "with `RECKON_GATEWAY_STORE_ENABLED=true` also boots "
                   "a local reckon-db store and serves it from the same "
                   "image. See DESIGN_RECKON_GATEWAY_HYBRID_MODE.md."},
-    {vsn, "0.6.2"},
+    {vsn, "0.7.0"},
     {registered, [reckon_gateway_sup]},
     {mod, {reckon_gateway_app, []}},
     {applications, [
