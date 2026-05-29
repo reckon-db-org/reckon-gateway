@@ -163,9 +163,14 @@ get_subscription_lag(#{store_id := StoreIdBin,
                     LagEvents      = maps:get(lag_events,
                                               LagInfo,
                                               maps:get(lag, LagInfo, 0)),
-                    {ok, #{lag => LagEvents,
-                           current_checkpoint => Checkpoint,
-                           latest_version => LatestPosition}, Md};
+                    %% Coerce to non-neg integers: these are uint64 proto
+                    %% fields, and reckon_db can hand back `undefined` (key
+                    %% present, no value) for an $all/system-stream sub.
+                    %% Encoding a non-integer corrupts the gpb output, so the
+                    %% client fails with "invalid wire-format data".
+                    {ok, #{lag => to_uint(LagEvents),
+                           current_checkpoint => to_uint(Checkpoint),
+                           latest_version => to_uint(LatestPosition)}, Md};
                 {error, Reason} ->
                     reckon_gateway_error:wrap(get_subscription_lag, <<"13">>, {Name, Reason})
             end
@@ -174,6 +179,11 @@ get_subscription_lag(#{store_id := StoreIdBin,
 %%====================================================================
 %% Internal
 %%====================================================================
+
+%% Force a value into the non-negative integer domain of a uint64 proto
+%% field. undefined / negative / non-integer all collapse to 0.
+to_uint(N) when is_integer(N), N >= 0 -> N;
+to_uint(_)                            -> 0.
 
 stream_events_loop(Stream, StoreId, Name) ->
     receive
