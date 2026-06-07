@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.0 (2026-06-07)
+
+**Removed CausationService (BREAKING).**
+
+Causation/correlation traversal is not an event-store concern. Deleted
+the `CausationService` handler (`reckon_gateway_causation_service`), its
+generated `reckon_causation_pb` / behaviour / client stubs, and the
+service-map registration in the supervisor. `causation_id` /
+`correlation_id` remain ordinary keys in event metadata — the gateway
+relays metadata verbatim and never interprets it.
+
+Bumps: `reckon_proto v0.5.0`, `reckon_gater ~> 3.0`, `reckon_db ~> 4.0`.
+
 ## 0.7.0 (2026-05-27)
 
 **DCB (Dynamic Consistency Boundary) over gRPC.**

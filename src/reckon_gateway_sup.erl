@@ -21,7 +21,6 @@ init([]) ->
             reckon_snapshots_pb,
             reckon_health_pb,
             reckon_temporal_pb,
-            reckon_causation_pb,
             reckon_schema_pb,
             reckon_admin_pb,
             reckon_stores_pb,
@@ -38,8 +37,6 @@ init([]) ->
                 reckon_gateway_health_service,
             'reckon.gateway.v1.TemporalService' =>
                 reckon_gateway_temporal_service,
-            'reckon.gateway.v1.CausationService' =>
-                reckon_gateway_causation_service,
             'reckon.gateway.v1.SchemaService' =>
                 reckon_gateway_schema_service,
             'reckon.gateway.v1.AdminService' =>

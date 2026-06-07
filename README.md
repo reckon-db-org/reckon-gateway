@@ -95,7 +95,6 @@ Full example: [docs/examples/go-quickstart.md](docs/examples/go-quickstart.md).
 | `SubscriptionService` | Persistent server-streaming subscriptions |
 | `SnapshotService` | Aggregate state snapshots |
 | `TemporalService` | Time-based event queries |
-| `CausationService` | Event lineage and correlation |
 | `SchemaService` | Event schema registration + upcasting |
 | `AdminService` | Store inspection, scavenging, stream links |
 | `StoresService` | Store enumeration via the catalogue |

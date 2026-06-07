@@ -6,3 +6,7 @@ erl_crash.dump
 *.plt
 doc/
 .rebar3/
+
+# build crash artifacts
+rebar3.crashdump
+*.crashdump
