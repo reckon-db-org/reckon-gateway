@@ -35,7 +35,8 @@ start_link() ->
                     Config = #store_config{
                         store_id = StoreId,
                         data_dir = DataDir,
-                        mode     = Mode
+                        mode     = Mode,
+                        indexes  = maps:get(indexes, Spec, [])
                     },
                     logger:info(
                         "[reckon_gateway_store_starter] starting store ~p "

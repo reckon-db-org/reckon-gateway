@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.9.0 (2026-06-08)
+
+**Adopt reckon-db 5.0.0 (Model C + secondary index).**
+
+- **`ReadByMetadata` handler.** `reckon_gateway_stream_service:read_by_metadata/2`
+  routes the new `StreamService.ReadByMetadata` RPC (reckon-proto 0.6.0) to
+  `reckon_gater_api:read_by_metadata/3`, bounding the response by `batch_size`.
+  Mirrors the existing `read_by_tags` / `read_by_event_types` handlers.
+- **Embedded-store index declaration.** New `RECKON_GATEWAY_STORE_INDEXES`
+  env var (comma-separated `tags` / `event_type` / `meta:<key>`) is parsed into
+  `store_config.indexes`, so a gateway-embedded reckon-db store can opt into
+  the new secondary indexes. Empty/unset → no indexes (unchanged behaviour).
+- **Dependency bumps:** `reckon_db ~> 4.0` → `~> 5.0` (required — 5.0.0 ships
+  the index + `read_by_metadata` worker handler), `reckon_proto` `v0.5.0` →
+  `v0.6.0` (the `ReadByMetadata` RPC). `reckon_gater ~> 3.0` already admits 3.2.0.
+
+> **Upgrade note:** reckon-db 5.0.0 is a breaking on-disk layout change (Model C).
+> A gateway running an **embedded** store must have that store **recreated** on
+> upgrade (not just restarted). Catalogue-mode gateways (no embedded store) are
+> unaffected — they route to remote BEAMs and never touch the layout.
+
 ## 0.8.0 (2026-06-07)
 
 **Removed CausationService (BREAKING).**

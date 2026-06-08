@@ -97,6 +97,13 @@
         batch_size              => non_neg_integer() % = 4, optional, 64 bits
        }.
 
+-type read_by_metadata_request() ::
+      #{store_id                => unicode:chardata(), % = 1, optional
+        key                     => unicode:chardata(), % = 2, optional
+        value                   => unicode:chardata(), % = 3, optional
+        batch_size              => non_neg_integer() % = 4, optional, 64 bits
+       }.
+
 -type read_all_global_request() ::
       #{store_id                => unicode:chardata(), % = 1, optional
         offset                  => non_neg_integer(), % = 2, optional, 64 bits
@@ -169,9 +176,9 @@
         checkpoint              => non_neg_integer() % = 7, optional, 64 bits
        }.
 
--export_type(['append_events_request'/0, 'read_stream_request'/0, 'get_stream_version_request'/0, 'list_streams_request'/0, 'delete_stream_request'/0, 'read_by_event_types_request'/0, 'read_by_tags_request'/0, 'read_all_global_request'/0, 'append_events_response'/0, 'read_stream_response'/0, 'get_stream_version_response'/0, 'list_streams_response'/0, 'delete_stream_response'/0, 'proposed_event'/0, 'recorded_event'/0, 'snapshot_record'/0, 'subscription_info'/0]).
--type '$msg_name'() :: append_events_request | read_stream_request | get_stream_version_request | list_streams_request | delete_stream_request | read_by_event_types_request | read_by_tags_request | read_all_global_request | append_events_response | read_stream_response | get_stream_version_response | list_streams_response | delete_stream_response | proposed_event | recorded_event | snapshot_record | subscription_info.
--type '$msg'() :: append_events_request() | read_stream_request() | get_stream_version_request() | list_streams_request() | delete_stream_request() | read_by_event_types_request() | read_by_tags_request() | read_all_global_request() | append_events_response() | read_stream_response() | get_stream_version_response() | list_streams_response() | delete_stream_response() | proposed_event() | recorded_event() | snapshot_record() | subscription_info().
+-export_type(['append_events_request'/0, 'read_stream_request'/0, 'get_stream_version_request'/0, 'list_streams_request'/0, 'delete_stream_request'/0, 'read_by_event_types_request'/0, 'read_by_tags_request'/0, 'read_by_metadata_request'/0, 'read_all_global_request'/0, 'append_events_response'/0, 'read_stream_response'/0, 'get_stream_version_response'/0, 'list_streams_response'/0, 'delete_stream_response'/0, 'proposed_event'/0, 'recorded_event'/0, 'snapshot_record'/0, 'subscription_info'/0]).
+-type '$msg_name'() :: append_events_request | read_stream_request | get_stream_version_request | list_streams_request | delete_stream_request | read_by_event_types_request | read_by_tags_request | read_by_metadata_request | read_all_global_request | append_events_response | read_stream_response | get_stream_version_response | list_streams_response | delete_stream_response | proposed_event | recorded_event | snapshot_record | subscription_info.
+-type '$msg'() :: append_events_request() | read_stream_request() | get_stream_version_request() | list_streams_request() | delete_stream_request() | read_by_event_types_request() | read_by_tags_request() | read_by_metadata_request() | read_all_global_request() | append_events_response() | read_stream_response() | get_stream_version_response() | list_streams_response() | delete_stream_response() | proposed_event() | recorded_event() | snapshot_record() | subscription_info().
 -export_type(['$msg_name'/0, '$msg'/0]).
 
 -if(?OTP_RELEASE >= 24).
@@ -198,6 +205,7 @@ encode_msg(Msg, MsgName, Opts) ->
         delete_stream_request -> encode_msg_delete_stream_request(id(Msg, TrUserData), TrUserData);
         read_by_event_types_request -> encode_msg_read_by_event_types_request(id(Msg, TrUserData), TrUserData);
         read_by_tags_request -> encode_msg_read_by_tags_request(id(Msg, TrUserData), TrUserData);
+        read_by_metadata_request -> encode_msg_read_by_metadata_request(id(Msg, TrUserData), TrUserData);
         read_all_global_request -> encode_msg_read_all_global_request(id(Msg, TrUserData), TrUserData);
         append_events_response -> encode_msg_append_events_response(id(Msg, TrUserData), TrUserData);
         read_stream_response -> encode_msg_read_stream_response(id(Msg, TrUserData), TrUserData);
@@ -436,6 +444,54 @@ encode_msg_read_by_tags_request(#{} = M, Bin, TrUserData) ->
                      TrF3 = id(F3, TrUserData),
                      if TrF3 =:= 'TAG_MATCH_ANY'; TrF3 =:= 0 -> B2;
                         true -> 'e_enum_reckon.gateway.v1.TagMatch'(TrF3, <<B2/binary, 24>>, TrUserData)
+                     end
+                 end;
+             _ -> B2
+         end,
+    case M of
+        #{batch_size := F4} ->
+            begin
+                TrF4 = id(F4, TrUserData),
+                if TrF4 =:= 0 -> B3;
+                   true -> e_varint(TrF4, <<B3/binary, 32>>, TrUserData)
+                end
+            end;
+        _ -> B3
+    end.
+
+encode_msg_read_by_metadata_request(Msg, TrUserData) -> encode_msg_read_by_metadata_request(Msg, <<>>, TrUserData).
+
+
+encode_msg_read_by_metadata_request(#{} = M, Bin, TrUserData) ->
+    B1 = case M of
+             #{store_id := F1} ->
+                 begin
+                     TrF1 = id(F1, TrUserData),
+                     case is_empty_string(TrF1) of
+                         true -> Bin;
+                         false -> e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData)
+                     end
+                 end;
+             _ -> Bin
+         end,
+    B2 = case M of
+             #{key := F2} ->
+                 begin
+                     TrF2 = id(F2, TrUserData),
+                     case is_empty_string(TrF2) of
+                         true -> B1;
+                         false -> e_type_string(TrF2, <<B1/binary, 18>>, TrUserData)
+                     end
+                 end;
+             _ -> B1
+         end,
+    B3 = case M of
+             #{value := F3} ->
+                 begin
+                     TrF3 = id(F3, TrUserData),
+                     case is_empty_string(TrF3) of
+                         true -> B2;
+                         false -> e_type_string(TrF3, <<B2/binary, 26>>, TrUserData)
                      end
                  end;
              _ -> B2
@@ -1131,6 +1187,7 @@ decode_msg_2_doit(list_streams_request, Bin, TrUserData) -> id(decode_msg_list_s
 decode_msg_2_doit(delete_stream_request, Bin, TrUserData) -> id(decode_msg_delete_stream_request(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(read_by_event_types_request, Bin, TrUserData) -> id(decode_msg_read_by_event_types_request(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(read_by_tags_request, Bin, TrUserData) -> id(decode_msg_read_by_tags_request(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(read_by_metadata_request, Bin, TrUserData) -> id(decode_msg_read_by_metadata_request(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(read_all_global_request, Bin, TrUserData) -> id(decode_msg_read_all_global_request(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(append_events_response, Bin, TrUserData) -> id(decode_msg_append_events_response(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(read_stream_response, Bin, TrUserData) -> id(decode_msg_read_stream_response(Bin, TrUserData), TrUserData);
@@ -1550,6 +1607,71 @@ skip_group_read_by_tags_request(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, TrUser
 skip_32_read_by_tags_request(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_read_by_tags_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
 
 skip_64_read_by_tags_request(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_read_by_tags_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+decode_msg_read_by_metadata_request(Bin, TrUserData) -> dfp_read_field_def_read_by_metadata_request(Bin, 0, 0, 0, id(<<>>, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(0, TrUserData), TrUserData).
+
+dfp_read_field_def_read_by_metadata_request(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_read_by_metadata_request_store_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_read_by_metadata_request(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_read_by_metadata_request_key(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_read_by_metadata_request(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_read_by_metadata_request_value(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_read_by_metadata_request(<<32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_read_by_metadata_request_batch_size(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_read_by_metadata_request(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, _) -> #{store_id => F@_1, key => F@_2, value => F@_3, batch_size => F@_4};
+dfp_read_field_def_read_by_metadata_request(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dg_read_field_def_read_by_metadata_request(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+dg_read_field_def_read_by_metadata_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 32 - 7 -> dg_read_field_def_read_by_metadata_request(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dg_read_field_def_read_by_metadata_request(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        10 -> d_field_read_by_metadata_request_store_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        18 -> d_field_read_by_metadata_request_key(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        26 -> d_field_read_by_metadata_request_value(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        32 -> d_field_read_by_metadata_request_batch_size(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_read_by_metadata_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                1 -> skip_64_read_by_metadata_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                2 -> skip_length_delimited_read_by_metadata_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                3 -> skip_group_read_by_metadata_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                5 -> skip_32_read_by_metadata_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData)
+            end
+    end;
+dg_read_field_def_read_by_metadata_request(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, _) -> #{store_id => F@_1, key => F@_2, value => F@_3, batch_size => F@_4}.
+
+d_field_read_by_metadata_request_store_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_read_by_metadata_request_store_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_read_by_metadata_request_store_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_read_by_metadata_request(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, TrUserData).
+
+d_field_read_by_metadata_request_key(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_read_by_metadata_request_key(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_read_by_metadata_request_key(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_read_by_metadata_request(RestF, 0, 0, F, F@_1, NewFValue, F@_3, F@_4, TrUserData).
+
+d_field_read_by_metadata_request_value(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_read_by_metadata_request_value(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_read_by_metadata_request_value(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_read_by_metadata_request(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, TrUserData).
+
+d_field_read_by_metadata_request_batch_size(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_read_by_metadata_request_batch_size(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_read_by_metadata_request_batch_size(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, TrUserData) ->
+    {NewFValue, RestF} = {id((X bsl N + Acc) band 18446744073709551615, TrUserData), Rest},
+    dfp_read_field_def_read_by_metadata_request(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, TrUserData).
+
+skip_varint_read_by_metadata_request(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> skip_varint_read_by_metadata_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+skip_varint_read_by_metadata_request(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_read_by_metadata_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_length_delimited_read_by_metadata_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> skip_length_delimited_read_by_metadata_request(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+skip_length_delimited_read_by_metadata_request(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_read_by_metadata_request(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_group_read_by_metadata_request(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_read_by_metadata_request(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_32_read_by_metadata_request(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_read_by_metadata_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_64_read_by_metadata_request(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_read_by_metadata_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
 
 decode_msg_read_all_global_request(Bin, TrUserData) -> dfp_read_field_def_read_all_global_request(Bin, 0, 0, 0, id(<<>>, TrUserData), id(0, TrUserData), id(0, TrUserData), TrUserData).
 
@@ -2369,6 +2491,7 @@ merge_msgs(Prev, New, MsgName, Opts) ->
         delete_stream_request -> merge_msg_delete_stream_request(Prev, New, TrUserData);
         read_by_event_types_request -> merge_msg_read_by_event_types_request(Prev, New, TrUserData);
         read_by_tags_request -> merge_msg_read_by_tags_request(Prev, New, TrUserData);
+        read_by_metadata_request -> merge_msg_read_by_metadata_request(Prev, New, TrUserData);
         read_all_global_request -> merge_msg_read_all_global_request(Prev, New, TrUserData);
         append_events_response -> merge_msg_append_events_response(Prev, New, TrUserData);
         read_stream_response -> merge_msg_read_stream_response(Prev, New, TrUserData);
@@ -2504,6 +2627,30 @@ merge_msg_read_by_tags_request(PMsg, NMsg, TrUserData) ->
     S4 = case {PMsg, NMsg} of
              {_, #{match := NFmatch}} -> S3#{match => NFmatch};
              {#{match := PFmatch}, _} -> S3#{match => PFmatch};
+             _ -> S3
+         end,
+    case {PMsg, NMsg} of
+        {_, #{batch_size := NFbatch_size}} -> S4#{batch_size => NFbatch_size};
+        {#{batch_size := PFbatch_size}, _} -> S4#{batch_size => PFbatch_size};
+        _ -> S4
+    end.
+
+-compile({nowarn_unused_function,merge_msg_read_by_metadata_request/3}).
+merge_msg_read_by_metadata_request(PMsg, NMsg, _) ->
+    S1 = #{},
+    S2 = case {PMsg, NMsg} of
+             {_, #{store_id := NFstore_id}} -> S1#{store_id => NFstore_id};
+             {#{store_id := PFstore_id}, _} -> S1#{store_id => PFstore_id};
+             _ -> S1
+         end,
+    S3 = case {PMsg, NMsg} of
+             {_, #{key := NFkey}} -> S2#{key => NFkey};
+             {#{key := PFkey}, _} -> S2#{key => PFkey};
+             _ -> S2
+         end,
+    S4 = case {PMsg, NMsg} of
+             {_, #{value := NFvalue}} -> S3#{value => NFvalue};
+             {#{value := PFvalue}, _} -> S3#{value => PFvalue};
              _ -> S3
          end,
     case {PMsg, NMsg} of
@@ -2773,6 +2920,7 @@ verify_msg(Msg, MsgName, Opts) ->
         delete_stream_request -> v_msg_delete_stream_request(Msg, [MsgName], TrUserData);
         read_by_event_types_request -> v_msg_read_by_event_types_request(Msg, [MsgName], TrUserData);
         read_by_tags_request -> v_msg_read_by_tags_request(Msg, [MsgName], TrUserData);
+        read_by_metadata_request -> v_msg_read_by_metadata_request(Msg, [MsgName], TrUserData);
         read_all_global_request -> v_msg_read_all_global_request(Msg, [MsgName], TrUserData);
         append_events_response -> v_msg_append_events_response(Msg, [MsgName], TrUserData);
         read_stream_response -> v_msg_read_stream_response(Msg, [MsgName], TrUserData);
@@ -2971,6 +3119,36 @@ v_msg_read_by_tags_request(#{} = M, Path, TrUserData) ->
     ok;
 v_msg_read_by_tags_request(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), read_by_tags_request}, M, Path);
 v_msg_read_by_tags_request(X, Path, _TrUserData) -> mk_type_error({expected_msg, read_by_tags_request}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_read_by_metadata_request/3}).
+-dialyzer({nowarn_function,v_msg_read_by_metadata_request/3}).
+v_msg_read_by_metadata_request(#{} = M, Path, TrUserData) ->
+    case M of
+        #{store_id := F1} -> v_type_string(F1, [store_id | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{key := F2} -> v_type_string(F2, [key | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{value := F3} -> v_type_string(F3, [value | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{batch_size := F4} -> v_type_uint64(F4, [batch_size | Path], TrUserData);
+        _ -> ok
+    end,
+    lists:foreach(fun (store_id) -> ok;
+                      (key) -> ok;
+                      (value) -> ok;
+                      (batch_size) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_read_by_metadata_request(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), read_by_metadata_request}, M, Path);
+v_msg_read_by_metadata_request(X, Path, _TrUserData) -> mk_type_error({expected_msg, read_by_metadata_request}, X, Path).
 
 -compile({nowarn_unused_function,v_msg_read_all_global_request/3}).
 -dialyzer({nowarn_function,v_msg_read_all_global_request/3}).
@@ -3419,6 +3597,11 @@ get_msg_defs() ->
        #{name => tags, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
        #{name => match, fnum => 3, rnum => 4, type => {enum, 'reckon.gateway.v1.TagMatch'}, occurrence => optional, opts => []},
        #{name => batch_size, fnum => 4, rnum => 5, type => uint64, occurrence => optional, opts => []}]},
+     {{msg, read_by_metadata_request},
+      [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+       #{name => key, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
+       #{name => value, fnum => 3, rnum => 4, type => string, occurrence => optional, opts => []},
+       #{name => batch_size, fnum => 4, rnum => 5, type => uint64, occurrence => optional, opts => []}]},
      {{msg, read_all_global_request},
       [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
        #{name => offset, fnum => 2, rnum => 3, type => uint64, occurrence => optional, opts => []},
@@ -3477,6 +3660,7 @@ get_msg_names() ->
      delete_stream_request,
      read_by_event_types_request,
      read_by_tags_request,
+     read_by_metadata_request,
      read_all_global_request,
      append_events_response,
      read_stream_response,
@@ -3500,6 +3684,7 @@ get_msg_or_group_names() ->
      delete_stream_request,
      read_by_event_types_request,
      read_by_tags_request,
+     read_by_metadata_request,
      read_all_global_request,
      append_events_response,
      read_stream_response,
@@ -3550,6 +3735,11 @@ find_msg_def(read_by_tags_request) ->
     [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
      #{name => tags, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
      #{name => match, fnum => 3, rnum => 4, type => {enum, 'reckon.gateway.v1.TagMatch'}, occurrence => optional, opts => []},
+     #{name => batch_size, fnum => 4, rnum => 5, type => uint64, occurrence => optional, opts => []}];
+find_msg_def(read_by_metadata_request) ->
+    [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+     #{name => key, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
+     #{name => value, fnum => 3, rnum => 4, type => string, occurrence => optional, opts => []},
      #{name => batch_size, fnum => 4, rnum => 5, type => uint64, occurrence => optional, opts => []}];
 find_msg_def(read_all_global_request) ->
     [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
@@ -3653,11 +3843,13 @@ get_service_def('reckon.gateway.v1.StreamService') ->
       #{name => 'DeleteStream', input => delete_stream_request, output => delete_stream_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'ReadByEventTypes', input => read_by_event_types_request, output => read_stream_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'ReadByTags', input => read_by_tags_request, output => read_stream_response, input_stream => false, output_stream => false, opts => []},
+      #{name => 'ReadByMetadata', input => read_by_metadata_request, output => read_stream_response, input_stream => false, output_stream => false, opts => []},
       #{name => 'ReadAllGlobal', input => read_all_global_request, output => read_stream_response, input_stream => false, output_stream => false, opts => []}]};
 get_service_def(_) -> error.
 
 
-get_rpc_names('reckon.gateway.v1.StreamService') -> ['AppendEvents', 'ReadStreamForward', 'ReadStreamBackward', 'StreamEventsForward', 'GetStreamVersion', 'ListStreams', 'DeleteStream', 'ReadByEventTypes', 'ReadByTags', 'ReadAllGlobal'];
+get_rpc_names('reckon.gateway.v1.StreamService') ->
+    ['AppendEvents', 'ReadStreamForward', 'ReadStreamBackward', 'StreamEventsForward', 'GetStreamVersion', 'ListStreams', 'DeleteStream', 'ReadByEventTypes', 'ReadByTags', 'ReadByMetadata', 'ReadAllGlobal'];
 get_rpc_names(_) -> error.
 
 
@@ -3674,6 +3866,7 @@ find_rpc_def(_, _) -> error.
 'find_rpc_def_reckon.gateway.v1.StreamService'('DeleteStream') -> #{name => 'DeleteStream', input => delete_stream_request, output => delete_stream_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.StreamService'('ReadByEventTypes') -> #{name => 'ReadByEventTypes', input => read_by_event_types_request, output => read_stream_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.StreamService'('ReadByTags') -> #{name => 'ReadByTags', input => read_by_tags_request, output => read_stream_response, input_stream => false, output_stream => false, opts => []};
+'find_rpc_def_reckon.gateway.v1.StreamService'('ReadByMetadata') -> #{name => 'ReadByMetadata', input => read_by_metadata_request, output => read_stream_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.StreamService'('ReadAllGlobal') -> #{name => 'ReadAllGlobal', input => read_all_global_request, output => read_stream_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.StreamService'(_) -> error.
 
@@ -3709,6 +3902,7 @@ fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.StreamService">>, <<"ListStr
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.StreamService">>, <<"DeleteStream">>) -> {'reckon.gateway.v1.StreamService', 'DeleteStream'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.StreamService">>, <<"ReadByEventTypes">>) -> {'reckon.gateway.v1.StreamService', 'ReadByEventTypes'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.StreamService">>, <<"ReadByTags">>) -> {'reckon.gateway.v1.StreamService', 'ReadByTags'};
+fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.StreamService">>, <<"ReadByMetadata">>) -> {'reckon.gateway.v1.StreamService', 'ReadByMetadata'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.StreamService">>, <<"ReadAllGlobal">>) -> {'reckon.gateway.v1.StreamService', 'ReadAllGlobal'};
 fqbins_to_service_and_rpc_name(S, R) -> error({gpb_error, {badservice_or_rpc, {S, R}}}).
 
@@ -3725,6 +3919,7 @@ service_and_rpc_name_to_fqbins('reckon.gateway.v1.StreamService', 'ListStreams')
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.StreamService', 'DeleteStream') -> {<<"reckon.gateway.v1.StreamService">>, <<"DeleteStream">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.StreamService', 'ReadByEventTypes') -> {<<"reckon.gateway.v1.StreamService">>, <<"ReadByEventTypes">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.StreamService', 'ReadByTags') -> {<<"reckon.gateway.v1.StreamService">>, <<"ReadByTags">>};
+service_and_rpc_name_to_fqbins('reckon.gateway.v1.StreamService', 'ReadByMetadata') -> {<<"reckon.gateway.v1.StreamService">>, <<"ReadByMetadata">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.StreamService', 'ReadAllGlobal') -> {<<"reckon.gateway.v1.StreamService">>, <<"ReadAllGlobal">>};
 service_and_rpc_name_to_fqbins(S, R) -> error({gpb_error, {badservice_or_rpc, {S, R}}}).
 
@@ -3736,6 +3931,7 @@ fqbin_to_msg_name(<<"reckon.gateway.v1.ListStreamsRequest">>) -> list_streams_re
 fqbin_to_msg_name(<<"reckon.gateway.v1.DeleteStreamRequest">>) -> delete_stream_request;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ReadByEventTypesRequest">>) -> read_by_event_types_request;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ReadByTagsRequest">>) -> read_by_tags_request;
+fqbin_to_msg_name(<<"reckon.gateway.v1.ReadByMetadataRequest">>) -> read_by_metadata_request;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ReadAllGlobalRequest">>) -> read_all_global_request;
 fqbin_to_msg_name(<<"reckon.gateway.v1.AppendEventsResponse">>) -> append_events_response;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ReadStreamResponse">>) -> read_stream_response;
@@ -3756,6 +3952,7 @@ msg_name_to_fqbin(list_streams_request) -> <<"reckon.gateway.v1.ListStreamsReque
 msg_name_to_fqbin(delete_stream_request) -> <<"reckon.gateway.v1.DeleteStreamRequest">>;
 msg_name_to_fqbin(read_by_event_types_request) -> <<"reckon.gateway.v1.ReadByEventTypesRequest">>;
 msg_name_to_fqbin(read_by_tags_request) -> <<"reckon.gateway.v1.ReadByTagsRequest">>;
+msg_name_to_fqbin(read_by_metadata_request) -> <<"reckon.gateway.v1.ReadByMetadataRequest">>;
 msg_name_to_fqbin(read_all_global_request) -> <<"reckon.gateway.v1.ReadAllGlobalRequest">>;
 msg_name_to_fqbin(append_events_response) -> <<"reckon.gateway.v1.AppendEventsResponse">>;
 msg_name_to_fqbin(read_stream_response) -> <<"reckon.gateway.v1.ReadStreamResponse">>;
@@ -3817,6 +4014,7 @@ get_msg_containment("reckon_streams") ->
      list_streams_response,
      read_all_global_request,
      read_by_event_types_request,
+     read_by_metadata_request,
      read_by_tags_request,
      read_stream_request,
      read_stream_response];
@@ -3844,6 +4042,7 @@ get_rpc_containment("reckon_streams") ->
      {'reckon.gateway.v1.StreamService', 'DeleteStream'},
      {'reckon.gateway.v1.StreamService', 'ReadByEventTypes'},
      {'reckon.gateway.v1.StreamService', 'ReadByTags'},
+     {'reckon.gateway.v1.StreamService', 'ReadByMetadata'},
      {'reckon.gateway.v1.StreamService', 'ReadAllGlobal'}];
 get_rpc_containment("reckon_shared") -> [];
 get_rpc_containment(P) -> error({gpb_error, {badproto, P}}).
@@ -3859,6 +4058,7 @@ get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.RecordedEvent">>) -> "reckon
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ProposedEvent">>) -> "reckon_shared";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ReadStreamRequest">>) -> "reckon_streams";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ReadByTagsRequest">>) -> "reckon_streams";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ReadByMetadataRequest">>) -> "reckon_streams";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ReadByEventTypesRequest">>) -> "reckon_streams";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ReadAllGlobalRequest">>) -> "reckon_streams";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ListStreamsRequest">>) -> "reckon_streams";

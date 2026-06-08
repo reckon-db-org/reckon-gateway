@@ -42,6 +42,10 @@
     -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
      | {error, grpc_stream:error_response()}.
 
+-callback read_by_metadata(reckon_streams_pb:read_by_metadata_request(), grpc:metadata())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
+
 -callback read_all_global(reckon_streams_pb:read_all_global_request(), grpc:metadata())
     -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
      | {error, grpc_stream:error_response()}.

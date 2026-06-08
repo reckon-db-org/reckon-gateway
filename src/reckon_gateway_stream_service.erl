@@ -22,6 +22,7 @@
     delete_stream/2,
     read_by_event_types/2,
     read_by_tags/2,
+    read_by_metadata/2,
     read_all_global/2
 ]).
 
@@ -189,6 +190,26 @@ read_by_tags(#{store_id := StoreIdBin,
                     {ok, #{events => Recorded}, Md};
                 {error, Reason} ->
                     reckon_gateway_error:wrap(read_by_tags, <<"13">>, Reason)
+            end
+    end.
+
+read_by_metadata(#{store_id := StoreIdBin,
+                   key := Key,
+                   value := Value,
+                   batch_size := BatchSize}, Md) ->
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            reckon_gateway_error:wrap(read_by_metadata, <<"3">>, invalid_store_id);
+        {ok, StoreId} ->
+            %% reckon_gater_api:read_by_metadata/3 returns all matches;
+            %% bound the wire response by batch_size at the gateway.
+            case reckon_gateway_dispatch:call(read_by_metadata, [StoreId, Key, Value]) of
+                {ok, Events} ->
+                    Limited = lists:sublist(Events, safe_count(BatchSize)),
+                    Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Limited],
+                    {ok, #{events => Recorded}, Md};
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(read_by_metadata, <<"13">>, Reason)
             end
     end.
 

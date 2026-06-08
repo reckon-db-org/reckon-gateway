@@ -197,6 +197,26 @@ read_by_tags(Req, Metadata, Options) ->
                            read_by_tags_request, read_stream_response, <<"reckon.gateway.v1.ReadByTagsRequest">>),
                       Req, Metadata, Options).
 
+-spec read_by_metadata(reckon_streams_pb:read_by_metadata_request())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_by_metadata(Req) ->
+    read_by_metadata(Req, #{}, #{}).
+
+-spec read_by_metadata(reckon_streams_pb:read_by_metadata_request(), grpc:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_by_metadata(Req, Options) ->
+    read_by_metadata(Req, #{}, Options).
+
+-spec read_by_metadata(reckon_streams_pb:read_by_metadata_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
+     | {error, term()}.
+read_by_metadata(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.StreamService/ReadByMetadata">>,
+                           read_by_metadata_request, read_stream_response, <<"reckon.gateway.v1.ReadByMetadataRequest">>),
+                      Req, Metadata, Options).
+
 -spec read_all_global(reckon_streams_pb:read_all_global_request())
     -> {ok, reckon_streams_pb:read_stream_response(), grpc:metadata()}
      | {error, term()}.

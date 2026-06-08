@@ -35,7 +35,9 @@
                                #{store_id   := atom(),
                                  data_dir   := string(),
                                  mode       := single | cluster,
-                                 cluster_id := atom()}.
+                                 cluster_id := atom(),
+                                 indexes    := [tags | event_type |
+                                                {meta, binary()}]}.
 
 -export_type([cluster_spec/0, embedded_store_spec/0]).
 
@@ -124,8 +126,29 @@ embedded_store_spec() ->
             #{store_id   => store_id(),
               data_dir   => data_dir(),
               mode       => store_mode(),
-              cluster_id => local_cluster_id()}
+              cluster_id => local_cluster_id(),
+              indexes    => store_indexes()}
     end.
+
+%% @private Declared secondary indexes for the embedded store (reckon-db
+%% 5.0.0+). Comma-separated list in RECKON_GATEWAY_STORE_INDEXES; each item
+%% is `tags', `event_type', or `meta:<key>'. Empty/unset → no indexes. e.g.
+%% `tags,event_type,meta:causation_id,meta:correlation_id'.
+store_indexes() ->
+    parse_indexes(env_string(store_indexes, "RECKON_GATEWAY_STORE_INDEXES", "")).
+
+parse_indexes(Str) ->
+    lists:append([decl_of(string:trim(Raw)) || Raw <- string:lexemes(Str, ",")]).
+
+%% Returns a one-element list with the decl, or [] to drop an invalid item.
+decl_of("") -> [];
+decl_of("tags") -> [tags];
+decl_of("event_type") -> [event_type];
+decl_of("meta:" ++ Key) when Key =/= "" -> [{meta, list_to_binary(Key)}];
+decl_of(Other) ->
+    logger:warning("[reckon_gateway_config] ignoring invalid index "
+                   "declaration ~ts in RECKON_GATEWAY_STORE_INDEXES", [Other]),
+    [].
 
 %% @private Tolerantly detect the on/off flag.
 enabled() ->

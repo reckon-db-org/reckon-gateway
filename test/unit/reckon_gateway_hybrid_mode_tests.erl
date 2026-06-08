@@ -54,7 +54,10 @@ hybrid_mode_test_() ->
         fun missing_data_dir_when_enabled_errors/1,
         fun invalid_store_mode_errors/1,
         fun local_cluster_id_defaults_to_local/1,
-        fun app_env_overrides_os_env/1
+        fun app_env_overrides_os_env/1,
+        fun indexes_default_empty/1,
+        fun indexes_parsed_from_env/1,
+        fun indexes_drop_invalid_items/1
     ]}.
 
 %% Catalogue mode (the default): nothing set, anywhere. MUST return
@@ -69,6 +72,44 @@ explicit_false_returns_disabled(_) ->
         application:set_env(reckon_gateway, store_enabled, "false"),
         ?assertEqual(disabled, reckon_gateway_config:embedded_store_spec())
     end.
+
+%% No RECKON_GATEWAY_STORE_INDEXES → empty index list (a store pays
+%% nothing unless it declares indexes).
+indexes_default_empty(_) ->
+    fun() ->
+        enable_minimal_store(),
+        ?assertMatch(#{indexes := []},
+                     reckon_gateway_config:embedded_store_spec())
+    end.
+
+%% Comma-separated tags / event_type / meta:<key> parse to the
+%% reckon-db store_config index_decl() shapes.
+indexes_parsed_from_env(_) ->
+    fun() ->
+        enable_minimal_store(),
+        application:set_env(reckon_gateway, store_indexes,
+                            "tags,event_type,meta:causation_id,meta:correlation_id"),
+        #{indexes := Indexes} = reckon_gateway_config:embedded_store_spec(),
+        ?assertEqual([tags, event_type,
+                      {meta, <<"causation_id">>}, {meta, <<"correlation_id">>}],
+                     Indexes)
+    end.
+
+%% Unrecognised items (and empty meta:) are dropped, valid ones kept.
+indexes_drop_invalid_items(_) ->
+    fun() ->
+        enable_minimal_store(),
+        application:set_env(reckon_gateway, store_indexes,
+                            "tags, bogus , meta: ,meta:k"),
+        #{indexes := Indexes} = reckon_gateway_config:embedded_store_spec(),
+        ?assertEqual([tags, {meta, <<"k">>}], Indexes)
+    end.
+
+%% @private minimal enabled-store env so embedded_store_spec/0 returns a map.
+enable_minimal_store() ->
+    application:set_env(reckon_gateway, store_enabled, "true"),
+    application:set_env(reckon_gateway, store_id, "idx_store"),
+    application:set_env(reckon_gateway, data_dir, "/tmp/idx_data").
 
 %% Mirrors what rebar3 sys.config.src looks like before substitution
 %% (and what a release built without the env vars set will see at
