@@ -60,6 +60,10 @@ child_spec() ->
             {"/v1/stores/:store_id/dcb/append",
              reckon_gateway_http_dcb, #{op => append}},
             %% Admin UI — served from priv/static/admin/
+            {"/admin",
+             cowboy_static, {priv_file, reckon_gateway, "static/admin/index.html"}},
+            {"/admin/",
+             cowboy_static, {priv_file, reckon_gateway, "static/admin/index.html"}},
             {"/admin/[...]",
              cowboy_static, {priv_dir, reckon_gateway, "static/admin"}}
         ]}
