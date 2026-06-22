@@ -20,10 +20,11 @@
 %%% Filter algebra is decoded from the recursive oneof in the proto
 %%% to the Erlang term shape reckon_gater_types:tag_filter() expects:
 %%%
-%%%   match_any   -> {any_of,  [Tag]}
-%%%   match_all   -> {all_of,  [Tag]}
-%%%   conjunction -> {and_,    [TagFilter]}
-%%%   disjunction -> {or_,     [TagFilter]}
+%%%   match_any        -> {any_of,     [Tag]}
+%%%   match_all        -> {all_of,     [Tag]}
+%%%   event_type_match -> {event_type, binary()}
+%%%   conjunction      -> {and_,       [TagFilter]}
+%%%   disjunction      -> {or_,        [TagFilter]}
 %%%
 %%% Per-event semantics for ReadDcbContext mirror
 %%% evoq_decision_runtime:match_filter/2 so polyglot consumers see
@@ -123,34 +124,52 @@ read_dcb_context(#{store_id := StoreIdBin,
 
 do_read(StoreId, Filter, BatchSize, Md) ->
     BS = safe_batch_size(BatchSize),
-    case collect_tags(Filter) of
-        [] ->
-            %% Vacuous compound filter, e.g., {or_, []}. No tags to
-            %% read; no events qualify.
+    AllTags = collect_tags(Filter),
+    AllEventTypes = collect_event_types(Filter),
+    case {AllTags, AllEventTypes} of
+        {[], []} ->
             {ok, #{events => [], max_seq => -1}, Md};
-        Tags ->
-            Opts = #{match => any, batch_size => BS},
-            case reckon_gateway_dispatch:call(read_by_tags,
-                                              [StoreId, Tags, Opts]) of
-                {ok, Events} ->
-                    DcbOnly = [E || E <- Events, is_dcb_event(E)],
-                    Matching = [E || E <- DcbOnly,
-                                     event_matches(E, Filter)],
+        _ ->
+            TagEvents = read_by_tags_or_empty(StoreId, AllTags, BS),
+            TypeEvents = read_by_event_types_or_empty(StoreId, AllEventTypes, BS),
+            case merge_and_filter(TagEvents, TypeEvents, Filter) of
+                {error, Reason} ->
+                    map_read_error(read_dcb_context, Reason);
+                {ok, Matching} ->
                     Recorded = [reckon_gateway_convert:event_to_recorded(E)
                                 || E <- Matching],
                     MaxSeq = compute_max_seq(Matching),
-                    {ok, #{events => Recorded, max_seq => MaxSeq}, Md};
-                {error, store_unknown} ->
-                    reckon_gateway_error:wrap(read_dcb_context,
-                                               <<"5">>, store_unknown);
-                {error, cluster_unavailable} ->
-                    reckon_gateway_error:wrap(read_dcb_context,
-                                               <<"14">>, cluster_unavailable);
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(read_dcb_context,
-                                               <<"13">>, Reason)
+                    {ok, #{events => Recorded, max_seq => MaxSeq}, Md}
             end
     end.
+
+read_by_tags_or_empty(_StoreId, [], _BS) -> {ok, []};
+read_by_tags_or_empty(StoreId, Tags, BS) ->
+    Opts = #{match => any, batch_size => BS},
+    reckon_gateway_dispatch:call(read_by_tags, [StoreId, Tags, Opts]).
+
+read_by_event_types_or_empty(_StoreId, [], _BS) -> {ok, []};
+read_by_event_types_or_empty(StoreId, EventTypes, BS) ->
+    reckon_gateway_dispatch:call(read_by_event_types, [StoreId, EventTypes, BS]).
+
+merge_and_filter({error, _} = E, _, _) -> E;
+merge_and_filter(_, {error, _} = E, _) -> E;
+merge_and_filter({ok, TagEvents}, {ok, TypeEvents}, Filter) ->
+    Seen = lists:foldl(
+        fun(E, Acc) -> maps:put(dcb_event_key(E), E, Acc) end,
+        #{}, TagEvents ++ TypeEvents),
+    DcbOnly = [E || E <- maps:values(Seen), is_dcb_event(E)],
+    {ok, [E || E <- DcbOnly, event_matches(E, Filter)]}.
+
+map_read_error(Op, store_unknown) ->
+    reckon_gateway_error:wrap(Op, <<"5">>, store_unknown);
+map_read_error(Op, cluster_unavailable) ->
+    reckon_gateway_error:wrap(Op, <<"14">>, cluster_unavailable);
+map_read_error(Op, Reason) ->
+    reckon_gateway_error:wrap(Op, <<"13">>, Reason).
+
+dcb_event_key(#event{version = V, stream_id = S}) -> {S, V};
+dcb_event_key(#{version := V, stream_id := S})    -> {S, V}.
 
 %%====================================================================
 %% TagFilter algebra
@@ -167,6 +186,8 @@ decode_filter(#{kind := {match_any, #{tags := Tags}}}) when is_list(Tags) ->
     {ok, {any_of, Tags}};
 decode_filter(#{kind := {match_all, #{tags := Tags}}}) when is_list(Tags) ->
     {ok, {all_of, Tags}};
+decode_filter(#{kind := {event_type_match, T}}) when is_binary(T), T =/= <<>> ->
+    {ok, {event_type, T}};
 decode_filter(#{kind := {conjunction, #{filters := Filters}}})
   when is_list(Filters) ->
     decode_subfilters(Filters, and_, []);
@@ -185,20 +206,39 @@ decode_subfilters([Sub | Rest], OpAtom, Acc) ->
     end.
 
 %% @doc Set (deduped list) of every tag referenced anywhere in a
-%% filter tree. Used to compute the broadest tag-superset for
-%% read_by_tags before client-side refinement.
+%% filter tree.
 -spec collect_tags(term()) -> [binary()].
 collect_tags({any_of, Tags}) when is_list(Tags) -> lists:usort(Tags);
 collect_tags({all_of, Tags}) when is_list(Tags) -> lists:usort(Tags);
+collect_tags({event_type, _}) -> [];
 collect_tags({and_, Filters}) when is_list(Filters) ->
     lists:usort(lists:flatmap(fun collect_tags/1, Filters));
 collect_tags({or_, Filters}) when is_list(Filters) ->
     lists:usort(lists:flatmap(fun collect_tags/1, Filters)).
 
-%% @doc Does an event's tag set satisfy the filter? Accepts both
+%% @doc Set (deduped list) of every event_type referenced anywhere
+%% in a filter tree.
+-spec collect_event_types(term()) -> [binary()].
+collect_event_types({any_of, _}) -> [];
+collect_event_types({all_of, _}) -> [];
+collect_event_types({event_type, T}) when is_binary(T) -> [T];
+collect_event_types({and_, Filters}) when is_list(Filters) ->
+    lists:usort(lists:flatmap(fun collect_event_types/1, Filters));
+collect_event_types({or_, Filters}) when is_list(Filters) ->
+    lists:usort(lists:flatmap(fun collect_event_types/1, Filters)).
+
+%% @doc Does an event satisfy the filter? Accepts both
 %% #event{} records (as returned by reckon_gater_api:read_by_tags/3)
 %% and raw maps (handy for unit testing without a real event).
+%%
+%% {event_type, T} matches against the event_type field, not tags.
 -spec event_matches(#event{} | map() | [binary()], term()) -> boolean().
+event_matches(#event{event_type = ET}, {event_type, T}) ->
+    ET =:= T;
+event_matches(Event, {event_type, T}) when is_map(Event) ->
+    maps:get(event_type, Event, maps:get(<<"event_type">>, Event, undefined)) =:= T;
+event_matches(_Tags, {event_type, _}) when is_list(_Tags) ->
+    false;
 event_matches(#event{tags = Tags}, Filter) ->
     match_tags(normalize_tags(Tags), Filter);
 event_matches(Event, Filter) when is_map(Event) ->
@@ -217,9 +257,9 @@ match_tags(Tags, {all_of, Wanted}) ->
         lists:all(fun(T) -> lists:member(T, Tags) end, Wanted);
 match_tags(Tags, {and_, Filters}) ->
     Filters =/= [] andalso
-        lists:all(fun(F) -> match_tags(Tags, F) end, Filters);
+        lists:all(fun(F) -> event_matches(Tags, F) end, Filters);
 match_tags(Tags, {or_, Filters}) ->
-    lists:any(fun(F) -> match_tags(Tags, F) end, Filters).
+    lists:any(fun(F) -> event_matches(Tags, F) end, Filters).
 
 %%====================================================================
 %% Internal

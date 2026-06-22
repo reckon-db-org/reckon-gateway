@@ -57,7 +57,7 @@
 
 %% message types
 -type tag_filter() ::
-      #{kind                    => {match_any, tag_list()} | {match_all, tag_list()} | {conjunction, filter_list()} | {disjunction, filter_list()} % oneof
+      #{kind                    => {match_any, tag_list()} | {match_all, tag_list()} | {conjunction, filter_list()} | {disjunction, filter_list()} | {event_type_match, unicode:chardata()} % oneof
        }.
 
 -type tag_list() ::
@@ -190,7 +190,8 @@ encode_msg_tag_filter(#{} = M, Bin, TrUserData) ->
                 {match_any, TF1} -> begin TrTF1 = id(TF1, TrUserData), e_mfield_tag_filter_match_any(TrTF1, <<Bin/binary, 10>>, TrUserData) end;
                 {match_all, TF1} -> begin TrTF1 = id(TF1, TrUserData), e_mfield_tag_filter_match_all(TrTF1, <<Bin/binary, 18>>, TrUserData) end;
                 {conjunction, TF1} -> begin TrTF1 = id(TF1, TrUserData), e_mfield_tag_filter_conjunction(TrTF1, <<Bin/binary, 26>>, TrUserData) end;
-                {disjunction, TF1} -> begin TrTF1 = id(TF1, TrUserData), e_mfield_tag_filter_disjunction(TrTF1, <<Bin/binary, 34>>, TrUserData) end
+                {disjunction, TF1} -> begin TrTF1 = id(TF1, TrUserData), e_mfield_tag_filter_disjunction(TrTF1, <<Bin/binary, 34>>, TrUserData) end;
+                {event_type_match, TF1} -> begin TrTF1 = id(TF1, TrUserData), e_type_string(TrTF1, <<Bin/binary, 42>>, TrUserData) end
             end;
         _ -> Bin
     end.
@@ -983,6 +984,7 @@ dfp_read_field_def_tag_filter(<<10, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) 
 dfp_read_field_def_tag_filter(<<18, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> d_field_tag_filter_match_all(Rest, Z1, Z2, F, F@_1, TrUserData);
 dfp_read_field_def_tag_filter(<<26, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> d_field_tag_filter_conjunction(Rest, Z1, Z2, F, F@_1, TrUserData);
 dfp_read_field_def_tag_filter(<<34, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> d_field_tag_filter_disjunction(Rest, Z1, Z2, F, F@_1, TrUserData);
+dfp_read_field_def_tag_filter(<<42, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> d_field_tag_filter_event_type_match(Rest, Z1, Z2, F, F@_1, TrUserData);
 dfp_read_field_def_tag_filter(<<>>, 0, 0, _, F@_1, _) ->
     S1 = #{},
     if F@_1 == '$undef' -> S1;
@@ -998,6 +1000,7 @@ dg_read_field_def_tag_filter(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, TrUserD
         18 -> d_field_tag_filter_match_all(Rest, 0, 0, 0, F@_1, TrUserData);
         26 -> d_field_tag_filter_conjunction(Rest, 0, 0, 0, F@_1, TrUserData);
         34 -> d_field_tag_filter_disjunction(Rest, 0, 0, 0, F@_1, TrUserData);
+        42 -> d_field_tag_filter_event_type_match(Rest, 0, 0, 0, F@_1, TrUserData);
         _ ->
             case Key band 7 of
                 0 -> skip_varint_tag_filter(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
@@ -1068,6 +1071,11 @@ d_field_tag_filter_disjunction(<<0:1, X:7, Rest/binary>>, N, Acc, F, Prev, TrUse
                                       _ -> id({disjunction, NewFValue}, TrUserData)
                                   end,
                                   TrUserData).
+
+d_field_tag_filter_event_type_match(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 57 -> d_field_tag_filter_event_type_match(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+d_field_tag_filter_event_type_match(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_tag_filter(RestF, 0, 0, F, id({event_type_match, NewFValue}, TrUserData), TrUserData).
 
 skip_varint_tag_filter(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> skip_varint_tag_filter(Rest, Z1, Z2, F, F@_1, TrUserData);
 skip_varint_tag_filter(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_tag_filter(Rest, Z1, Z2, F, F@_1, TrUserData).
@@ -2456,6 +2464,7 @@ v_msg_tag_filter(#{} = M, Path, TrUserData) ->
         #{kind := {match_all, OF1}} -> v_submsg_tag_list(OF1, [match_all, kind | Path], TrUserData);
         #{kind := {conjunction, OF1}} -> v_submsg_filter_list(OF1, [conjunction, kind | Path], TrUserData);
         #{kind := {disjunction, OF1}} -> v_submsg_filter_list(OF1, [disjunction, kind | Path], TrUserData);
+        #{kind := {event_type_match, OF1}} -> v_type_string(OF1, [event_type_match, kind | Path], TrUserData);
         #{kind := F1} -> mk_type_error(invalid_oneof, F1, [kind | Path]);
         _ -> ok
     end,
@@ -2972,7 +2981,8 @@ get_msg_defs() ->
              [#{name => match_any, fnum => 1, rnum => 2, type => {msg, tag_list}, occurrence => optional, opts => []},
               #{name => match_all, fnum => 2, rnum => 2, type => {msg, tag_list}, occurrence => optional, opts => []},
               #{name => conjunction, fnum => 3, rnum => 2, type => {msg, filter_list}, occurrence => optional, opts => []},
-              #{name => disjunction, fnum => 4, rnum => 2, type => {msg, filter_list}, occurrence => optional, opts => []}],
+              #{name => disjunction, fnum => 4, rnum => 2, type => {msg, filter_list}, occurrence => optional, opts => []},
+              #{name => event_type_match, fnum => 5, rnum => 2, type => string, occurrence => optional, opts => []}],
          opts => []}]},
      {{msg, tag_list}, [#{name => tags, fnum => 1, rnum => 2, type => string, occurrence => repeated, opts => []}]},
      {{msg, filter_list}, [#{name => filters, fnum => 1, rnum => 2, type => {msg, tag_filter}, occurrence => repeated, opts => []}]},
@@ -3063,7 +3073,8 @@ find_msg_def(tag_filter) ->
            [#{name => match_any, fnum => 1, rnum => 2, type => {msg, tag_list}, occurrence => optional, opts => []},
             #{name => match_all, fnum => 2, rnum => 2, type => {msg, tag_list}, occurrence => optional, opts => []},
             #{name => conjunction, fnum => 3, rnum => 2, type => {msg, filter_list}, occurrence => optional, opts => []},
-            #{name => disjunction, fnum => 4, rnum => 2, type => {msg, filter_list}, occurrence => optional, opts => []}],
+            #{name => disjunction, fnum => 4, rnum => 2, type => {msg, filter_list}, occurrence => optional, opts => []},
+            #{name => event_type_match, fnum => 5, rnum => 2, type => string, occurrence => optional, opts => []}],
        opts => []}];
 find_msg_def(tag_list) -> [#{name => tags, fnum => 1, rnum => 2, type => string, occurrence => repeated, opts => []}];
 find_msg_def(filter_list) -> [#{name => filters, fnum => 1, rnum => 2, type => {msg, tag_filter}, occurrence => repeated, opts => []}];

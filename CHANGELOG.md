@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.0 (2026-06-22)
+
+**DCB `TagFilter.event_type_match` (reckon-proto 0.7.0 / reckon-db 5.2.0).**
+
+- `TagFilter` oneof gains field 5: `event_type_match` (proto string).
+  Decodes to `{event_type, binary()}` in `reckon_gater_types:tag_filter()`.
+- `decode_filter/1`: new clause for `{event_type_match, T}`.
+- `collect_event_types/1`: new exported helper — mirrors `collect_tags/1`
+  for the event-type dimension.
+- `do_read/4` (ReadDcbContext): now unions tag-index + event-type-index reads
+  before client-side refinement. `collect_tags` returning `[]` no longer
+  produces an empty result when `{event_type, T}` is the top-level filter.
+- `event_matches/2`: handles `{event_type, T}` against both `#event{}` records
+  and event maps.
+- Generated `reckon_dcb_pb.erl` updated (reckon-proto → v0.7.0).
+- Backed by `[by_event_type]` Khepri index (reckon-db 5.2.0+); pre-5.2.0
+  events have no index entry and will not match.
+
 ## 0.9.0 (2026-06-08)
 
 **Adopt reckon-db 5.0.0 (Model C + secondary index).**
