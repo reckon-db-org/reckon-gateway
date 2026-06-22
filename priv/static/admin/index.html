@@ -272,6 +272,18 @@
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2zm3.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>
         By Tags
       </div>
+      <div class="nav-item" data-view="by-metadata" onclick="nav('by-metadata')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/><path d="M5.5 4a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1h-2z"/></svg>
+        By Metadata
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">DCB</div>
+      <div class="nav-item" data-view="dcb-context" onclick="nav('dcb-context')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        Context Query
+      </div>
     </div>
   </nav>
 
@@ -419,6 +431,101 @@
       </div>
     </div>
 
+    <!-- ── VIEW: BY METADATA ──────────────────────────────── -->
+    <div id="view-by-metadata" class="view">
+      <div class="page-header">
+        <h1>Events by Metadata</h1>
+        <p>Find events where a metadata key equals a specific value</p>
+      </div>
+      <div class="controls">
+        <input type="text" id="bymeta-key"   placeholder="metadata key"   style="width:180px"
+               onkeydown="if(event.key==='Enter')loadByMetadata()">
+        <input type="text" id="bymeta-value" placeholder="metadata value" style="width:200px"
+               onkeydown="if(event.key==='Enter')loadByMetadata()">
+        <input type="number" id="bymeta-limit" value="50" min="1" max="500">
+        <button class="btn btn-sm" onclick="loadByMetadata()">Search</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap" id="bymeta-table"><div class="empty">enter a key and value to search</div></div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: DCB CONTEXT ──────────────────────────────── -->
+    <div id="view-dcb-context" class="view">
+      <div class="page-header">
+        <h1>DCB Context Query</h1>
+        <p>Read the current Dynamic Consistency Boundary context for a tag filter</p>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:1rem">
+        <div class="card">
+          <div class="card-title">Tag Filter</div>
+          <div style="margin-bottom:0.75rem">
+            <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;flex-wrap:wrap">
+              <select id="dcb-filter-mode" onchange="onDcbModeChange()" style="flex:0 0 auto">
+                <option value="match_any">match_any (tags)</option>
+                <option value="match_all">match_all (tags)</option>
+                <option value="event_type">event_type</option>
+                <option value="raw">raw JSON</option>
+              </select>
+            </div>
+            <div id="dcb-tags-input-wrap">
+              <input type="text" id="dcb-tags-input" placeholder="tag1, tag2, tag3"
+                     style="width:100%" onkeydown="if(event.key==='Enter')loadDcbContext()">
+              <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.3rem">
+                Comma-separated tag values
+              </div>
+            </div>
+            <div id="dcb-type-input-wrap" style="display:none">
+              <input type="text" id="dcb-type-input" placeholder="my_event_type_v1"
+                     style="width:100%" onkeydown="if(event.key==='Enter')loadDcbContext()">
+              <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.3rem">
+                Single event type name
+              </div>
+            </div>
+            <div id="dcb-raw-input-wrap" style="display:none">
+              <textarea id="dcb-raw-input" rows="5"
+                style="width:100%;background:var(--bg);border:1px solid var(--border);
+                       color:var(--text);padding:0.5rem;border-radius:6px;
+                       font-family:var(--mono);font-size:0.75rem;resize:vertical"
+                placeholder='{"and": [{"match_any": ["user:123"]}, {"event_type": "seat_reserved_v1"}]}'></textarea>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <label style="font-size:0.78rem;color:var(--text-muted)">Batch size</label>
+            <input type="number" id="dcb-batch" value="1000" min="1" max="10000" style="width:90px">
+            <button class="btn btn-sm" onclick="loadDcbContext()">Query Context</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Result</div>
+          <div class="kv" id="dcb-result-meta">
+            <div class="kv-row">
+              <span class="kv-key">max_seq</span>
+              <span class="kv-val" id="dcb-max-seq">—</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-key">events matched</span>
+              <span class="kv-val" id="dcb-event-count">—</span>
+            </div>
+          </div>
+          <div style="margin-top:0.75rem;font-size:0.72rem;color:var(--text-dim);line-height:1.5">
+            <strong style="color:var(--text-muted)">max_seq</strong> is the sequence number to pass
+            as <code style="font-family:var(--mono)">seq_cutoff</code> in a conditional append to
+            ensure no matching events appeared since you read.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:0.5rem">Matched Events</div>
+        <div class="tbl-wrap" id="dcb-events-table">
+          <div class="empty">run a context query to see matching DCB events</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -453,6 +560,8 @@ function nav(view) {
   if (view === 'global')       { /* user clicks Load */ }
   if (view === 'by-type')      { /* user types + searches */ }
   if (view === 'by-tags')      { /* user types + searches */ }
+  if (view === 'by-metadata')  { /* user types + searches */ }
+  if (view === 'dcb-context')  { /* user builds filter + queries */ }
 }
 
 // ── STORE SELECTOR ───────────────────────────────────────────
@@ -721,6 +830,95 @@ async function loadByTags() {
     renderEventTable('bytags-table', d.events || [], true);
   } catch(e) {
     document.getElementById('bytags-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+// ── BY METADATA ───────────────────────────────────────────────
+async function loadByMetadata() {
+  if (!S.currentStore) { alert('Select a store first'); return; }
+  const key   = document.getElementById('bymeta-key').value.trim();
+  const value = document.getElementById('bymeta-value').value.trim();
+  const limit = parseInt(document.getElementById('bymeta-limit').value) || 50;
+  if (!key || !value) return;
+
+  document.getElementById('bymeta-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const params = new URLSearchParams({ key, value, limit });
+    const d = await api(`/v1/stores/${S.currentStore}/events/by-metadata?${params}`);
+    renderEventTable('bymeta-table', d.events || [], true);
+  } catch(e) {
+    document.getElementById('bymeta-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+// ── DCB CONTEXT ───────────────────────────────────────────────
+function onDcbModeChange() {
+  const mode = document.getElementById('dcb-filter-mode').value;
+  document.getElementById('dcb-tags-input-wrap').style.display =
+    (mode === 'match_any' || mode === 'match_all') ? '' : 'none';
+  document.getElementById('dcb-type-input-wrap').style.display =
+    mode === 'event_type' ? '' : 'none';
+  document.getElementById('dcb-raw-input-wrap').style.display =
+    mode === 'raw' ? '' : 'none';
+}
+
+function buildDcbFilter() {
+  const mode = document.getElementById('dcb-filter-mode').value;
+  if (mode === 'match_any') {
+    const tags = document.getElementById('dcb-tags-input').value
+      .split(',').map(t => t.trim()).filter(Boolean);
+    if (!tags.length) throw new Error('enter at least one tag');
+    return { match_any: tags };
+  }
+  if (mode === 'match_all') {
+    const tags = document.getElementById('dcb-tags-input').value
+      .split(',').map(t => t.trim()).filter(Boolean);
+    if (!tags.length) throw new Error('enter at least one tag');
+    return { match_all: tags };
+  }
+  if (mode === 'event_type') {
+    const t = document.getElementById('dcb-type-input').value.trim();
+    if (!t) throw new Error('enter an event type');
+    return { event_type: t };
+  }
+  if (mode === 'raw') {
+    const raw = document.getElementById('dcb-raw-input').value.trim();
+    if (!raw) throw new Error('enter a JSON filter');
+    return JSON.parse(raw);
+  }
+}
+
+async function loadDcbContext() {
+  if (!S.currentStore) { alert('Select a store first'); return; }
+  let filter;
+  try { filter = buildDcbFilter(); }
+  catch(e) {
+    document.getElementById('dcb-events-table').innerHTML =
+      `<div class="error-msg">Filter error: ${e.message}</div>`;
+    return;
+  }
+  const batchSize = parseInt(document.getElementById('dcb-batch').value) || 1000;
+
+  document.getElementById('dcb-events-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  document.getElementById('dcb-max-seq').textContent = '…';
+  document.getElementById('dcb-event-count').textContent = '…';
+
+  try {
+    const r = await fetch(`/v1/stores/${S.currentStore}/dcb/context`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tag_filter: filter, batch_size: batchSize }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    const events = d.events || [];
+    document.getElementById('dcb-max-seq').textContent = d.max_seq ?? '—';
+    document.getElementById('dcb-event-count').textContent = events.length;
+    renderEventTable('dcb-events-table', events, false);
+  } catch(e) {
+    document.getElementById('dcb-events-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+    document.getElementById('dcb-max-seq').textContent = 'error';
+    document.getElementById('dcb-event-count').textContent = '—';
   }
 }
 
