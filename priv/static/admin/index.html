@@ -5,109 +5,782 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ReckonDB Admin</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
-    header { border-bottom: 1px solid #1e293b; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
-    header h1 { font-size: 1.25rem; font-weight: 600; color: #f8fafc; }
-    header span { font-size: 0.75rem; background: #1e40af; color: #93c5fd; padding: 0.2rem 0.5rem; border-radius: 4px; }
-    main { padding: 2rem; max-width: 1200px; }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
-    .card h2 { font-size: 0.875rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
-    .status { display: inline-flex; align-items: center; gap: 0.5rem; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
-    .dot.degraded { background: #eab308; }
-    .dot.unhealthy { background: #ef4444; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    th { text-align: left; padding: 0.5rem 0.75rem; color: #64748b; font-weight: 500; border-bottom: 1px solid #334155; }
-    td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #1e293b; color: #cbd5e1; font-family: monospace; }
-    tr:last-child td { border-bottom: none; }
-    .empty { color: #475569; font-style: italic; text-align: center; padding: 2rem; }
-    button { background: #1e40af; color: #93c5fd; border: none; padding: 0.4rem 0.9rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-    button:hover { background: #1d4ed8; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d1117;
+      --surface:    #161b22;
+      --card:       #1c2333;
+      --border:     #30363d;
+      --border-dim: #21262d;
+      --text:       #e6edf3;
+      --text-muted: #8b949e;
+      --text-dim:   #484f58;
+      --accent:     #7c3aed;
+      --accent-dim: #6d28d9;
+      --green:      #3fb950;
+      --yellow:     #d29922;
+      --red:        #f85149;
+      --blue:       #58a6ff;
+      --mono:       'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+
+    html, body { height: 100%; }
+    body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px;
+           background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+
+    /* ── HEADER ─────────────────────────────────────────────── */
+    #header {
+      height: 52px; flex-shrink: 0;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 1.25rem; gap: 1rem;
+      position: sticky; top: 0; z-index: 100;
+    }
+    #header .brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem; }
+    #header .brand svg { color: var(--accent); }
+    #store-selector {
+      margin-left: 1rem;
+      background: var(--card); border: 1px solid var(--border); color: var(--text);
+      padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;
+      min-width: 140px;
+    }
+    #store-selector:focus { outline: none; border-color: var(--accent); }
+    .spacer { flex: 1; }
+    #header-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+    .status-dot.healthy   { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.degraded  { background: var(--yellow); }
+    .status-dot.unhealthy { background: var(--red); }
+    #header-version { font-size: 0.7rem; color: var(--text-dim); font-family: var(--mono); }
+
+    /* ── LAYOUT ─────────────────────────────────────────────── */
+    #layout { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── SIDEBAR ─────────────────────────────────────────────── */
+    #sidebar {
+      width: 200px; flex-shrink: 0;
+      background: var(--surface); border-right: 1px solid var(--border);
+      padding: 1rem 0; overflow-y: auto;
+    }
+    .nav-section { margin-bottom: 1.25rem; }
+    .nav-label {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-dim);
+      padding: 0 1rem 0.4rem;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 1rem; font-size: 0.85rem; color: var(--text-muted);
+      cursor: pointer; border-left: 2px solid transparent;
+      transition: color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--text); border-left-color: var(--accent); background: rgba(124,58,237,0.08); }
+    .nav-item svg { flex-shrink: 0; opacity: 0.7; }
+    .nav-item.active svg { opacity: 1; }
+
+    /* ── MAIN ────────────────────────────────────────────────── */
+    #main { flex: 1; overflow-y: auto; padding: 1.5rem; }
+
+    /* ── VIEWS ───────────────────────────────────────────────── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── PAGE HEADER ─────────────────────────────────────────── */
+    .page-header { margin-bottom: 1.25rem; }
+    .page-header h1 { font-size: 1.1rem; font-weight: 600; }
+    .page-header p  { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .breadcrumb { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .breadcrumb span { cursor: pointer; }
+    .breadcrumb span:hover { color: var(--text); }
+    .breadcrumb .sep { margin: 0 0.35rem; opacity: 0.4; }
+
+    /* ── CARDS / GRID ─────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 1rem;
+    }
+    .card-title {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 0.75rem;
+    }
+    .kv { display: flex; flex-direction: column; gap: 0.4rem; }
+    .kv-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.8rem; }
+    .kv-key { color: var(--text-muted); }
+    .kv-val { font-family: var(--mono); color: var(--text); font-size: 0.75rem; }
+
+    .stat-big { font-size: 1.75rem; font-weight: 700; line-height: 1; margin-bottom: 0.25rem; }
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* ── TABLE ───────────────────────────────────────────────── */
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th {
+      text-align: left; padding: 0.5rem 0.75rem; color: var(--text-muted);
+      font-weight: 500; border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border-dim); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    tbody tr.clickable { cursor: pointer; }
+    tbody td { padding: 0.5rem 0.75rem; color: var(--text); vertical-align: top; }
+    .mono { font-family: var(--mono); font-size: 0.75rem; }
+    .muted { color: var(--text-muted); }
+    .truncate { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── BADGES ──────────────────────────────────────────────── */
+    .badge {
+      display: inline-block; font-size: 0.65rem; font-weight: 600;
+      padding: 0.15rem 0.45rem; border-radius: 4px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .badge-green  { background: rgba(63,185,80,0.15);  color: var(--green); }
+    .badge-yellow { background: rgba(210,153,34,0.15); color: var(--yellow); }
+    .badge-red    { background: rgba(248,81,73,0.15);  color: var(--red); }
+    .badge-blue   { background: rgba(88,166,255,0.15); color: var(--blue); }
+    .badge-purple { background: rgba(124,58,237,0.15); color: #a78bfa; }
+
+    /* ── CONTROLS ────────────────────────────────────────────── */
+    .controls { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    input[type=text], input[type=number], select {
+      background: var(--card); border: 1px solid var(--border); color: var(--text);
+      padding: 0.4rem 0.65rem; border-radius: 6px; font-size: 0.82rem; font-family: inherit;
+    }
+    input[type=text]:focus, input[type=number]:focus, select:focus {
+      outline: none; border-color: var(--accent);
+    }
+    input[type=text]::placeholder { color: var(--text-dim); }
+    input[type=number] { width: 90px; }
+
+    .btn {
+      background: var(--accent); color: #fff; border: none;
+      padding: 0.4rem 0.85rem; border-radius: 6px; font-size: 0.82rem;
+      cursor: pointer; font-family: inherit; font-weight: 500;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: var(--accent-dim); }
+    .btn-ghost {
+      background: transparent; color: var(--text-muted); border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.75rem; }
+
+    /* ── PAGINATION ──────────────────────────────────────────── */
+    .pagination { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; }
+    .pagination .info { font-size: 0.75rem; color: var(--text-muted); margin-right: auto; }
+
+    /* ── EVENT DETAIL ────────────────────────────────────────── */
+    .event-detail {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.75rem; margin-top: 0.5rem;
+      font-family: var(--mono); font-size: 0.75rem; color: var(--text);
+      white-space: pre-wrap; word-break: break-all; line-height: 1.5;
+      max-height: 300px; overflow-y: auto;
+    }
+
+    /* ── EMPTY / ERROR ───────────────────────────────────────── */
+    .empty { padding: 2.5rem; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+    .error-msg { color: var(--red); font-size: 0.8rem; padding: 0.5rem 0; }
+
+    /* ── SPINNER ─────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── COPY BUTTON ─────────────────────────────────────────── */
+    .copy-btn {
+      background: none; border: none; color: var(--text-dim); cursor: pointer;
+      padding: 0 0.2rem; font-size: 0.75rem; vertical-align: middle;
+    }
+    .copy-btn:hover { color: var(--text); }
+
+    /* ── NO STORE NOTICE ─────────────────────────────────────── */
+    #no-store-notice {
+      display: none; padding: 1.5rem; text-align: center; color: var(--yellow);
+      font-size: 0.85rem; background: rgba(210,153,34,0.08);
+      border: 1px solid rgba(210,153,34,0.25); border-radius: 8px; margin-bottom: 1rem;
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>ReckonDB Admin</h1>
-    <span id="gw-version">loading…</span>
-  </header>
-  <main>
-    <div class="card">
-      <h2>Gateway Health</h2>
-      <div id="gw-health" class="empty">loading…</div>
+
+<!-- ── HEADER ──────────────────────────────────────────────── -->
+<div id="header">
+  <div class="brand">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="10" cy="10" r="3" fill="currentColor"/>
+      <line x1="10" y1="2" x2="10" y2="6"  stroke="currentColor" stroke-width="1.5"/>
+      <line x1="10" y1="14" x2="10" y2="18" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="2"  y1="10" x2="6"  y2="10" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="14" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1.5"/>
+    </svg>
+    ReckonDB Admin
+  </div>
+  <select id="store-selector" onchange="onStoreChange()">
+    <option value="">— no stores —</option>
+  </select>
+  <div class="spacer"></div>
+  <div id="header-status">
+    <div class="status-dot" id="hdr-dot"></div>
+    <span id="hdr-status-text">connecting…</span>
+  </div>
+  <div id="header-version"></div>
+</div>
+
+<!-- ── LAYOUT ──────────────────────────────────────────────── -->
+<div id="layout">
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">Gateway</div>
+      <div class="nav-item active" data-view="overview" onclick="nav('overview')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/></svg>
+        Overview
+      </div>
+      <div class="nav-item" data-view="server-info" onclick="nav('server-info')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h11A1.5 1.5 0 0 1 15 2.5v2.764c0 .695-.301 1.32-.778 1.752A.5.5 0 0 1 14 7.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-7a.5.5 0 0 1-.222-.484A2.49 2.49 0 0 1 1 5.264V2.5zM10 7H6v7h4V7zm1 7h1.5a.5.5 0 0 0 .5-.5v-7h-2v7zm-8-.5a.5.5 0 0 0 .5.5H5V7H3v6.5zM14 6H2a1.5 1.5 0 1 0 0-3h12a1.5 1.5 0 1 0 0 3z"/></svg>
+        Server Info
+      </div>
     </div>
-    <div class="card">
-      <h2>Stores <button onclick="loadStores()">Refresh</button></h2>
-      <div id="stores-table"><p class="empty">loading…</p></div>
+
+    <div class="nav-section">
+      <div class="nav-label">Store</div>
+      <div class="nav-item" data-view="streams" onclick="nav('streams')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v2h6a.5.5 0 0 1 .5.5v1h2V6a.5.5 0 0 1 .5-.5h6v-2A1.5 1.5 0 0 0 14.5 2h-13zm13 5a.5.5 0 0 1 .5.5v1h-4.5V8a.5.5 0 0 0-1 0v.5H5V8a.5.5 0 0 0-1 0v.5H0v4A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5V7.5a.5.5 0 0 1 .5.5z"/></svg>
+        Streams
+      </div>
+      <div class="nav-item" data-view="global" onclick="nav('global')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2H2a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2z"/></svg>
+        Global Log
+      </div>
+      <div class="nav-item" data-view="by-type" onclick="nav('by-type')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M3 4.5h10a2 2 0 0 1 0 4H5a1 1 0 0 0 0 2h8a.5.5 0 0 1 0 1H5a2 2 0 0 1 0-4h8a1 1 0 1 0 0-2H3a.5.5 0 0 1 0-1z"/></svg>
+        By Event Type
+      </div>
+      <div class="nav-item" data-view="by-tags" onclick="nav('by-tags')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2zm3.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>
+        By Tags
+      </div>
     </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main id="main">
+    <div id="no-store-notice">No stores registered on this gateway. Connect a ReckonDB store to explore events.</div>
+
+    <!-- ── VIEW: OVERVIEW ─────────────────────────────────── -->
+    <div id="view-overview" class="view active">
+      <div class="page-header">
+        <h1>Overview</h1>
+        <p>Gateway health and registered stores</p>
+      </div>
+      <div class="grid-3" id="overview-stats">
+        <div class="card"><div class="stat-big" id="ov-status-text">—</div><div class="stat-label">Gateway Status</div></div>
+        <div class="card"><div class="stat-big" id="ov-stores-count">—</div><div class="stat-label">Registered Stores</div></div>
+        <div class="card"><div class="stat-big" id="ov-node">—</div><div class="stat-label">BEAM Node</div></div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Registered Stores</div>
+        <div class="tbl-wrap" id="ov-stores-table"><div class="empty">loading…</div></div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: SERVER INFO ──────────────────────────────── -->
+    <div id="view-server-info" class="view">
+      <div class="page-header">
+        <h1>Server Info</h1>
+        <p>Version and configuration for the selected store</p>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Versions</div>
+          <div class="kv" id="si-versions"><div class="empty">select a store</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Integrity</div>
+          <div class="kv" id="si-integrity"><div class="empty">select a store</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: STREAMS ──────────────────────────────────── -->
+    <div id="view-streams" class="view">
+      <div class="page-header">
+        <h1>Streams</h1>
+        <p>All streams in the selected store</p>
+      </div>
+      <div class="controls">
+        <input type="text" id="stream-filter" placeholder="Filter streams…" oninput="filterStreams()" style="width:220px">
+        <button class="btn btn-ghost btn-sm" onclick="loadStreams()">↺ Refresh</button>
+        <span class="muted" id="streams-count" style="font-size:0.75rem"></span>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap" id="streams-table"><div class="empty">select a store</div></div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: STREAM DETAIL ────────────────────────────── -->
+    <div id="view-stream-detail" class="view">
+      <div class="breadcrumb">
+        <span onclick="nav('streams')">Streams</span>
+        <span class="sep">›</span>
+        <span id="detail-stream-id" style="color:var(--text)"></span>
+      </div>
+      <div class="page-header">
+        <h1 id="detail-stream-title"></h1>
+        <p id="detail-stream-meta"></p>
+      </div>
+      <div class="controls">
+        <label style="font-size:0.78rem;color:var(--text-muted)">From</label>
+        <input type="number" id="detail-from" value="0" min="0">
+        <label style="font-size:0.78rem;color:var(--text-muted)">Limit</label>
+        <input type="number" id="detail-limit" value="50" min="1" max="500">
+        <select id="detail-dir">
+          <option value="forward">Forward</option>
+          <option value="backward">Backward</option>
+        </select>
+        <button class="btn btn-sm" onclick="loadStreamEvents()">Load</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap" id="detail-events-table"><div class="empty">click Load to fetch events</div></div>
+      </div>
+      <div class="pagination" id="detail-pagination"></div>
+    </div>
+
+    <!-- ── VIEW: GLOBAL LOG ───────────────────────────────── -->
+    <div id="view-global" class="view">
+      <div class="page-header">
+        <h1>Global Event Log</h1>
+        <p>All events across all streams, ordered by global sequence</p>
+      </div>
+      <div class="controls">
+        <label style="font-size:0.78rem;color:var(--text-muted)">Offset</label>
+        <input type="number" id="global-from" value="0" min="0">
+        <label style="font-size:0.78rem;color:var(--text-muted)">Limit</label>
+        <input type="number" id="global-limit" value="50" min="1" max="500">
+        <select id="global-dir">
+          <option value="forward">Forward</option>
+          <option value="backward">Backward</option>
+        </select>
+        <button class="btn btn-sm" onclick="loadGlobal()">Load</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap" id="global-table"><div class="empty">click Load to fetch events</div></div>
+      </div>
+      <div class="pagination" id="global-pagination"></div>
+    </div>
+
+    <!-- ── VIEW: BY EVENT TYPE ────────────────────────────── -->
+    <div id="view-by-type" class="view">
+      <div class="page-header">
+        <h1>Events by Type</h1>
+        <p>Browse all events of a specific type across all streams</p>
+      </div>
+      <div class="controls">
+        <input type="text" id="bytype-input" placeholder="type1, type2, …" style="width:260px"
+               onkeydown="if(event.key==='Enter')loadByType()">
+        <input type="number" id="bytype-limit" value="50" min="1" max="500">
+        <button class="btn btn-sm" onclick="loadByType()">Search</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap" id="bytype-table"><div class="empty">enter an event type and search</div></div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: BY TAGS ──────────────────────────────────── -->
+    <div id="view-by-tags" class="view">
+      <div class="page-header">
+        <h1>Events by Tags</h1>
+        <p>Find events matching a tag filter</p>
+      </div>
+      <div class="controls" style="flex-wrap:wrap;gap:0.5rem">
+        <input type="text" id="bytags-input" placeholder="tag1, tag2, tag3 (match any)" style="width:300px"
+               onkeydown="if(event.key==='Enter')loadByTags()">
+        <select id="bytags-mode">
+          <option value="any">Match any</option>
+          <option value="all">Match all</option>
+        </select>
+        <input type="number" id="bytags-limit" value="50" min="1" max="500">
+        <button class="btn btn-sm" onclick="loadByTags()">Search</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap" id="bytags-table"><div class="empty">enter tags and search</div></div>
+      </div>
+    </div>
+
   </main>
+</div>
 
-  <script>
-    const API = '';  // same origin
+<script>
+// ── STATE ────────────────────────────────────────────────────
+const S = {
+  stores: [],
+  currentStore: null,
+  currentStream: null,
+  allStreams: [],
+};
 
-    async function get(path) {
-      const r = await fetch(API + path);
-      return r.json();
+// ── API ──────────────────────────────────────────────────────
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+// ── NAVIGATION ───────────────────────────────────────────────
+function nav(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('view-' + view);
+  if (el) el.classList.add('active');
+  const ni = document.querySelector(`.nav-item[data-view="${view}"]`);
+  if (ni) ni.classList.add('active');
+
+  if (view === 'overview')     loadOverview();
+  if (view === 'server-info')  loadServerInfo();
+  if (view === 'streams')      loadStreams();
+  if (view === 'global')       { /* user clicks Load */ }
+  if (view === 'by-type')      { /* user types + searches */ }
+  if (view === 'by-tags')      { /* user types + searches */ }
+}
+
+// ── STORE SELECTOR ───────────────────────────────────────────
+async function initStores() {
+  try {
+    const d = await api('/v1/stores');
+    S.stores = d.instances || [];
+    const sel = document.getElementById('store-selector');
+    sel.innerHTML = S.stores.length === 0
+      ? '<option value="">— no stores —</option>'
+      : S.stores.map(s => `<option value="${s.store_id}">${s.store_id}</option>`).join('');
+    if (S.stores.length > 0) {
+      S.currentStore = S.stores[0].store_id;
     }
+    document.getElementById('no-store-notice').style.display =
+      S.stores.length === 0 ? 'block' : 'none';
+  } catch(e) {
+    console.error('initStores', e);
+  }
+}
 
-    async function loadHealth() {
-      try {
-        const d = await get('/v1/health');
-        const dot = d.status === 'healthy' ? 'dot' : d.status === 'degraded' ? 'dot degraded' : 'dot unhealthy';
-        document.getElementById('gw-health').innerHTML =
-          `<span class="status"><span class="${dot}"></span>${d.status}</span>
-           &nbsp;·&nbsp; node: <code>${d.node}</code>
-           &nbsp;·&nbsp; catalogue_size: ${d.catalogue_size}`;
-      } catch (e) {
-        document.getElementById('gw-health').textContent = 'error: ' + e.message;
-      }
+function onStoreChange() {
+  S.currentStore = document.getElementById('store-selector').value || null;
+  const active = document.querySelector('.view.active');
+  if (active) {
+    const view = active.id.replace('view-', '');
+    nav(view);
+  }
+}
+
+// ── HEADER HEALTH POLL ───────────────────────────────────────
+async function pollHealth() {
+  try {
+    const d = await api('/v1/health');
+    const dot = document.getElementById('hdr-dot');
+    dot.className = 'status-dot ' + (d.status || 'unhealthy');
+    document.getElementById('hdr-status-text').textContent = d.status;
+  } catch(_) {
+    document.getElementById('hdr-dot').className = 'status-dot unhealthy';
+    document.getElementById('hdr-status-text').textContent = 'unreachable';
+  }
+}
+
+async function initVersion() {
+  if (!S.currentStore) return;
+  try {
+    const d = await api(`/v1/server-info/${S.currentStore}`);
+    document.getElementById('header-version').textContent =
+      `gw ${d.reckon_gateway_version} · db ${d.reckon_db_version}`;
+  } catch(_) {}
+}
+
+// ── OVERVIEW ─────────────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const [health, stores] = await Promise.all([
+      api('/v1/health'),
+      api('/v1/stores'),
+    ]);
+    document.getElementById('ov-status-text').textContent = health.status;
+    document.getElementById('ov-stores-count').textContent = (stores.instances||[]).length;
+    document.getElementById('ov-node').textContent = (health.node||'').replace(/^.*@/, '');
+
+    const rows = (stores.instances||[]).map(s => `
+      <tr class="clickable" onclick="selectStoreAndNav('${s.store_id}','streams')">
+        <td class="mono">${s.store_id}</td>
+        <td class="mono muted">${s.node}</td>
+        <td><span class="badge badge-blue">${s.mode}</span></td>
+        <td class="mono muted truncate">${s.data_dir||'—'}</td>
+      </tr>`).join('');
+    document.getElementById('ov-stores-table').innerHTML = rows
+      ? `<table><thead><tr><th>Store ID</th><th>Node</th><th>Mode</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<div class="empty">No stores registered</div>';
+  } catch(e) {
+    document.getElementById('ov-stores-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+function selectStoreAndNav(storeId, view) {
+  S.currentStore = storeId;
+  document.getElementById('store-selector').value = storeId;
+  nav(view);
+}
+
+// ── SERVER INFO ───────────────────────────────────────────────
+async function loadServerInfo() {
+  if (!S.currentStore) {
+    ['si-versions','si-integrity'].forEach(id =>
+      document.getElementById(id).innerHTML = '<div class="empty">select a store first</div>');
+    return;
+  }
+  try {
+    const d = await api(`/v1/server-info/${S.currentStore}`);
+    document.getElementById('si-versions').innerHTML = kv([
+      ['API',             d.api_compatibility_version],
+      ['Gateway',         d.reckon_gateway_version],
+      ['ReckonDB',        d.reckon_db_version],
+    ]);
+    document.getElementById('si-integrity').innerHTML = kv([
+      ['Enabled',  d.integrity_enabled ? '✓ yes' : 'no'],
+      ['Algorithm', d.integrity_algo || '—'],
+      ['Key ID',    d.hmac_key_id || '—'],
+    ]);
+  } catch(e) {
+    document.getElementById('si-versions').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+function kv(pairs) {
+  return '<div class="kv">' + pairs.map(([k,v]) =>
+    `<div class="kv-row"><span class="kv-key">${k}</span><span class="kv-val">${esc(String(v))}</span></div>`
+  ).join('') + '</div>';
+}
+
+// ── STREAMS ───────────────────────────────────────────────────
+async function loadStreams() {
+  if (!S.currentStore) {
+    document.getElementById('streams-table').innerHTML = '<div class="empty">select a store first</div>';
+    return;
+  }
+  document.getElementById('streams-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const d = await api(`/v1/stores/${S.currentStore}/streams`);
+    S.allStreams = d.stream_ids || [];
+    renderStreams(S.allStreams);
+  } catch(e) {
+    document.getElementById('streams-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+function filterStreams() {
+  const q = document.getElementById('stream-filter').value.toLowerCase();
+  renderStreams(q ? S.allStreams.filter(s => s.toLowerCase().includes(q)) : S.allStreams);
+}
+
+function renderStreams(streams) {
+  document.getElementById('streams-count').textContent = `${streams.length} stream${streams.length!==1?'s':''}`;
+  if (!streams.length) {
+    document.getElementById('streams-table').innerHTML = '<div class="empty">No streams found</div>';
+    return;
+  }
+  const rows = streams.map(s => `
+    <tr class="clickable" onclick="openStream('${esc(s)}')">
+      <td class="mono">${esc(s)}</td>
+    </tr>`).join('');
+  document.getElementById('streams-table').innerHTML =
+    `<table><thead><tr><th>Stream ID</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function openStream(streamId) {
+  S.currentStream = streamId;
+  document.getElementById('detail-stream-id').textContent = streamId;
+  document.getElementById('detail-stream-title').textContent = streamId;
+  document.getElementById('detail-stream-meta').textContent = `Store: ${S.currentStore}`;
+  document.getElementById('detail-from').value = 0;
+  document.getElementById('detail-limit').value = 50;
+  document.getElementById('detail-dir').value = 'forward';
+  document.getElementById('detail-events-table').innerHTML = '<div class="empty">click Load to fetch events</div>';
+  document.getElementById('detail-pagination').innerHTML = '';
+  // show view without triggering the sidebar auto-load
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-stream-detail').classList.add('active');
+  const ni = document.querySelector('.nav-item[data-view="streams"]');
+  if (ni) ni.classList.add('active');
+}
+
+async function loadStreamEvents() {
+  if (!S.currentStore || !S.currentStream) return;
+  const from  = parseInt(document.getElementById('detail-from').value) || 0;
+  const limit = parseInt(document.getElementById('detail-limit').value) || 50;
+  const dir   = document.getElementById('detail-dir').value;
+  const store = S.currentStore;
+  const sid   = S.currentStream;
+
+  document.getElementById('detail-events-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const params = new URLSearchParams({ from, limit, dir });
+    const d = await api(`/v1/stores/${store}/streams/${encodeURIComponent(sid)}/events?${params}`);
+    renderEventTable('detail-events-table', d.events || []);
+
+    // pagination hint
+    const evts = d.events || [];
+    const pagination = document.getElementById('detail-pagination');
+    if (evts.length === limit) {
+      const nextFrom = dir === 'forward'
+        ? (evts[evts.length-1].version + 1)
+        : Math.max(0, from - limit);
+      pagination.innerHTML =
+        `<span class="info">${evts.length} events shown</span>
+         <button class="btn btn-ghost btn-sm" onclick="
+           document.getElementById('detail-from').value=${nextFrom};
+           loadStreamEvents()">Next →</button>`;
+    } else {
+      pagination.innerHTML = `<span class="info">${evts.length} events</span>`;
     }
+  } catch(e) {
+    document.getElementById('detail-events-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
 
-    async function loadStores() {
-      try {
-        const d = await get('/v1/stores');
-        const instances = d.instances || [];
-        if (instances.length === 0) {
-          document.getElementById('stores-table').innerHTML = '<p class="empty">No stores registered</p>';
-          return;
-        }
-        const rows = instances.map(s =>
-          `<tr>
-            <td>${s.store_id}</td>
-            <td>${s.node}</td>
-            <td>${s.mode}</td>
-            <td>${s.data_dir || '—'}</td>
-          </tr>`).join('');
-        document.getElementById('stores-table').innerHTML =
-          `<table>
-            <thead><tr><th>Store ID</th><th>Node</th><th>Mode</th><th>Data Dir</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>`;
-      } catch (e) {
-        document.getElementById('stores-table').innerHTML = '<p class="empty">error: ' + e.message + '</p>';
-      }
+// ── GLOBAL LOG ────────────────────────────────────────────────
+async function loadGlobal() {
+  if (!S.currentStore) {
+    document.getElementById('global-table').innerHTML = '<div class="empty">select a store first</div>';
+    return;
+  }
+  const offset = parseInt(document.getElementById('global-from').value) || 0;
+  const limit  = parseInt(document.getElementById('global-limit').value) || 50;
+  const dir    = document.getElementById('global-dir').value;
+
+  document.getElementById('global-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const params = new URLSearchParams({ offset, limit, dir });
+    const d = await api(`/v1/stores/${S.currentStore}/events/global?${params}`);
+    renderEventTable('global-table', d.events || [], true);
+
+    const evts = d.events || [];
+    const pag = document.getElementById('global-pagination');
+    if (evts.length === limit) {
+      pag.innerHTML =
+        `<span class="info">${evts.length} events shown</span>
+         <button class="btn btn-ghost btn-sm" onclick="
+           document.getElementById('global-from').value=${offset + limit};
+           loadGlobal()">Next →</button>`;
+    } else {
+      pag.innerHTML = `<span class="info">${evts.length} events</span>`;
     }
+  } catch(e) {
+    document.getElementById('global-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
 
-    async function loadVersion() {
-      // Use first store's server-info if available, otherwise show gateway health node only
-      try {
-        const stores = await get('/v1/stores');
-        const first = (stores.instances || [])[0];
-        if (first) {
-          const info = await get(`/v1/server-info/${first.store_id}`);
-          document.getElementById('gw-version').textContent =
-            `gateway ${info.reckon_gateway_version} · db ${info.reckon_db_version}`;
-        } else {
-          document.getElementById('gw-version').textContent = 'no stores';
-        }
-      } catch (_) {
-        document.getElementById('gw-version').textContent = 'version unknown';
-      }
-    }
+// ── BY EVENT TYPE ─────────────────────────────────────────────
+async function loadByType() {
+  if (!S.currentStore) { alert('Select a store first'); return; }
+  const et    = document.getElementById('bytype-input').value.trim();
+  const limit = parseInt(document.getElementById('bytype-limit').value) || 50;
+  if (!et) return;
 
-    loadHealth();
-    loadStores();
-    loadVersion();
-  </script>
+  document.getElementById('bytype-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    // API: ?types=a,b,c  (comma-separated, supports multiple types)
+    const params = new URLSearchParams({ types: et, limit });
+    const d = await api(`/v1/stores/${S.currentStore}/events/by-type?${params}`);
+    renderEventTable('bytype-table', d.events || [], true);
+  } catch(e) {
+    document.getElementById('bytype-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+// ── BY TAGS ───────────────────────────────────────────────────
+async function loadByTags() {
+  if (!S.currentStore) { alert('Select a store first'); return; }
+  const raw   = document.getElementById('bytags-input').value;
+  const mode  = document.getElementById('bytags-mode').value;
+  const limit = parseInt(document.getElementById('bytags-limit').value) || 50;
+  const tags  = raw.split(',').map(t => t.trim()).filter(Boolean);
+  if (!tags.length) return;
+
+  document.getElementById('bytags-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    // API: GET ?tags=a,b&match=any|all&limit=N
+    const params = new URLSearchParams({ tags: tags.join(','), match: mode, limit });
+    const d = await api(`/v1/stores/${S.currentStore}/events/by-tags?${params}`);
+    renderEventTable('bytags-table', d.events || [], true);
+  } catch(e) {
+    document.getElementById('bytags-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+// ── EVENT TABLE ───────────────────────────────────────────────
+function renderEventTable(targetId, events, showStream = false) {
+  if (!events.length) {
+    document.getElementById(targetId).innerHTML = '<div class="empty">No events found</div>';
+    return;
+  }
+  const extraCols = showStream ? '<th>Stream</th>' : '';
+  const rows = events.map((e, i) => {
+    const rowId = `evt-${targetId}-${i}`;
+    const dataPreview = typeof e.data === 'object'
+      ? JSON.stringify(e.data).slice(0, 80)
+      : String(e.data||'').slice(0, 80);
+    const streamCol = showStream ? `<td class="mono muted truncate">${esc(e.stream_id||'')}</td>` : '';
+    return `
+      <tr class="clickable" onclick="toggleEvent('${rowId}')">
+        <td class="mono">${e.version ?? e.epoch_us ?? '—'}</td>
+        <td><span class="badge badge-purple">${esc(e.event_type||'')}</span></td>
+        ${streamCol}
+        <td class="mono muted truncate">${esc(dataPreview)}</td>
+        <td class="mono muted">${fmtTs(e.timestamp)}</td>
+      </tr>
+      <tr id="${rowId}" style="display:none">
+        <td colspan="${showStream?5:4}" style="padding:0 0.75rem 0.75rem">
+          <div class="event-detail">${esc(JSON.stringify(e, null, 2))}</div>
+        </td>
+      </tr>`;
+  }).join('');
+  document.getElementById(targetId).innerHTML =
+    `<table>
+      <thead><tr><th>Ver/Seq</th><th>Event Type</th>${extraCols}<th>Data (preview)</th><th>Timestamp</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function toggleEvent(rowId) {
+  const r = document.getElementById(rowId);
+  r.style.display = r.style.display === 'none' ? '' : 'none';
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtTs(ts) {
+  if (!ts) return '—';
+  try { return new Date(typeof ts === 'number' ? ts : ts).toISOString().replace('T',' ').slice(0,19); }
+  catch(_) { return String(ts); }
+}
+
+// ── BOOT ─────────────────────────────────────────────────────
+(async () => {
+  await initStores();
+  await Promise.all([pollHealth(), initVersion()]);
+  loadOverview();
+  setInterval(pollHealth, 30_000);
+})();
+</script>
 </body>
 </html>
