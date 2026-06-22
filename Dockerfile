@@ -43,6 +43,7 @@ RUN rebar3 deps
 # at _build/default/lib/reckon_proto/proto/ where grpc_plugin reads
 # them).
 COPY config/ config/
+COPY priv/ priv/
 COPY src/ src/
 
 # Generate gRPC stubs and build release. The `rebar3 compile` step
