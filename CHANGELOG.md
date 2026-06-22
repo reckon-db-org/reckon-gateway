@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.11.0 (2026-06-22)
+
+**HTTP/JSON API + embedded admin UI.**
+
+- New Cowboy HTTP listener on `RECKON_GATEWAY_HTTP_PORT` (default 8080),
+  separate from the gRPC port.
+- `reckon_gateway_http` — shared helpers: `reply_json/3`, `reply_error/3`,
+  `cors_preflight/1`, `decode_filter/1`, `event_to_json_map/1`,
+  `parse_expected_version/1`, `dispatch_error/2`.
+- `reckon_gateway_http_health` — `GET /v1/health`, `/v1/health/:store_id`,
+  `/v1/server-info/:store_id`, `/v1/stores`, `/v1/stores/:store_id`.
+- `reckon_gateway_http_streams` — full stream API:
+  list, stream info/delete, events (read + append), version,
+  `by-type`, `by-tags`, `by-metadata`, `global`.
+- `reckon_gateway_http_dcb` — `POST /v1/stores/:store_id/dcb/context` and
+  `POST /v1/stores/:store_id/dcb/append`. Conflict returns `200 {"conflict":
+  {"max_seq": N}}` (not an HTTP error).
+- `reckon_gateway_http_listener` — compiles cowboy routes and returns
+  `ranch:child_spec/5`; started by `reckon_gateway_sup`.
+- Admin UI at `/admin/` — minimal dark-theme HTML/JS (zero deps) served from
+  `priv/static/admin/`; shows gateway health and store list on load.
+- `sys.config.src`: new `{http_port, ...}` key fed by
+  `RECKON_GATEWAY_HTTP_PORT`.
+- `reckon_gateway_sup`: adds `reckon_gateway_http_listener:child_spec()` to
+  the supervision tree before the clusters supervisor.
+
 ## 0.10.0 (2026-06-22)
 
 **DCB `TagFilter.event_type_match` (reckon-proto 0.7.0 / reckon-db 5.2.0).**

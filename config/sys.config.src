@@ -28,6 +28,7 @@
 [
     {reckon_gateway, [
         {listen_port,          ${RECKON_GATEWAY_PORT}},
+        {http_port,            "${RECKON_GATEWAY_HTTP_PORT}"},
         {listen_ip,            {0, 0, 0, 0}},
         {clusters_config_path, "${RECKON_GATEWAY_CLUSTERS_PATH}"},
         {refresh_interval_ms,  30000},

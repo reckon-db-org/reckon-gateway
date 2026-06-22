@@ -69,6 +69,8 @@ init([]) ->
     Children = [
         %% Catalogue first — every connector publishes into it.
         reckon_gateway_catalogue:child_spec(),
+        %% HTTP/JSON API listener (separate port from gRPC).
+        reckon_gateway_http_listener:child_spec(),
         #{id       => clusters_sup,
           start    => {reckon_gateway_clusters_sup, start_link, []},
           restart  => permanent,

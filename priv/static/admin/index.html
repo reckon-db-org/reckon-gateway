@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReckonDB Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+    header { border-bottom: 1px solid #1e293b; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+    header h1 { font-size: 1.25rem; font-weight: 600; color: #f8fafc; }
+    header span { font-size: 0.75rem; background: #1e40af; color: #93c5fd; padding: 0.2rem 0.5rem; border-radius: 4px; }
+    main { padding: 2rem; max-width: 1200px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card h2 { font-size: 0.875rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+    .status { display: inline-flex; align-items: center; gap: 0.5rem; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+    .dot.degraded { background: #eab308; }
+    .dot.unhealthy { background: #ef4444; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { text-align: left; padding: 0.5rem 0.75rem; color: #64748b; font-weight: 500; border-bottom: 1px solid #334155; }
+    td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #1e293b; color: #cbd5e1; font-family: monospace; }
+    tr:last-child td { border-bottom: none; }
+    .empty { color: #475569; font-style: italic; text-align: center; padding: 2rem; }
+    button { background: #1e40af; color: #93c5fd; border: none; padding: 0.4rem 0.9rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    button:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ReckonDB Admin</h1>
+    <span id="gw-version">loading…</span>
+  </header>
+  <main>
+    <div class="card">
+      <h2>Gateway Health</h2>
+      <div id="gw-health" class="empty">loading…</div>
+    </div>
+    <div class="card">
+      <h2>Stores <button onclick="loadStores()">Refresh</button></h2>
+      <div id="stores-table"><p class="empty">loading…</p></div>
+    </div>
+  </main>
+
+  <script>
+    const API = '';  // same origin
+
+    async function get(path) {
+      const r = await fetch(API + path);
+      return r.json();
+    }
+
+    async function loadHealth() {
+      try {
+        const d = await get('/v1/health');
+        const dot = d.status === 'healthy' ? 'dot' : d.status === 'degraded' ? 'dot degraded' : 'dot unhealthy';
+        document.getElementById('gw-health').innerHTML =
+          `<span class="status"><span class="${dot}"></span>${d.status}</span>
+           &nbsp;·&nbsp; node: <code>${d.node}</code>
+           &nbsp;·&nbsp; catalogue_size: ${d.catalogue_size}`;
+      } catch (e) {
+        document.getElementById('gw-health').textContent = 'error: ' + e.message;
+      }
+    }
+
+    async function loadStores() {
+      try {
+        const d = await get('/v1/stores');
+        const instances = d.instances || [];
+        if (instances.length === 0) {
+          document.getElementById('stores-table').innerHTML = '<p class="empty">No stores registered</p>';
+          return;
+        }
+        const rows = instances.map(s =>
+          `<tr>
+            <td>${s.store_id}</td>
+            <td>${s.node}</td>
+            <td>${s.mode}</td>
+            <td>${s.data_dir || '—'}</td>
+          </tr>`).join('');
+        document.getElementById('stores-table').innerHTML =
+          `<table>
+            <thead><tr><th>Store ID</th><th>Node</th><th>Mode</th><th>Data Dir</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      } catch (e) {
+        document.getElementById('stores-table').innerHTML = '<p class="empty">error: ' + e.message + '</p>';
+      }
+    }
+
+    async function loadVersion() {
+      // Use first store's server-info if available, otherwise show gateway health node only
+      try {
+        const stores = await get('/v1/stores');
+        const first = (stores.instances || [])[0];
+        if (first) {
+          const info = await get(`/v1/server-info/${first.store_id}`);
+          document.getElementById('gw-version').textContent =
+            `gateway ${info.reckon_gateway_version} · db ${info.reckon_db_version}`;
+        } else {
+          document.getElementById('gw-version').textContent = 'no stores';
+        }
+      } catch (_) {
+        document.getElementById('gw-version').textContent = 'version unknown';
+      }
+    }
+
+    loadHealth();
+    loadStores();
+    loadVersion();
+  </script>
+</body>
+</html>
