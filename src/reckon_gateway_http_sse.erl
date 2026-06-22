@@ -1,0 +1,116 @@
+%%% @doc Server-Sent Events endpoint for live gateway/cluster status.
+%%%
+%%% GET /v1/admin/events
+%%%
+%%% Streams named SSE events to the browser admin UI:
+%%%
+%%%   event: status
+%%%   data: {"catalogue_size":N,"clusters":[...],"timestamp_ms":N}
+%%%
+%%%   event: store_announced
+%%%   data: {"store_id":"...","cluster_id":"...","node":"...","mode":"..."}
+%%%
+%%%   event: store_retired
+%%%   data: {"store_id":"...","cluster_id":"..."}
+%%%
+%%% On connect:    subscribe to reckon_gateway_catalogue, push initial status.
+%%% Every 10s:     push a fresh status snapshot (catches cluster health drift).
+%%% On catalogue event: push the named event then a fresh status snapshot.
+%%% On disconnect: unsubscribe and terminate cleanly.
+-module(reckon_gateway_http_sse).
+
+-behaviour(cowboy_loop).
+
+-export([init/2, info/3, terminate/3]).
+
+-define(KEEPALIVE_MS, 10_000).
+
+%%====================================================================
+%% cowboy_loop callbacks
+%%====================================================================
+
+init(Req0, _Opts) ->
+    Req = cowboy_req:stream_reply(200, #{
+        <<"content-type">>      => <<"text/event-stream">>,
+        <<"cache-control">>     => <<"no-cache">>,
+        <<"x-accel-buffering">> => <<"no">>,
+        <<"access-control-allow-origin">> => <<"*">>
+    }, Req0),
+    reckon_gateway_catalogue:subscribe(self()),
+    push_status(Req),
+    schedule_keepalive(),
+    {cowboy_loop, Req, #{}}.
+
+info({store_event, announced, Entry}, Req, State) ->
+    push_event(<<"store_announced">>, entry_to_json(Entry), Req),
+    push_status(Req),
+    {ok, Req, State};
+
+info({store_event, retired, Entry}, Req, State) ->
+    push_event(<<"store_retired">>, entry_to_json(Entry), Req),
+    push_status(Req),
+    {ok, Req, State};
+
+info(keepalive, Req, State) ->
+    %% Comment frame keeps the connection alive through proxies.
+    cowboy_req:stream_body(<<": keepalive\n\n">>, nofin, Req),
+    push_status(Req),
+    schedule_keepalive(),
+    {ok, Req, State};
+
+info(_Msg, Req, State) ->
+    {ok, Req, State}.
+
+terminate(_Reason, _Req, _State) ->
+    reckon_gateway_catalogue:unsubscribe(self()),
+    ok.
+
+%%====================================================================
+%% Internal
+%%====================================================================
+
+push_status(Req) ->
+    Snapshot = reckon_gateway_catalogue:status(),
+    push_event(<<"status">>, json:encode(status_to_json(Snapshot)), Req).
+
+push_event(Name, JsonData, Req) ->
+    cowboy_req:stream_body(
+        [<<"event: ">>, Name, <<"\ndata: ">>, JsonData, <<"\n\n">>],
+        nofin, Req).
+
+schedule_keepalive() ->
+    erlang:send_after(?KEEPALIVE_MS, self(), keepalive).
+
+%%--------------------------------------------------------------------
+
+status_to_json(#{catalogue_size := Size, clusters := Clusters}) ->
+    #{
+        <<"catalogue_size">> => Size,
+        <<"clusters">>       => [cluster_to_json(C) || C <- Clusters],
+        <<"timestamp_ms">>   => erlang:system_time(millisecond)
+    }.
+
+cluster_to_json(#{cluster_id   := Id,
+                  members      := Members,
+                  store_count  := SC,
+                  status       := Status,
+                  last_refresh := LR}) ->
+    #{
+        <<"cluster_id">>   => atom_to_binary(Id, utf8),
+        <<"members">>      => [atom_to_binary(M, utf8) || M <- Members],
+        <<"store_count">>  => SC,
+        <<"status">>       => atom_to_binary(Status, utf8),
+        <<"last_refresh">> => case LR of undefined -> null; _ -> LR end
+    }.
+
+entry_to_json(Entry) ->
+    json:encode(#{
+        <<"store_id">>   => bin(maps:get(store_id,   Entry, <<>>)),
+        <<"cluster_id">> => bin(maps:get(cluster_id, Entry, <<>>)),
+        <<"node">>       => bin(maps:get(node,        Entry, <<>>)),
+        <<"mode">>       => bin(maps:get(mode,        Entry, <<>>))
+    }).
+
+bin(V) when is_atom(V)   -> atom_to_binary(V, utf8);
+bin(V) when is_binary(V) -> V;
+bin(V)                   -> iolist_to_binary(io_lib:format("~p", [V])).

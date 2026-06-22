@@ -51,6 +51,9 @@ child_spec() ->
              reckon_gateway_http_streams, #{op => by_metadata}},
             {"/v1/stores/:store_id/events/global",
              reckon_gateway_http_streams, #{op => global}},
+            %% Admin SSE stream (live cluster/store events)
+            {"/v1/admin/events",
+             reckon_gateway_http_sse, #{}},
             %% DCB
             {"/v1/stores/:store_id/dcb/context",
              reckon_gateway_http_dcb, #{op => context}},

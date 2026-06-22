@@ -52,6 +52,20 @@
     .status-dot.degraded  { background: var(--yellow); }
     .status-dot.unhealthy { background: var(--red); }
     #header-version { font-size: 0.7rem; color: var(--text-dim); font-family: var(--mono); }
+    #sse-indicator { display: flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; color: var(--text-dim); }
+    #sse-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+    #sse-indicator .dot.live { background: var(--green); box-shadow: 0 0 5px var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+
+    /* ── TOAST ──────────────────────────────────────────────── */
+    #toast-container { position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 999;
+                       display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
+    .toast { background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+             padding: 0.6rem 1rem; font-size: 0.78rem; color: var(--text);
+             animation: slideIn 0.2s ease; max-width: 320px; }
+    .toast.green { border-left: 3px solid var(--green); }
+    .toast.red   { border-left: 3px solid var(--red); }
+    @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
 
     /* ── LAYOUT ─────────────────────────────────────────────── */
     #layout { display: flex; flex: 1; overflow: hidden; }
@@ -234,8 +248,13 @@
     <div class="status-dot" id="hdr-dot"></div>
     <span id="hdr-status-text">connecting…</span>
   </div>
+  <div id="sse-indicator" title="Live update connection">
+    <div class="dot" id="sse-dot"></div>
+    <span id="sse-label">connecting</span>
+  </div>
   <div id="header-version"></div>
 </div>
+<div id="toast-container"></div>
 
 <!-- ── LAYOUT ──────────────────────────────────────────────── -->
 <div id="layout">
@@ -247,6 +266,10 @@
       <div class="nav-item active" data-view="overview" onclick="nav('overview')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/></svg>
         Overview
+      </div>
+      <div class="nav-item" data-view="clusters" onclick="nav('clusters')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4.5v-3h3v3H14a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L8.354 1.146z"/></svg>
+        Clusters
       </div>
       <div class="nav-item" data-view="server-info" onclick="nav('server-info')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h11A1.5 1.5 0 0 1 15 2.5v2.764c0 .695-.301 1.32-.778 1.752A.5.5 0 0 1 14 7.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-7a.5.5 0 0 1-.222-.484A2.49 2.49 0 0 1 1 5.264V2.5zM10 7H6v7h4V7zm1 7h1.5a.5.5 0 0 0 .5-.5v-7h-2v7zm-8-.5a.5.5 0 0 0 .5.5H5V7H3v6.5zM14 6H2a1.5 1.5 0 1 0 0-3h12a1.5 1.5 0 1 0 0 3z"/></svg>
@@ -450,6 +473,17 @@
       </div>
     </div>
 
+    <!-- ── VIEW: CLUSTERS ────────────────────────────────── -->
+    <div id="view-clusters" class="view">
+      <div class="page-header">
+        <h1>Clusters</h1>
+        <p>ReckonDB clusters connected to this gateway — updated live via SSE</p>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap" id="clusters-table"><div class="empty">connecting…</div></div>
+      </div>
+    </div>
+
     <!-- ── VIEW: DCB CONTEXT ──────────────────────────────── -->
     <div id="view-dcb-context" class="view">
       <div class="page-header">
@@ -536,6 +570,7 @@ const S = {
   currentStore: null,
   currentStream: null,
   allStreams: [],
+  clustersSnapshot: null,
 };
 
 // ── API ──────────────────────────────────────────────────────
@@ -555,6 +590,7 @@ function nav(view) {
   if (ni) ni.classList.add('active');
 
   if (view === 'overview')     loadOverview();
+  if (view === 'clusters')     { if (S.clustersSnapshot) updateClusters(S.clustersSnapshot); }
   if (view === 'server-info')  loadServerInfo();
   if (view === 'streams')      loadStreams();
   if (view === 'global')       { /* user clicks Load */ }
@@ -972,11 +1008,92 @@ function fmtTs(ts) {
   catch(_) { return String(ts); }
 }
 
+// ── SSE ───────────────────────────────────────────────────────
+let _sse = null;
+
+function initSSE() {
+  if (_sse) return;
+  _sse = new EventSource('/v1/admin/events');
+
+  _sse.onopen = () => {
+    document.getElementById('sse-dot').className = 'dot live';
+    document.getElementById('sse-label').textContent = 'live';
+  };
+
+  _sse.onerror = () => {
+    document.getElementById('sse-dot').className = 'dot';
+    document.getElementById('sse-label').textContent = 'reconnecting';
+    _sse = null;
+    setTimeout(initSSE, 3000);
+  };
+
+  _sse.addEventListener('status', e => {
+    const data = JSON.parse(e.data);
+    S.clustersSnapshot = data;
+    const active = document.querySelector('.view.active');
+    if (active && active.id === 'view-clusters') updateClusters(data);
+  });
+
+  _sse.addEventListener('store_announced', e => {
+    const data = JSON.parse(e.data);
+    showToast(`Store announced: ${data.store_id}`, 'green');
+    initStores();
+    const active = document.querySelector('.view.active');
+    if (active && active.id === 'view-overview') loadOverview();
+  });
+
+  _sse.addEventListener('store_retired', e => {
+    const data = JSON.parse(e.data);
+    showToast(`Store retired: ${data.store_id}`, 'red');
+    initStores();
+    const active = document.querySelector('.view.active');
+    if (active && active.id === 'view-overview') loadOverview();
+  });
+}
+
+function updateClusters(snapshot) {
+  const clusters = snapshot.clusters || [];
+  if (!clusters.length) {
+    document.getElementById('clusters-table').innerHTML =
+      '<div class="empty">No clusters connected</div>';
+    return;
+  }
+  const rows = clusters.map(c => {
+    const badge = c.status === 'healthy'  ? 'badge-green'
+                : c.status === 'degraded' ? 'badge-yellow'
+                                          : 'badge-red';
+    const members = (c.members || []).map(esc).join('<br>');
+    const lr = c.last_refresh ? fmtTs(c.last_refresh) : '—';
+    return `<tr>
+      <td class="mono">${esc(c.cluster_id)}</td>
+      <td><span class="badge ${badge}">${esc(c.status)}</span></td>
+      <td class="mono muted" style="font-size:0.72rem">${members}</td>
+      <td class="mono">${c.store_count}</td>
+      <td class="mono muted">${lr}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('clusters-table').innerHTML =
+    `<table>
+      <thead><tr><th>Cluster</th><th>Status</th><th>Members</th><th>Stores</th><th>Last Refresh</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function showToast(msg, color) {
+  const container = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${color}`;
+  t.textContent = msg;
+  container.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
 // ── BOOT ─────────────────────────────────────────────────────
 (async () => {
   await initStores();
   await Promise.all([pollHealth(), initVersion()]);
   loadOverview();
+  initSSE();
   setInterval(pollHealth, 30_000);
 })();
 </script>
