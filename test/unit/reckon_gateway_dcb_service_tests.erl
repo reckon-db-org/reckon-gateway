@@ -211,6 +211,41 @@ match_event_map_test() ->
     ?assertEqual(false,
                  ?M:event_matches(Evt, {all_of, [<<"b">>]})).
 
+%% Regression: compound filters containing event_type sub-filters must
+%% not lose the event record when recursing through and_/or_.
+match_event_record_compound_with_event_type_test() ->
+    E = #event{event_id = <<"id-4">>,
+               event_type = <<"vehicle_entered_lot">>,
+               stream_id = <<"_dcb">>,
+               version = 10,
+               data = #{},
+               metadata = #{},
+               tags = [<<"plate:BE-TEST">>]},
+    %% and_: tag match AND event_type match — both true → true
+    ?assertEqual(true,
+                 ?M:event_matches(E,
+                     {and_, [{any_of, [<<"plate:BE-TEST">>]},
+                             {event_type, <<"vehicle_entered_lot">>}]})),
+    %% and_: tag match AND wrong event_type — false
+    ?assertEqual(false,
+                 ?M:event_matches(E,
+                     {and_, [{any_of, [<<"plate:BE-TEST">>]},
+                             {event_type, <<"vehicle_exited_lot">>}]})),
+    %% and_ + or_: tag match AND (entered OR exited) — true
+    ?assertEqual(true,
+                 ?M:event_matches(E,
+                     {and_, [{any_of, [<<"plate:BE-TEST">>]},
+                             {or_, [{event_type, <<"vehicle_entered_lot">>},
+                                    {event_type, <<"vehicle_exited_lot">>}]}]})),
+    %% event_type only — matches
+    ?assertEqual(true,
+                 ?M:event_matches(E, {event_type, <<"vehicle_entered_lot">>})),
+    %% or_ at top level mixing tag and event_type
+    ?assertEqual(true,
+                 ?M:event_matches(E,
+                     {or_, [{any_of, [<<"other">>]},
+                            {event_type, <<"vehicle_entered_lot">>}]})).
+
 %%====================================================================
 %% Wire-shape end-to-end: decode + collect + match
 %%====================================================================
