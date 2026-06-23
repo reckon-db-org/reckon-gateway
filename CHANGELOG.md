@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.1 (2026-06-23)
+
+- Tighten `reckon_db` constraint to `~> 5.4` (5.4.0 introduced `ccc_filter`
+  and `ccc_paths` modules required for CCC payload-index reads in embedded
+  store mode; `~> 5.0` would have allowed 5.0–5.2 which lack payload indexes).
+
 ## 0.13.0 (2026-06-23)
 
 **CCC payload-index HTTP endpoints.**
