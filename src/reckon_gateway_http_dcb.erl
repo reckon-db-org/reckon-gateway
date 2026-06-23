@@ -2,11 +2,13 @@
 %%%
 %%% Routes (under /v1/stores/:store_id/):
 %%%
-%%%   POST /dcb/context         ReadDcbContext
-%%%   POST /dcb/append          AppendIfNoTagMatches
-%%%   GET  /dcb/log             Paginated DCB event log
-%%%   GET  /dcb/tags            Tag index with event counts
-%%%   GET  /dcb/event-types     Event type index with event counts
+%%%   POST /dcb/context               ReadDcbContext (tag/event_type filters)
+%%%   POST /dcb/append                AppendIfNoTagMatches
+%%%   GET  /dcb/log                   Paginated DCB event log
+%%%   GET  /dcb/tags                  Tag index with event counts
+%%%   GET  /dcb/event-types           Event type index with event counts
+%%%   GET  /dcb/by-payload            CCC payload-field read
+%%%   POST /dcb/by-payload-hash       CCC composite payload-hash read
 %%%
 %%% Request body uses the JSON TagFilter algebra:
 %%%   {"match_any": [...]}  {"match_all": [...]}  {"event_type": "..."}
@@ -112,6 +114,66 @@ handle(<<"GET">>, event_types, Req0) ->
                 }, R);
             {error, Reason} ->
                 reckon_gateway_http:dispatch_error(Reason, R)
+        end
+    end);
+
+%% GET /dcb/by-payload?key=K&value=V&limit=N
+%% Response: {"events": [...]}
+handle(<<"GET">>, by_payload, Req0) ->
+    with_store(Req0, fun(StoreId, R) ->
+        Key   = reckon_gateway_http:qs_binary(R, <<"key">>,   undefined),
+        Value = reckon_gateway_http:qs_binary(R, <<"value">>, undefined),
+        Limit = min(reckon_gateway_http:qs_int(R, <<"limit">>, ?MAX_BATCH), ?MAX_BATCH),
+        case {Key, Value} of
+            {undefined, _} ->
+                reckon_gateway_http:reply_error(400, <<"missing key">>, R);
+            {_, undefined} ->
+                reckon_gateway_http:reply_error(400, <<"missing value">>, R);
+            _ ->
+                case reckon_gateway_dispatch:call(ccc_read_by_payload, [StoreId, Key, Value, Limit]) of
+                    {ok, Events} ->
+                        reckon_gateway_http:reply_json(200, #{
+                            <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events]
+                        }, R);
+                    {error, Reason} ->
+                        reckon_gateway_http:dispatch_error(Reason, R)
+                end
+        end
+    end);
+
+%% POST /dcb/by-payload-hash
+%% Body: {"keys": [...], "values": [...], "limit": N}
+%% Response: {"events": [...]}
+handle(<<"POST">>, by_payload_hash, Req0) ->
+    with_store(Req0, fun(StoreId, R0) ->
+        case reckon_gateway_http:read_json_body(R0) of
+            {error, invalid_json} ->
+                reckon_gateway_http:reply_error(400, <<"invalid_json">>, R0);
+            {ok, Body, R} ->
+                Keys   = maps:get(<<"keys">>,   Body, undefined),
+                Values = maps:get(<<"values">>, Body, undefined),
+                Limit  = min(maps:get(<<"limit">>, Body, ?MAX_BATCH), ?MAX_BATCH),
+                case {Keys, Values} of
+                    {undefined, _} ->
+                        reckon_gateway_http:reply_error(400, <<"missing keys">>, R);
+                    {_, undefined} ->
+                        reckon_gateway_http:reply_error(400, <<"missing values">>, R);
+                    _ when not is_list(Keys) ->
+                        reckon_gateway_http:reply_error(400, <<"keys must be an array">>, R);
+                    _ when not is_list(Values) ->
+                        reckon_gateway_http:reply_error(400, <<"values must be an array">>, R);
+                    _ when length(Keys) =/= length(Values) ->
+                        reckon_gateway_http:reply_error(400, <<"keys and values must have equal length">>, R);
+                    _ ->
+                        case reckon_gateway_dispatch:call(ccc_read_by_payload_hash, [StoreId, Keys, Values, Limit]) of
+                            {ok, Events} ->
+                                reckon_gateway_http:reply_json(200, #{
+                                    <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events]
+                                }, R);
+                            {error, Reason} ->
+                                reckon_gateway_http:dispatch_error(Reason, R)
+                        end
+                end
         end
     end);
 

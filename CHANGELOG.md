@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.13.0 (2026-06-23)
+
+**CCC payload-index HTTP endpoints.**
+
+Two new HTTP endpoints expose the CCC payload-index reads added in
+reckon-gater 3.5.1 / renamed in 3.6.0:
+
+- `GET /v1/stores/:store_id/dcb/by-payload?key=K&value=V&limit=N`
+  Reads events whose JSON payload field `K` equals `V`. Returns `{"events": [...]}`.
+  `key` and `value` are required query params; `limit` defaults to 10000.
+
+- `POST /v1/stores/:store_id/dcb/by-payload-hash`
+  Body: `{"keys": [...], "values": [...], "limit": N}`.
+  Reads events matching the composite payload-hash index for the given
+  key+value combination. `keys` and `values` must be equal-length arrays.
+  Returns `{"events": [...]}`.
+
+Both endpoints delegate to `reckon_gateway_dispatch:call(ccc_read_by_payload*, ...)`.
+Requires reckon-gater ~> 3.6.
+
 ## 0.12.0 (2026-06-23)
 
 **DCB read API + admin UI: Log, Tags, Event Types views.**

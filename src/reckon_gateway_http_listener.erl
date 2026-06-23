@@ -17,6 +17,8 @@
 %%%   GET  /v1/stores/:store_id/dcb/log          DCB event log (paginated)
 %%%   GET  /v1/stores/:store_id/dcb/tags         DCB tag index with counts
 %%%   GET  /v1/stores/:store_id/dcb/event-types  DCB event type index
+%%%   GET  /v1/stores/:store_id/dcb/by-payload   CCC payload-field read
+%%%   POST /v1/stores/:store_id/dcb/by-payload-hash  CCC composite hash read
 %%%   GET  /admin/[...]                      static admin UI
 -module(reckon_gateway_http_listener).
 
@@ -68,6 +70,10 @@ child_spec() ->
              reckon_gateway_http_dcb, #{op => tags}},
             {"/v1/stores/:store_id/dcb/event-types",
              reckon_gateway_http_dcb, #{op => event_types}},
+            {"/v1/stores/:store_id/dcb/by-payload",
+             reckon_gateway_http_dcb, #{op => by_payload}},
+            {"/v1/stores/:store_id/dcb/by-payload-hash",
+             reckon_gateway_http_dcb, #{op => by_payload_hash}},
             %% Admin UI — served from priv/static/admin/
             {"/admin",
              cowboy_static, {priv_file, reckon_gateway, "static/admin/index.html"}},
