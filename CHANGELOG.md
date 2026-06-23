@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.0 (2026-06-23)
+
+- Add gRPC handlers for `CccReadByPayload` and `CccReadByPayloadHash`
+  to `DcbService` (`reckon_gateway_dcb_service`), backed by
+  `reckon_gater_api:ccc_read_by_payload/4` and
+  `reckon_gater_api:ccc_read_by_payload_hash/4` via dispatch.
+- Bump `reckon_proto` dependency to `v0.8.0` (adds the two new RPC
+  definitions and regenerates behaviour + pb modules).
+
 ## 0.13.1 (2026-06-23)
 
 - Tighten `reckon_db` constraint to `~> 5.4` (5.4.0 introduced `ccc_filter`

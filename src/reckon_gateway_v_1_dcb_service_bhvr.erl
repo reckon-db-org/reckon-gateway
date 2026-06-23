@@ -15,3 +15,11 @@
     -> {ok, reckon_dcb_pb:read_dcb_context_response(), grpc:metadata()}
      | {error, grpc_stream:error_response()}.
 
+-callback ccc_read_by_payload(reckon_dcb_pb:ccc_read_by_payload_request(), grpc:metadata())
+    -> {ok, reckon_dcb_pb:ccc_read_by_payload_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
+
+-callback ccc_read_by_payload_hash(reckon_dcb_pb:ccc_read_by_payload_hash_request(), grpc:metadata())
+    -> {ok, reckon_dcb_pb:ccc_read_by_payload_hash_response(), grpc:metadata()}
+     | {error, grpc_stream:error_response()}.
+

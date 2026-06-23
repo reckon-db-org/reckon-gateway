@@ -63,3 +63,43 @@ read_dcb_context(Req, Metadata, Options) ->
                            read_dcb_context_request, read_dcb_context_response, <<"reckon.gateway.v1.ReadDcbContextRequest">>),
                       Req, Metadata, Options).
 
+-spec ccc_read_by_payload(reckon_dcb_pb:ccc_read_by_payload_request())
+    -> {ok, reckon_dcb_pb:ccc_read_by_payload_response(), grpc:metadata()}
+     | {error, term()}.
+ccc_read_by_payload(Req) ->
+    ccc_read_by_payload(Req, #{}, #{}).
+
+-spec ccc_read_by_payload(reckon_dcb_pb:ccc_read_by_payload_request(), grpc:options())
+    -> {ok, reckon_dcb_pb:ccc_read_by_payload_response(), grpc:metadata()}
+     | {error, term()}.
+ccc_read_by_payload(Req, Options) ->
+    ccc_read_by_payload(Req, #{}, Options).
+
+-spec ccc_read_by_payload(reckon_dcb_pb:ccc_read_by_payload_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_dcb_pb:ccc_read_by_payload_response(), grpc:metadata()}
+     | {error, term()}.
+ccc_read_by_payload(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.DcbService/CccReadByPayload">>,
+                           ccc_read_by_payload_request, ccc_read_by_payload_response, <<"reckon.gateway.v1.CccReadByPayloadRequest">>),
+                      Req, Metadata, Options).
+
+-spec ccc_read_by_payload_hash(reckon_dcb_pb:ccc_read_by_payload_hash_request())
+    -> {ok, reckon_dcb_pb:ccc_read_by_payload_hash_response(), grpc:metadata()}
+     | {error, term()}.
+ccc_read_by_payload_hash(Req) ->
+    ccc_read_by_payload_hash(Req, #{}, #{}).
+
+-spec ccc_read_by_payload_hash(reckon_dcb_pb:ccc_read_by_payload_hash_request(), grpc:options())
+    -> {ok, reckon_dcb_pb:ccc_read_by_payload_hash_response(), grpc:metadata()}
+     | {error, term()}.
+ccc_read_by_payload_hash(Req, Options) ->
+    ccc_read_by_payload_hash(Req, #{}, Options).
+
+-spec ccc_read_by_payload_hash(reckon_dcb_pb:ccc_read_by_payload_hash_request(), grpc:metadata(), grpc_client:options())
+    -> {ok, reckon_dcb_pb:ccc_read_by_payload_hash_response(), grpc:metadata()}
+     | {error, term()}.
+ccc_read_by_payload_hash(Req, Metadata, Options) ->
+    grpc_client:unary(?DEF(<<"/reckon.gateway.v1.DcbService/CccReadByPayloadHash">>,
+                           ccc_read_by_payload_hash_request, ccc_read_by_payload_hash_response, <<"reckon.gateway.v1.CccReadByPayloadHashRequest">>),
+                      Req, Metadata, Options).
+

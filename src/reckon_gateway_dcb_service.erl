@@ -1,8 +1,8 @@
 %%% @doc gRPC DcbService implementation.
 %%%
-%%% Translates the DCB (Dynamic Consistency Boundary) primitive shipped
-%%% in reckon-db 3.1.1+ over to the wire shape declared in
-%%% reckon_dcb.proto. Two RPCs:
+%%% Translates DCB (Dynamic Consistency Boundary) and CCC (Command
+%%% Context Consistency) primitives over to the wire shape declared in
+%%% reckon_dcb.proto. Four RPCs:
 %%%
 %%%   - AppendIfNoTagMatches: conditional-append under the DCB
 %%%     pseudo-stream. Server rejects if any event matching the
@@ -11,6 +11,10 @@
 %%%     DCB pseudo-stream, ordered by seq ascending, with the highest
 %%%     seq returned alongside so the caller can use it as a cutoff
 %%%     for a follow-up AppendIfNoTagMatches.
+%%%   - CccReadByPayload: read events where data[key] == value using
+%%%     the store's CCC payload index.
+%%%   - CccReadByPayloadHash: read events whose combo-hash of
+%%%     data[keys[i]] == values[i] matches the store's CCC hash index.
 %%%
 %%% The conflict path is a structured Conflict response, NOT a gRPC
 %%% error. gRPC status codes stay reserved for transport / backend
@@ -37,7 +41,9 @@
 
 -export([
     append_if_no_tag_matches/2,
-    read_dcb_context/2
+    read_dcb_context/2,
+    ccc_read_by_payload/2,
+    ccc_read_by_payload_hash/2
 ]).
 
 -export([
@@ -170,6 +176,74 @@ map_read_error(Op, Reason) ->
 
 dcb_event_key(#event{version = V, stream_id = S}) -> {S, V};
 dcb_event_key(#{version := V, stream_id := S})    -> {S, V}.
+
+%%====================================================================
+%% CccReadByPayload
+%%====================================================================
+
+ccc_read_by_payload(#{store_id := StoreIdBin,
+                       key      := Key,
+                       value    := Value} = Req, Md) ->
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            reckon_gateway_error:wrap(ccc_read_by_payload,
+                                       <<"3">>, invalid_store_id);
+        {ok, StoreId} ->
+            BS = safe_batch_size(maps:get(batch_size, Req, 0)),
+            case reckon_gateway_dispatch:call(
+                   ccc_read_by_payload, [StoreId, Key, Value, BS]) of
+                {ok, Events} ->
+                    Recorded = [reckon_gateway_convert:event_to_recorded(E)
+                                || E <- Events],
+                    {ok, #{events => Recorded}, Md};
+                {error, store_unknown} ->
+                    reckon_gateway_error:wrap(ccc_read_by_payload,
+                                               <<"5">>, store_unknown);
+                {error, cluster_unavailable} ->
+                    reckon_gateway_error:wrap(ccc_read_by_payload,
+                                               <<"14">>, cluster_unavailable);
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(ccc_read_by_payload,
+                                               <<"13">>, Reason)
+            end
+    end.
+
+%%====================================================================
+%% CccReadByPayloadHash
+%%====================================================================
+
+ccc_read_by_payload_hash(#{store_id := StoreIdBin,
+                             keys     := Keys,
+                             values   := Values} = Req, Md) ->
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            reckon_gateway_error:wrap(ccc_read_by_payload_hash,
+                                       <<"3">>, invalid_store_id);
+        {ok, _} when length(Keys) =:= 0 ->
+            reckon_gateway_error:wrap(ccc_read_by_payload_hash,
+                                       <<"3">>, empty_keys);
+        {ok, _} when length(Keys) =/= length(Values) ->
+            reckon_gateway_error:wrap(ccc_read_by_payload_hash,
+                                       <<"3">>, keys_values_length_mismatch);
+        {ok, StoreId} ->
+            BS = safe_batch_size(maps:get(batch_size, Req, 0)),
+            case reckon_gateway_dispatch:call(
+                   ccc_read_by_payload_hash, [StoreId, Keys, Values, BS]) of
+                {ok, Events} ->
+                    Recorded = [reckon_gateway_convert:event_to_recorded(E)
+                                || E <- Events],
+                    {ok, #{events => Recorded}, Md};
+                {error, store_unknown} ->
+                    reckon_gateway_error:wrap(ccc_read_by_payload_hash,
+                                               <<"5">>, store_unknown);
+                {error, cluster_unavailable} ->
+                    reckon_gateway_error:wrap(ccc_read_by_payload_hash,
+                                               <<"14">>, cluster_unavailable);
+                {error, Reason} ->
+                    reckon_gateway_error:wrap(ccc_read_by_payload_hash,
+                                               <<"13">>, Reason)
+            end
+    end.
 
 %%====================================================================
 %% TagFilter algebra

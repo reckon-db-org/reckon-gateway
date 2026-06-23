@@ -98,6 +98,28 @@
         max_seq                 => integer()        % = 2, optional, 64 bits
        }.
 
+-type ccc_read_by_payload_request() ::
+      #{store_id                => unicode:chardata(), % = 1, optional
+        key                     => unicode:chardata(), % = 2, optional
+        value                   => unicode:chardata(), % = 3, optional
+        batch_size              => non_neg_integer() % = 4, optional, 64 bits
+       }.
+
+-type ccc_read_by_payload_response() ::
+      #{events                  => [recorded_event()] % = 1, repeated
+       }.
+
+-type ccc_read_by_payload_hash_request() ::
+      #{store_id                => unicode:chardata(), % = 1, optional
+        keys                    => [unicode:chardata()], % = 2, repeated
+        values                  => [unicode:chardata()], % = 3, repeated
+        batch_size              => non_neg_integer() % = 4, optional, 64 bits
+       }.
+
+-type ccc_read_by_payload_hash_response() ::
+      #{events                  => [recorded_event()] % = 1, repeated
+       }.
+
 -type proposed_event() ::
       #{event_id                => unicode:chardata(), % = 1, optional
         event_type              => unicode:chardata(), % = 2, optional
@@ -142,9 +164,9 @@
         checkpoint              => non_neg_integer() % = 7, optional, 64 bits
        }.
 
--export_type(['tag_filter'/0, 'tag_list'/0, 'filter_list'/0, 'append_if_no_tag_matches_request'/0, 'append_if_no_tag_matches_response'/0, 'committed'/0, 'conflict'/0, 'read_dcb_context_request'/0, 'read_dcb_context_response'/0, 'proposed_event'/0, 'recorded_event'/0, 'snapshot_record'/0, 'subscription_info'/0]).
--type '$msg_name'() :: tag_filter | tag_list | filter_list | append_if_no_tag_matches_request | append_if_no_tag_matches_response | committed | conflict | read_dcb_context_request | read_dcb_context_response | proposed_event | recorded_event | snapshot_record | subscription_info.
--type '$msg'() :: tag_filter() | tag_list() | filter_list() | append_if_no_tag_matches_request() | append_if_no_tag_matches_response() | committed() | conflict() | read_dcb_context_request() | read_dcb_context_response() | proposed_event() | recorded_event() | snapshot_record() | subscription_info().
+-export_type(['tag_filter'/0, 'tag_list'/0, 'filter_list'/0, 'append_if_no_tag_matches_request'/0, 'append_if_no_tag_matches_response'/0, 'committed'/0, 'conflict'/0, 'read_dcb_context_request'/0, 'read_dcb_context_response'/0, 'ccc_read_by_payload_request'/0, 'ccc_read_by_payload_response'/0, 'ccc_read_by_payload_hash_request'/0, 'ccc_read_by_payload_hash_response'/0, 'proposed_event'/0, 'recorded_event'/0, 'snapshot_record'/0, 'subscription_info'/0]).
+-type '$msg_name'() :: tag_filter | tag_list | filter_list | append_if_no_tag_matches_request | append_if_no_tag_matches_response | committed | conflict | read_dcb_context_request | read_dcb_context_response | ccc_read_by_payload_request | ccc_read_by_payload_response | ccc_read_by_payload_hash_request | ccc_read_by_payload_hash_response | proposed_event | recorded_event | snapshot_record | subscription_info.
+-type '$msg'() :: tag_filter() | tag_list() | filter_list() | append_if_no_tag_matches_request() | append_if_no_tag_matches_response() | committed() | conflict() | read_dcb_context_request() | read_dcb_context_response() | ccc_read_by_payload_request() | ccc_read_by_payload_response() | ccc_read_by_payload_hash_request() | ccc_read_by_payload_hash_response() | proposed_event() | recorded_event() | snapshot_record() | subscription_info().
 -export_type(['$msg_name'/0, '$msg'/0]).
 
 -if(?OTP_RELEASE >= 24).
@@ -173,6 +195,10 @@ encode_msg(Msg, MsgName, Opts) ->
         conflict -> encode_msg_conflict(id(Msg, TrUserData), TrUserData);
         read_dcb_context_request -> encode_msg_read_dcb_context_request(id(Msg, TrUserData), TrUserData);
         read_dcb_context_response -> encode_msg_read_dcb_context_response(id(Msg, TrUserData), TrUserData);
+        ccc_read_by_payload_request -> encode_msg_ccc_read_by_payload_request(id(Msg, TrUserData), TrUserData);
+        ccc_read_by_payload_response -> encode_msg_ccc_read_by_payload_response(id(Msg, TrUserData), TrUserData);
+        ccc_read_by_payload_hash_request -> encode_msg_ccc_read_by_payload_hash_request(id(Msg, TrUserData), TrUserData);
+        ccc_read_by_payload_hash_response -> encode_msg_ccc_read_by_payload_hash_response(id(Msg, TrUserData), TrUserData);
         proposed_event -> encode_msg_proposed_event(id(Msg, TrUserData), TrUserData);
         recorded_event -> encode_msg_recorded_event(id(Msg, TrUserData), TrUserData);
         snapshot_record -> encode_msg_snapshot_record(id(Msg, TrUserData), TrUserData);
@@ -366,6 +392,122 @@ encode_msg_read_dcb_context_response(#{} = M, Bin, TrUserData) ->
                 end
             end;
         _ -> B1
+    end.
+
+encode_msg_ccc_read_by_payload_request(Msg, TrUserData) -> encode_msg_ccc_read_by_payload_request(Msg, <<>>, TrUserData).
+
+
+encode_msg_ccc_read_by_payload_request(#{} = M, Bin, TrUserData) ->
+    B1 = case M of
+             #{store_id := F1} ->
+                 begin
+                     TrF1 = id(F1, TrUserData),
+                     case is_empty_string(TrF1) of
+                         true -> Bin;
+                         false -> e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData)
+                     end
+                 end;
+             _ -> Bin
+         end,
+    B2 = case M of
+             #{key := F2} ->
+                 begin
+                     TrF2 = id(F2, TrUserData),
+                     case is_empty_string(TrF2) of
+                         true -> B1;
+                         false -> e_type_string(TrF2, <<B1/binary, 18>>, TrUserData)
+                     end
+                 end;
+             _ -> B1
+         end,
+    B3 = case M of
+             #{value := F3} ->
+                 begin
+                     TrF3 = id(F3, TrUserData),
+                     case is_empty_string(TrF3) of
+                         true -> B2;
+                         false -> e_type_string(TrF3, <<B2/binary, 26>>, TrUserData)
+                     end
+                 end;
+             _ -> B2
+         end,
+    case M of
+        #{batch_size := F4} ->
+            begin
+                TrF4 = id(F4, TrUserData),
+                if TrF4 =:= 0 -> B3;
+                   true -> e_varint(TrF4, <<B3/binary, 32>>, TrUserData)
+                end
+            end;
+        _ -> B3
+    end.
+
+encode_msg_ccc_read_by_payload_response(Msg, TrUserData) -> encode_msg_ccc_read_by_payload_response(Msg, <<>>, TrUserData).
+
+
+encode_msg_ccc_read_by_payload_response(#{} = M, Bin, TrUserData) ->
+    case M of
+        #{events := F1} ->
+            TrF1 = id(F1, TrUserData),
+            if TrF1 == [] -> Bin;
+               true -> e_field_ccc_read_by_payload_response_events(TrF1, Bin, TrUserData)
+            end;
+        _ -> Bin
+    end.
+
+encode_msg_ccc_read_by_payload_hash_request(Msg, TrUserData) -> encode_msg_ccc_read_by_payload_hash_request(Msg, <<>>, TrUserData).
+
+
+encode_msg_ccc_read_by_payload_hash_request(#{} = M, Bin, TrUserData) ->
+    B1 = case M of
+             #{store_id := F1} ->
+                 begin
+                     TrF1 = id(F1, TrUserData),
+                     case is_empty_string(TrF1) of
+                         true -> Bin;
+                         false -> e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData)
+                     end
+                 end;
+             _ -> Bin
+         end,
+    B2 = case M of
+             #{keys := F2} ->
+                 TrF2 = id(F2, TrUserData),
+                 if TrF2 == [] -> B1;
+                    true -> e_field_ccc_read_by_payload_hash_request_keys(TrF2, B1, TrUserData)
+                 end;
+             _ -> B1
+         end,
+    B3 = case M of
+             #{values := F3} ->
+                 TrF3 = id(F3, TrUserData),
+                 if TrF3 == [] -> B2;
+                    true -> e_field_ccc_read_by_payload_hash_request_values(TrF3, B2, TrUserData)
+                 end;
+             _ -> B2
+         end,
+    case M of
+        #{batch_size := F4} ->
+            begin
+                TrF4 = id(F4, TrUserData),
+                if TrF4 =:= 0 -> B3;
+                   true -> e_varint(TrF4, <<B3/binary, 32>>, TrUserData)
+                end
+            end;
+        _ -> B3
+    end.
+
+encode_msg_ccc_read_by_payload_hash_response(Msg, TrUserData) -> encode_msg_ccc_read_by_payload_hash_response(Msg, <<>>, TrUserData).
+
+
+encode_msg_ccc_read_by_payload_hash_response(#{} = M, Bin, TrUserData) ->
+    case M of
+        #{events := F1} ->
+            TrF1 = id(F1, TrUserData),
+            if TrF1 == [] -> Bin;
+               true -> e_field_ccc_read_by_payload_hash_response_events(TrF1, Bin, TrUserData)
+            end;
+        _ -> Bin
     end.
 
 encode_msg_proposed_event(Msg, TrUserData) -> encode_msg_proposed_event(Msg, <<>>, TrUserData).
@@ -804,6 +946,40 @@ e_field_read_dcb_context_response_events([Elem | Rest], Bin, TrUserData) ->
     e_field_read_dcb_context_response_events(Rest, Bin3, TrUserData);
 e_field_read_dcb_context_response_events([], Bin, _TrUserData) -> Bin.
 
+e_mfield_ccc_read_by_payload_response_events(Msg, Bin, TrUserData) ->
+    SubBin = encode_msg_recorded_event(Msg, <<>>, TrUserData),
+    Bin2 = e_varint(byte_size(SubBin), Bin),
+    <<Bin2/binary, SubBin/binary>>.
+
+e_field_ccc_read_by_payload_response_events([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 10>>,
+    Bin3 = e_mfield_ccc_read_by_payload_response_events(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_ccc_read_by_payload_response_events(Rest, Bin3, TrUserData);
+e_field_ccc_read_by_payload_response_events([], Bin, _TrUserData) -> Bin.
+
+e_field_ccc_read_by_payload_hash_request_keys([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 18>>,
+    Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_ccc_read_by_payload_hash_request_keys(Rest, Bin3, TrUserData);
+e_field_ccc_read_by_payload_hash_request_keys([], Bin, _TrUserData) -> Bin.
+
+e_field_ccc_read_by_payload_hash_request_values([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 26>>,
+    Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_ccc_read_by_payload_hash_request_values(Rest, Bin3, TrUserData);
+e_field_ccc_read_by_payload_hash_request_values([], Bin, _TrUserData) -> Bin.
+
+e_mfield_ccc_read_by_payload_hash_response_events(Msg, Bin, TrUserData) ->
+    SubBin = encode_msg_recorded_event(Msg, <<>>, TrUserData),
+    Bin2 = e_varint(byte_size(SubBin), Bin),
+    <<Bin2/binary, SubBin/binary>>.
+
+e_field_ccc_read_by_payload_hash_response_events([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 10>>,
+    Bin3 = e_mfield_ccc_read_by_payload_hash_response_events(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_ccc_read_by_payload_hash_response_events(Rest, Bin3, TrUserData);
+e_field_ccc_read_by_payload_hash_response_events([], Bin, _TrUserData) -> Bin.
+
 e_field_proposed_event_tags([Elem | Rest], Bin, TrUserData) ->
     Bin2 = <<Bin/binary, 42>>,
     Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
@@ -971,6 +1147,10 @@ decode_msg_2_doit(committed, Bin, TrUserData) -> id(decode_msg_committed(Bin, Tr
 decode_msg_2_doit(conflict, Bin, TrUserData) -> id(decode_msg_conflict(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(read_dcb_context_request, Bin, TrUserData) -> id(decode_msg_read_dcb_context_request(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(read_dcb_context_response, Bin, TrUserData) -> id(decode_msg_read_dcb_context_response(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(ccc_read_by_payload_request, Bin, TrUserData) -> id(decode_msg_ccc_read_by_payload_request(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(ccc_read_by_payload_response, Bin, TrUserData) -> id(decode_msg_ccc_read_by_payload_response(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(ccc_read_by_payload_hash_request, Bin, TrUserData) -> id(decode_msg_ccc_read_by_payload_hash_request(Bin, TrUserData), TrUserData);
+decode_msg_2_doit(ccc_read_by_payload_hash_response, Bin, TrUserData) -> id(decode_msg_ccc_read_by_payload_hash_response(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(proposed_event, Bin, TrUserData) -> id(decode_msg_proposed_event(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(recorded_event, Bin, TrUserData) -> id(decode_msg_recorded_event(Bin, TrUserData), TrUserData);
 decode_msg_2_doit(snapshot_record, Bin, TrUserData) -> id(decode_msg_snapshot_record(Bin, TrUserData), TrUserData);
@@ -1596,6 +1776,247 @@ skip_32_read_dcb_context_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, 
 
 skip_64_read_dcb_context_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, TrUserData) -> dfp_read_field_def_read_dcb_context_response(Rest, Z1, Z2, F, F@_1, F@_2, TrUserData).
 
+decode_msg_ccc_read_by_payload_request(Bin, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_request(Bin, 0, 0, 0, id(<<>>, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(0, TrUserData), TrUserData).
+
+dfp_read_field_def_ccc_read_by_payload_request(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_ccc_read_by_payload_request_store_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_request(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_ccc_read_by_payload_request_key(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_request(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_ccc_read_by_payload_request_value(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_request(<<32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_ccc_read_by_payload_request_batch_size(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_request(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, _) -> #{store_id => F@_1, key => F@_2, value => F@_3, batch_size => F@_4};
+dfp_read_field_def_ccc_read_by_payload_request(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dg_read_field_def_ccc_read_by_payload_request(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+dg_read_field_def_ccc_read_by_payload_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 32 - 7 ->
+    dg_read_field_def_ccc_read_by_payload_request(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dg_read_field_def_ccc_read_by_payload_request(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        10 -> d_field_ccc_read_by_payload_request_store_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        18 -> d_field_ccc_read_by_payload_request_key(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        26 -> d_field_ccc_read_by_payload_request_value(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        32 -> d_field_ccc_read_by_payload_request_batch_size(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_ccc_read_by_payload_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                1 -> skip_64_ccc_read_by_payload_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                2 -> skip_length_delimited_ccc_read_by_payload_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                3 -> skip_group_ccc_read_by_payload_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                5 -> skip_32_ccc_read_by_payload_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData)
+            end
+    end;
+dg_read_field_def_ccc_read_by_payload_request(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, _) -> #{store_id => F@_1, key => F@_2, value => F@_3, batch_size => F@_4}.
+
+d_field_ccc_read_by_payload_request_store_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_ccc_read_by_payload_request_store_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_ccc_read_by_payload_request_store_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_ccc_read_by_payload_request(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, TrUserData).
+
+d_field_ccc_read_by_payload_request_key(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_ccc_read_by_payload_request_key(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_ccc_read_by_payload_request_key(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_ccc_read_by_payload_request(RestF, 0, 0, F, F@_1, NewFValue, F@_3, F@_4, TrUserData).
+
+d_field_ccc_read_by_payload_request_value(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_ccc_read_by_payload_request_value(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_ccc_read_by_payload_request_value(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_ccc_read_by_payload_request(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, TrUserData).
+
+d_field_ccc_read_by_payload_request_batch_size(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_ccc_read_by_payload_request_batch_size(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_ccc_read_by_payload_request_batch_size(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, TrUserData) ->
+    {NewFValue, RestF} = {id((X bsl N + Acc) band 18446744073709551615, TrUserData), Rest},
+    dfp_read_field_def_ccc_read_by_payload_request(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, TrUserData).
+
+skip_varint_ccc_read_by_payload_request(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> skip_varint_ccc_read_by_payload_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+skip_varint_ccc_read_by_payload_request(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_length_delimited_ccc_read_by_payload_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 ->
+    skip_length_delimited_ccc_read_by_payload_request(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+skip_length_delimited_ccc_read_by_payload_request(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_ccc_read_by_payload_request(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_group_ccc_read_by_payload_request(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_ccc_read_by_payload_request(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_32_ccc_read_by_payload_request(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_64_ccc_read_by_payload_request(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+decode_msg_ccc_read_by_payload_response(Bin, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_response(Bin, 0, 0, 0, id([], TrUserData), TrUserData).
+
+dfp_read_field_def_ccc_read_by_payload_response(<<10, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> d_field_ccc_read_by_payload_response_events(Rest, Z1, Z2, F, F@_1, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_response(<<>>, 0, 0, _, R1, TrUserData) ->
+    S1 = #{},
+    if R1 == '$undef' -> S1;
+       true -> S1#{events => lists_reverse(R1, TrUserData)}
+    end;
+dfp_read_field_def_ccc_read_by_payload_response(Other, Z1, Z2, F, F@_1, TrUserData) -> dg_read_field_def_ccc_read_by_payload_response(Other, Z1, Z2, F, F@_1, TrUserData).
+
+dg_read_field_def_ccc_read_by_payload_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 32 - 7 -> dg_read_field_def_ccc_read_by_payload_response(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+dg_read_field_def_ccc_read_by_payload_response(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        10 -> d_field_ccc_read_by_payload_response_events(Rest, 0, 0, 0, F@_1, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_ccc_read_by_payload_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                1 -> skip_64_ccc_read_by_payload_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                2 -> skip_length_delimited_ccc_read_by_payload_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                3 -> skip_group_ccc_read_by_payload_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                5 -> skip_32_ccc_read_by_payload_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData)
+            end
+    end;
+dg_read_field_def_ccc_read_by_payload_response(<<>>, 0, 0, _, R1, TrUserData) ->
+    S1 = #{},
+    if R1 == '$undef' -> S1;
+       true -> S1#{events => lists_reverse(R1, TrUserData)}
+    end.
+
+d_field_ccc_read_by_payload_response_events(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 57 -> d_field_ccc_read_by_payload_response_events(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+d_field_ccc_read_by_payload_response_events(<<0:1, X:7, Rest/binary>>, N, Acc, F, Prev, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bs:Len/binary, Rest2/binary>> = Rest, {id(decode_msg_recorded_event(Bs, TrUserData), TrUserData), Rest2} end,
+    dfp_read_field_def_ccc_read_by_payload_response(RestF, 0, 0, F, cons(NewFValue, Prev, TrUserData), TrUserData).
+
+skip_varint_ccc_read_by_payload_response(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> skip_varint_ccc_read_by_payload_response(Rest, Z1, Z2, F, F@_1, TrUserData);
+skip_varint_ccc_read_by_payload_response(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_response(Rest, Z1, Z2, F, F@_1, TrUserData).
+
+skip_length_delimited_ccc_read_by_payload_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 57 -> skip_length_delimited_ccc_read_by_payload_response(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+skip_length_delimited_ccc_read_by_payload_response(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_ccc_read_by_payload_response(Rest2, 0, 0, F, F@_1, TrUserData).
+
+skip_group_ccc_read_by_payload_response(Bin, _, Z2, FNum, F@_1, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_ccc_read_by_payload_response(Rest, 0, Z2, FNum, F@_1, TrUserData).
+
+skip_32_ccc_read_by_payload_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_response(Rest, Z1, Z2, F, F@_1, TrUserData).
+
+skip_64_ccc_read_by_payload_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_response(Rest, Z1, Z2, F, F@_1, TrUserData).
+
+decode_msg_ccc_read_by_payload_hash_request(Bin, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_hash_request(Bin, 0, 0, 0, id(<<>>, TrUserData), id([], TrUserData), id([], TrUserData), id(0, TrUserData), TrUserData).
+
+dfp_read_field_def_ccc_read_by_payload_hash_request(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_ccc_read_by_payload_hash_request_store_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_hash_request(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_ccc_read_by_payload_hash_request_keys(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_hash_request(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_ccc_read_by_payload_hash_request_values(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_hash_request(<<32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> d_field_ccc_read_by_payload_hash_request_batch_size(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_hash_request(<<>>, 0, 0, _, F@_1, R1, R2, F@_4, TrUserData) -> #{store_id => F@_1, keys => lists_reverse(R1, TrUserData), values => lists_reverse(R2, TrUserData), batch_size => F@_4};
+dfp_read_field_def_ccc_read_by_payload_hash_request(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dg_read_field_def_ccc_read_by_payload_hash_request(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+dg_read_field_def_ccc_read_by_payload_hash_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 32 - 7 ->
+    dg_read_field_def_ccc_read_by_payload_hash_request(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+dg_read_field_def_ccc_read_by_payload_hash_request(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        10 -> d_field_ccc_read_by_payload_hash_request_store_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        18 -> d_field_ccc_read_by_payload_hash_request_keys(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        26 -> d_field_ccc_read_by_payload_hash_request_values(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        32 -> d_field_ccc_read_by_payload_hash_request_batch_size(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_ccc_read_by_payload_hash_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                1 -> skip_64_ccc_read_by_payload_hash_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                2 -> skip_length_delimited_ccc_read_by_payload_hash_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                3 -> skip_group_ccc_read_by_payload_hash_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData);
+                5 -> skip_32_ccc_read_by_payload_hash_request(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, TrUserData)
+            end
+    end;
+dg_read_field_def_ccc_read_by_payload_hash_request(<<>>, 0, 0, _, F@_1, R1, R2, F@_4, TrUserData) -> #{store_id => F@_1, keys => lists_reverse(R1, TrUserData), values => lists_reverse(R2, TrUserData), batch_size => F@_4}.
+
+d_field_ccc_read_by_payload_hash_request_store_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 ->
+    d_field_ccc_read_by_payload_hash_request_store_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_ccc_read_by_payload_hash_request_store_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_ccc_read_by_payload_hash_request(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, TrUserData).
+
+d_field_ccc_read_by_payload_hash_request_keys(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 -> d_field_ccc_read_by_payload_hash_request_keys(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_ccc_read_by_payload_hash_request_keys(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, Prev, F@_3, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_ccc_read_by_payload_hash_request(RestF, 0, 0, F, F@_1, cons(NewFValue, Prev, TrUserData), F@_3, F@_4, TrUserData).
+
+d_field_ccc_read_by_payload_hash_request_values(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 ->
+    d_field_ccc_read_by_payload_hash_request_values(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_ccc_read_by_payload_hash_request_values(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, Prev, F@_4, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_ccc_read_by_payload_hash_request(RestF, 0, 0, F, F@_1, F@_2, cons(NewFValue, Prev, TrUserData), F@_4, TrUserData).
+
+d_field_ccc_read_by_payload_hash_request_batch_size(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 ->
+    d_field_ccc_read_by_payload_hash_request_batch_size(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+d_field_ccc_read_by_payload_hash_request_batch_size(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, TrUserData) ->
+    {NewFValue, RestF} = {id((X bsl N + Acc) band 18446744073709551615, TrUserData), Rest},
+    dfp_read_field_def_ccc_read_by_payload_hash_request(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, TrUserData).
+
+skip_varint_ccc_read_by_payload_hash_request(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> skip_varint_ccc_read_by_payload_hash_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+skip_varint_ccc_read_by_payload_hash_request(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_hash_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_length_delimited_ccc_read_by_payload_hash_request(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) when N < 57 ->
+    skip_length_delimited_ccc_read_by_payload_hash_request(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData);
+skip_length_delimited_ccc_read_by_payload_hash_request(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_ccc_read_by_payload_hash_request(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_group_ccc_read_by_payload_hash_request(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_ccc_read_by_payload_hash_request(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_32_ccc_read_by_payload_hash_request(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_hash_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+skip_64_ccc_read_by_payload_hash_request(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_hash_request(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, TrUserData).
+
+decode_msg_ccc_read_by_payload_hash_response(Bin, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_hash_response(Bin, 0, 0, 0, id([], TrUserData), TrUserData).
+
+dfp_read_field_def_ccc_read_by_payload_hash_response(<<10, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> d_field_ccc_read_by_payload_hash_response_events(Rest, Z1, Z2, F, F@_1, TrUserData);
+dfp_read_field_def_ccc_read_by_payload_hash_response(<<>>, 0, 0, _, R1, TrUserData) ->
+    S1 = #{},
+    if R1 == '$undef' -> S1;
+       true -> S1#{events => lists_reverse(R1, TrUserData)}
+    end;
+dfp_read_field_def_ccc_read_by_payload_hash_response(Other, Z1, Z2, F, F@_1, TrUserData) -> dg_read_field_def_ccc_read_by_payload_hash_response(Other, Z1, Z2, F, F@_1, TrUserData).
+
+dg_read_field_def_ccc_read_by_payload_hash_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 32 - 7 -> dg_read_field_def_ccc_read_by_payload_hash_response(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+dg_read_field_def_ccc_read_by_payload_hash_response(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        10 -> d_field_ccc_read_by_payload_hash_response_events(Rest, 0, 0, 0, F@_1, TrUserData);
+        _ ->
+            case Key band 7 of
+                0 -> skip_varint_ccc_read_by_payload_hash_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                1 -> skip_64_ccc_read_by_payload_hash_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                2 -> skip_length_delimited_ccc_read_by_payload_hash_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                3 -> skip_group_ccc_read_by_payload_hash_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData);
+                5 -> skip_32_ccc_read_by_payload_hash_response(Rest, 0, 0, Key bsr 3, F@_1, TrUserData)
+            end
+    end;
+dg_read_field_def_ccc_read_by_payload_hash_response(<<>>, 0, 0, _, R1, TrUserData) ->
+    S1 = #{},
+    if R1 == '$undef' -> S1;
+       true -> S1#{events => lists_reverse(R1, TrUserData)}
+    end.
+
+d_field_ccc_read_by_payload_hash_response_events(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 57 -> d_field_ccc_read_by_payload_hash_response_events(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+d_field_ccc_read_by_payload_hash_response_events(<<0:1, X:7, Rest/binary>>, N, Acc, F, Prev, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bs:Len/binary, Rest2/binary>> = Rest, {id(decode_msg_recorded_event(Bs, TrUserData), TrUserData), Rest2} end,
+    dfp_read_field_def_ccc_read_by_payload_hash_response(RestF, 0, 0, F, cons(NewFValue, Prev, TrUserData), TrUserData).
+
+skip_varint_ccc_read_by_payload_hash_response(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> skip_varint_ccc_read_by_payload_hash_response(Rest, Z1, Z2, F, F@_1, TrUserData);
+skip_varint_ccc_read_by_payload_hash_response(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_hash_response(Rest, Z1, Z2, F, F@_1, TrUserData).
+
+skip_length_delimited_ccc_read_by_payload_hash_response(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) when N < 57 -> skip_length_delimited_ccc_read_by_payload_hash_response(Rest, N + 7, X bsl N + Acc, F, F@_1, TrUserData);
+skip_length_delimited_ccc_read_by_payload_hash_response(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_ccc_read_by_payload_hash_response(Rest2, 0, 0, F, F@_1, TrUserData).
+
+skip_group_ccc_read_by_payload_hash_response(Bin, _, Z2, FNum, F@_1, TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_ccc_read_by_payload_hash_response(Rest, 0, Z2, FNum, F@_1, TrUserData).
+
+skip_32_ccc_read_by_payload_hash_response(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_hash_response(Rest, Z1, Z2, F, F@_1, TrUserData).
+
+skip_64_ccc_read_by_payload_hash_response(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, TrUserData) -> dfp_read_field_def_ccc_read_by_payload_hash_response(Rest, Z1, Z2, F, F@_1, TrUserData).
+
 decode_msg_proposed_event(Bin, TrUserData) ->
     dfp_read_field_def_proposed_event(Bin, 0, 0, 0, id(<<>>, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), id([], TrUserData), id(<<>>, TrUserData), id(<<>>, TrUserData), TrUserData).
 
@@ -2122,6 +2543,10 @@ merge_msgs(Prev, New, MsgName, Opts) ->
         conflict -> merge_msg_conflict(Prev, New, TrUserData);
         read_dcb_context_request -> merge_msg_read_dcb_context_request(Prev, New, TrUserData);
         read_dcb_context_response -> merge_msg_read_dcb_context_response(Prev, New, TrUserData);
+        ccc_read_by_payload_request -> merge_msg_ccc_read_by_payload_request(Prev, New, TrUserData);
+        ccc_read_by_payload_response -> merge_msg_ccc_read_by_payload_response(Prev, New, TrUserData);
+        ccc_read_by_payload_hash_request -> merge_msg_ccc_read_by_payload_hash_request(Prev, New, TrUserData);
+        ccc_read_by_payload_hash_response -> merge_msg_ccc_read_by_payload_hash_response(Prev, New, TrUserData);
         proposed_event -> merge_msg_proposed_event(Prev, New, TrUserData);
         recorded_event -> merge_msg_recorded_event(Prev, New, TrUserData);
         snapshot_record -> merge_msg_snapshot_record(Prev, New, TrUserData);
@@ -2249,6 +2674,76 @@ merge_msg_read_dcb_context_response(PMsg, NMsg, TrUserData) ->
         {_, #{max_seq := NFmax_seq}} -> S2#{max_seq => NFmax_seq};
         {#{max_seq := PFmax_seq}, _} -> S2#{max_seq => PFmax_seq};
         _ -> S2
+    end.
+
+-compile({nowarn_unused_function,merge_msg_ccc_read_by_payload_request/3}).
+merge_msg_ccc_read_by_payload_request(PMsg, NMsg, _) ->
+    S1 = #{},
+    S2 = case {PMsg, NMsg} of
+             {_, #{store_id := NFstore_id}} -> S1#{store_id => NFstore_id};
+             {#{store_id := PFstore_id}, _} -> S1#{store_id => PFstore_id};
+             _ -> S1
+         end,
+    S3 = case {PMsg, NMsg} of
+             {_, #{key := NFkey}} -> S2#{key => NFkey};
+             {#{key := PFkey}, _} -> S2#{key => PFkey};
+             _ -> S2
+         end,
+    S4 = case {PMsg, NMsg} of
+             {_, #{value := NFvalue}} -> S3#{value => NFvalue};
+             {#{value := PFvalue}, _} -> S3#{value => PFvalue};
+             _ -> S3
+         end,
+    case {PMsg, NMsg} of
+        {_, #{batch_size := NFbatch_size}} -> S4#{batch_size => NFbatch_size};
+        {#{batch_size := PFbatch_size}, _} -> S4#{batch_size => PFbatch_size};
+        _ -> S4
+    end.
+
+-compile({nowarn_unused_function,merge_msg_ccc_read_by_payload_response/3}).
+merge_msg_ccc_read_by_payload_response(PMsg, NMsg, TrUserData) ->
+    S1 = #{},
+    case {PMsg, NMsg} of
+        {#{events := PFevents}, #{events := NFevents}} -> S1#{events => 'erlang_++'(PFevents, NFevents, TrUserData)};
+        {_, #{events := NFevents}} -> S1#{events => NFevents};
+        {#{events := PFevents}, _} -> S1#{events => PFevents};
+        {_, _} -> S1
+    end.
+
+-compile({nowarn_unused_function,merge_msg_ccc_read_by_payload_hash_request/3}).
+merge_msg_ccc_read_by_payload_hash_request(PMsg, NMsg, TrUserData) ->
+    S1 = #{},
+    S2 = case {PMsg, NMsg} of
+             {_, #{store_id := NFstore_id}} -> S1#{store_id => NFstore_id};
+             {#{store_id := PFstore_id}, _} -> S1#{store_id => PFstore_id};
+             _ -> S1
+         end,
+    S3 = case {PMsg, NMsg} of
+             {#{keys := PFkeys}, #{keys := NFkeys}} -> S2#{keys => 'erlang_++'(PFkeys, NFkeys, TrUserData)};
+             {_, #{keys := NFkeys}} -> S2#{keys => NFkeys};
+             {#{keys := PFkeys}, _} -> S2#{keys => PFkeys};
+             {_, _} -> S2
+         end,
+    S4 = case {PMsg, NMsg} of
+             {#{values := PFvalues}, #{values := NFvalues}} -> S3#{values => 'erlang_++'(PFvalues, NFvalues, TrUserData)};
+             {_, #{values := NFvalues}} -> S3#{values => NFvalues};
+             {#{values := PFvalues}, _} -> S3#{values => PFvalues};
+             {_, _} -> S3
+         end,
+    case {PMsg, NMsg} of
+        {_, #{batch_size := NFbatch_size}} -> S4#{batch_size => NFbatch_size};
+        {#{batch_size := PFbatch_size}, _} -> S4#{batch_size => PFbatch_size};
+        _ -> S4
+    end.
+
+-compile({nowarn_unused_function,merge_msg_ccc_read_by_payload_hash_response/3}).
+merge_msg_ccc_read_by_payload_hash_response(PMsg, NMsg, TrUserData) ->
+    S1 = #{},
+    case {PMsg, NMsg} of
+        {#{events := PFevents}, #{events := NFevents}} -> S1#{events => 'erlang_++'(PFevents, NFevents, TrUserData)};
+        {_, #{events := NFevents}} -> S1#{events => NFevents};
+        {#{events := PFevents}, _} -> S1#{events => PFevents};
+        {_, _} -> S1
     end.
 
 -compile({nowarn_unused_function,merge_msg_proposed_event/3}).
@@ -2444,6 +2939,10 @@ verify_msg(Msg, MsgName, Opts) ->
         conflict -> v_msg_conflict(Msg, [MsgName], TrUserData);
         read_dcb_context_request -> v_msg_read_dcb_context_request(Msg, [MsgName], TrUserData);
         read_dcb_context_response -> v_msg_read_dcb_context_response(Msg, [MsgName], TrUserData);
+        ccc_read_by_payload_request -> v_msg_ccc_read_by_payload_request(Msg, [MsgName], TrUserData);
+        ccc_read_by_payload_response -> v_msg_ccc_read_by_payload_response(Msg, [MsgName], TrUserData);
+        ccc_read_by_payload_hash_request -> v_msg_ccc_read_by_payload_hash_request(Msg, [MsgName], TrUserData);
+        ccc_read_by_payload_hash_response -> v_msg_ccc_read_by_payload_hash_response(Msg, [MsgName], TrUserData);
         proposed_event -> v_msg_proposed_event(Msg, [MsgName], TrUserData);
         recorded_event -> v_msg_recorded_event(Msg, [MsgName], TrUserData);
         snapshot_record -> v_msg_snapshot_record(Msg, [MsgName], TrUserData);
@@ -2663,6 +3162,116 @@ v_msg_read_dcb_context_response(#{} = M, Path, TrUserData) ->
     ok;
 v_msg_read_dcb_context_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), read_dcb_context_response}, M, Path);
 v_msg_read_dcb_context_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, read_dcb_context_response}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_ccc_read_by_payload_request/3}).
+-dialyzer({nowarn_function,v_msg_ccc_read_by_payload_request/3}).
+v_msg_ccc_read_by_payload_request(#{} = M, Path, TrUserData) ->
+    case M of
+        #{store_id := F1} -> v_type_string(F1, [store_id | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{key := F2} -> v_type_string(F2, [key | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{value := F3} -> v_type_string(F3, [value | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{batch_size := F4} -> v_type_uint64(F4, [batch_size | Path], TrUserData);
+        _ -> ok
+    end,
+    lists:foreach(fun (store_id) -> ok;
+                      (key) -> ok;
+                      (value) -> ok;
+                      (batch_size) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_ccc_read_by_payload_request(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), ccc_read_by_payload_request}, M, Path);
+v_msg_ccc_read_by_payload_request(X, Path, _TrUserData) -> mk_type_error({expected_msg, ccc_read_by_payload_request}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_ccc_read_by_payload_response/3}).
+-dialyzer({nowarn_function,v_msg_ccc_read_by_payload_response/3}).
+v_msg_ccc_read_by_payload_response(#{} = M, Path, TrUserData) ->
+    case M of
+        #{events := F1} ->
+            if is_list(F1) ->
+                   _ = [v_submsg_recorded_event(Elem, [events | Path], TrUserData) || Elem <- F1],
+                   ok;
+               true -> mk_type_error({invalid_list_of, {msg, recorded_event}}, F1, [events | Path])
+            end;
+        _ -> ok
+    end,
+    lists:foreach(fun (events) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_ccc_read_by_payload_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), ccc_read_by_payload_response}, M, Path);
+v_msg_ccc_read_by_payload_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, ccc_read_by_payload_response}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_ccc_read_by_payload_hash_request/3}).
+-dialyzer({nowarn_function,v_msg_ccc_read_by_payload_hash_request/3}).
+v_msg_ccc_read_by_payload_hash_request(#{} = M, Path, TrUserData) ->
+    case M of
+        #{store_id := F1} -> v_type_string(F1, [store_id | Path], TrUserData);
+        _ -> ok
+    end,
+    case M of
+        #{keys := F2} ->
+            if is_list(F2) ->
+                   _ = [v_type_string(Elem, [keys | Path], TrUserData) || Elem <- F2],
+                   ok;
+               true -> mk_type_error({invalid_list_of, string}, F2, [keys | Path])
+            end;
+        _ -> ok
+    end,
+    case M of
+        #{values := F3} ->
+            if is_list(F3) ->
+                   _ = [v_type_string(Elem, [values | Path], TrUserData) || Elem <- F3],
+                   ok;
+               true -> mk_type_error({invalid_list_of, string}, F3, [values | Path])
+            end;
+        _ -> ok
+    end,
+    case M of
+        #{batch_size := F4} -> v_type_uint64(F4, [batch_size | Path], TrUserData);
+        _ -> ok
+    end,
+    lists:foreach(fun (store_id) -> ok;
+                      (keys) -> ok;
+                      (values) -> ok;
+                      (batch_size) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_ccc_read_by_payload_hash_request(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), ccc_read_by_payload_hash_request}, M, Path);
+v_msg_ccc_read_by_payload_hash_request(X, Path, _TrUserData) -> mk_type_error({expected_msg, ccc_read_by_payload_hash_request}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_ccc_read_by_payload_hash_response/3}).
+-dialyzer({nowarn_function,v_msg_ccc_read_by_payload_hash_response/3}).
+v_msg_ccc_read_by_payload_hash_response(#{} = M, Path, TrUserData) ->
+    case M of
+        #{events := F1} ->
+            if is_list(F1) ->
+                   _ = [v_submsg_recorded_event(Elem, [events | Path], TrUserData) || Elem <- F1],
+                   ok;
+               true -> mk_type_error({invalid_list_of, {msg, recorded_event}}, F1, [events | Path])
+            end;
+        _ -> ok
+    end,
+    lists:foreach(fun (events) -> ok;
+                      (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_ccc_read_by_payload_hash_response(M, Path, _TrUserData) when is_map(M) -> mk_type_error({missing_fields, [] -- maps:keys(M), ccc_read_by_payload_hash_response}, M, Path);
+v_msg_ccc_read_by_payload_hash_response(X, Path, _TrUserData) -> mk_type_error({expected_msg, ccc_read_by_payload_hash_response}, X, Path).
 
 -compile({nowarn_unused_function,v_submsg_proposed_event/3}).
 -dialyzer({nowarn_function,v_submsg_proposed_event/3}).
@@ -3001,6 +3610,18 @@ get_msg_defs() ->
        #{name => tag_filter, fnum => 2, rnum => 3, type => {msg, tag_filter}, occurrence => optional, opts => []},
        #{name => batch_size, fnum => 3, rnum => 4, type => uint64, occurrence => optional, opts => []}]},
      {{msg, read_dcb_context_response}, [#{name => events, fnum => 1, rnum => 2, type => {msg, recorded_event}, occurrence => repeated, opts => []}, #{name => max_seq, fnum => 2, rnum => 3, type => sint64, occurrence => optional, opts => []}]},
+     {{msg, ccc_read_by_payload_request},
+      [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+       #{name => key, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
+       #{name => value, fnum => 3, rnum => 4, type => string, occurrence => optional, opts => []},
+       #{name => batch_size, fnum => 4, rnum => 5, type => uint64, occurrence => optional, opts => []}]},
+     {{msg, ccc_read_by_payload_response}, [#{name => events, fnum => 1, rnum => 2, type => {msg, recorded_event}, occurrence => repeated, opts => []}]},
+     {{msg, ccc_read_by_payload_hash_request},
+      [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+       #{name => keys, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
+       #{name => values, fnum => 3, rnum => 4, type => string, occurrence => repeated, opts => []},
+       #{name => batch_size, fnum => 4, rnum => 5, type => uint64, occurrence => optional, opts => []}]},
+     {{msg, ccc_read_by_payload_hash_response}, [#{name => events, fnum => 1, rnum => 2, type => {msg, recorded_event}, occurrence => repeated, opts => []}]},
      {{msg, proposed_event},
       [#{name => event_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
        #{name => event_type, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
@@ -3040,14 +3661,46 @@ get_msg_defs() ->
 
 
 get_msg_names() ->
-    [tag_filter, tag_list, filter_list, append_if_no_tag_matches_request, append_if_no_tag_matches_response, committed, conflict, read_dcb_context_request, read_dcb_context_response, proposed_event, recorded_event, snapshot_record, subscription_info].
+    [tag_filter,
+     tag_list,
+     filter_list,
+     append_if_no_tag_matches_request,
+     append_if_no_tag_matches_response,
+     committed,
+     conflict,
+     read_dcb_context_request,
+     read_dcb_context_response,
+     ccc_read_by_payload_request,
+     ccc_read_by_payload_response,
+     ccc_read_by_payload_hash_request,
+     ccc_read_by_payload_hash_response,
+     proposed_event,
+     recorded_event,
+     snapshot_record,
+     subscription_info].
 
 
 get_group_names() -> [].
 
 
 get_msg_or_group_names() ->
-    [tag_filter, tag_list, filter_list, append_if_no_tag_matches_request, append_if_no_tag_matches_response, committed, conflict, read_dcb_context_request, read_dcb_context_response, proposed_event, recorded_event, snapshot_record, subscription_info].
+    [tag_filter,
+     tag_list,
+     filter_list,
+     append_if_no_tag_matches_request,
+     append_if_no_tag_matches_response,
+     committed,
+     conflict,
+     read_dcb_context_request,
+     read_dcb_context_response,
+     ccc_read_by_payload_request,
+     ccc_read_by_payload_response,
+     ccc_read_by_payload_hash_request,
+     ccc_read_by_payload_hash_response,
+     proposed_event,
+     recorded_event,
+     snapshot_record,
+     subscription_info].
 
 
 get_enum_names() -> ['reckon.gateway.v1.SubscriptionType', 'reckon.gateway.v1.TagMatch'].
@@ -3093,6 +3746,18 @@ find_msg_def(read_dcb_context_request) ->
      #{name => tag_filter, fnum => 2, rnum => 3, type => {msg, tag_filter}, occurrence => optional, opts => []},
      #{name => batch_size, fnum => 3, rnum => 4, type => uint64, occurrence => optional, opts => []}];
 find_msg_def(read_dcb_context_response) -> [#{name => events, fnum => 1, rnum => 2, type => {msg, recorded_event}, occurrence => repeated, opts => []}, #{name => max_seq, fnum => 2, rnum => 3, type => sint64, occurrence => optional, opts => []}];
+find_msg_def(ccc_read_by_payload_request) ->
+    [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+     #{name => key, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
+     #{name => value, fnum => 3, rnum => 4, type => string, occurrence => optional, opts => []},
+     #{name => batch_size, fnum => 4, rnum => 5, type => uint64, occurrence => optional, opts => []}];
+find_msg_def(ccc_read_by_payload_response) -> [#{name => events, fnum => 1, rnum => 2, type => {msg, recorded_event}, occurrence => repeated, opts => []}];
+find_msg_def(ccc_read_by_payload_hash_request) ->
+    [#{name => store_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
+     #{name => keys, fnum => 2, rnum => 3, type => string, occurrence => repeated, opts => []},
+     #{name => values, fnum => 3, rnum => 4, type => string, occurrence => repeated, opts => []},
+     #{name => batch_size, fnum => 4, rnum => 5, type => uint64, occurrence => optional, opts => []}];
+find_msg_def(ccc_read_by_payload_hash_response) -> [#{name => events, fnum => 1, rnum => 2, type => {msg, recorded_event}, occurrence => repeated, opts => []}];
 find_msg_def(proposed_event) ->
     [#{name => event_id, fnum => 1, rnum => 2, type => string, occurrence => optional, opts => []},
      #{name => event_type, fnum => 2, rnum => 3, type => string, occurrence => optional, opts => []},
@@ -3175,11 +3840,13 @@ get_service_names() -> ['reckon.gateway.v1.DcbService'].
 get_service_def('reckon.gateway.v1.DcbService') ->
     {{service, 'reckon.gateway.v1.DcbService'},
      [#{name => 'AppendIfNoTagMatches', input => append_if_no_tag_matches_request, output => append_if_no_tag_matches_response, input_stream => false, output_stream => false, opts => []},
-      #{name => 'ReadDcbContext', input => read_dcb_context_request, output => read_dcb_context_response, input_stream => false, output_stream => false, opts => []}]};
+      #{name => 'ReadDcbContext', input => read_dcb_context_request, output => read_dcb_context_response, input_stream => false, output_stream => false, opts => []},
+      #{name => 'CccReadByPayload', input => ccc_read_by_payload_request, output => ccc_read_by_payload_response, input_stream => false, output_stream => false, opts => []},
+      #{name => 'CccReadByPayloadHash', input => ccc_read_by_payload_hash_request, output => ccc_read_by_payload_hash_response, input_stream => false, output_stream => false, opts => []}]};
 get_service_def(_) -> error.
 
 
-get_rpc_names('reckon.gateway.v1.DcbService') -> ['AppendIfNoTagMatches', 'ReadDcbContext'];
+get_rpc_names('reckon.gateway.v1.DcbService') -> ['AppendIfNoTagMatches', 'ReadDcbContext', 'CccReadByPayload', 'CccReadByPayloadHash'];
 get_rpc_names(_) -> error.
 
 
@@ -3190,6 +3857,9 @@ find_rpc_def(_, _) -> error.
 'find_rpc_def_reckon.gateway.v1.DcbService'('AppendIfNoTagMatches') ->
     #{name => 'AppendIfNoTagMatches', input => append_if_no_tag_matches_request, output => append_if_no_tag_matches_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.DcbService'('ReadDcbContext') -> #{name => 'ReadDcbContext', input => read_dcb_context_request, output => read_dcb_context_response, input_stream => false, output_stream => false, opts => []};
+'find_rpc_def_reckon.gateway.v1.DcbService'('CccReadByPayload') -> #{name => 'CccReadByPayload', input => ccc_read_by_payload_request, output => ccc_read_by_payload_response, input_stream => false, output_stream => false, opts => []};
+'find_rpc_def_reckon.gateway.v1.DcbService'('CccReadByPayloadHash') ->
+    #{name => 'CccReadByPayloadHash', input => ccc_read_by_payload_hash_request, output => ccc_read_by_payload_hash_response, input_stream => false, output_stream => false, opts => []};
 'find_rpc_def_reckon.gateway.v1.DcbService'(_) -> error.
 
 
@@ -3217,6 +3887,8 @@ service_name_to_fqbin(X) -> error({gpb_error, {badservice, X}}).
 %% name, as atoms.
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.DcbService">>, <<"AppendIfNoTagMatches">>) -> {'reckon.gateway.v1.DcbService', 'AppendIfNoTagMatches'};
 fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.DcbService">>, <<"ReadDcbContext">>) -> {'reckon.gateway.v1.DcbService', 'ReadDcbContext'};
+fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.DcbService">>, <<"CccReadByPayload">>) -> {'reckon.gateway.v1.DcbService', 'CccReadByPayload'};
+fqbins_to_service_and_rpc_name(<<"reckon.gateway.v1.DcbService">>, <<"CccReadByPayloadHash">>) -> {'reckon.gateway.v1.DcbService', 'CccReadByPayloadHash'};
 fqbins_to_service_and_rpc_name(S, R) -> error({gpb_error, {badservice_or_rpc, {S, R}}}).
 
 
@@ -3225,6 +3897,8 @@ fqbins_to_service_and_rpc_name(S, R) -> error({gpb_error, {badservice_or_rpc, {S
 %% an rpc name as binaries.
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.DcbService', 'AppendIfNoTagMatches') -> {<<"reckon.gateway.v1.DcbService">>, <<"AppendIfNoTagMatches">>};
 service_and_rpc_name_to_fqbins('reckon.gateway.v1.DcbService', 'ReadDcbContext') -> {<<"reckon.gateway.v1.DcbService">>, <<"ReadDcbContext">>};
+service_and_rpc_name_to_fqbins('reckon.gateway.v1.DcbService', 'CccReadByPayload') -> {<<"reckon.gateway.v1.DcbService">>, <<"CccReadByPayload">>};
+service_and_rpc_name_to_fqbins('reckon.gateway.v1.DcbService', 'CccReadByPayloadHash') -> {<<"reckon.gateway.v1.DcbService">>, <<"CccReadByPayloadHash">>};
 service_and_rpc_name_to_fqbins(S, R) -> error({gpb_error, {badservice_or_rpc, {S, R}}}).
 
 
@@ -3237,6 +3911,10 @@ fqbin_to_msg_name(<<"reckon.gateway.v1.Committed">>) -> committed;
 fqbin_to_msg_name(<<"reckon.gateway.v1.Conflict">>) -> conflict;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ReadDcbContextRequest">>) -> read_dcb_context_request;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ReadDcbContextResponse">>) -> read_dcb_context_response;
+fqbin_to_msg_name(<<"reckon.gateway.v1.CccReadByPayloadRequest">>) -> ccc_read_by_payload_request;
+fqbin_to_msg_name(<<"reckon.gateway.v1.CccReadByPayloadResponse">>) -> ccc_read_by_payload_response;
+fqbin_to_msg_name(<<"reckon.gateway.v1.CccReadByPayloadHashRequest">>) -> ccc_read_by_payload_hash_request;
+fqbin_to_msg_name(<<"reckon.gateway.v1.CccReadByPayloadHashResponse">>) -> ccc_read_by_payload_hash_response;
 fqbin_to_msg_name(<<"reckon.gateway.v1.ProposedEvent">>) -> proposed_event;
 fqbin_to_msg_name(<<"reckon.gateway.v1.RecordedEvent">>) -> recorded_event;
 fqbin_to_msg_name(<<"reckon.gateway.v1.SnapshotRecord">>) -> snapshot_record;
@@ -3253,6 +3931,10 @@ msg_name_to_fqbin(committed) -> <<"reckon.gateway.v1.Committed">>;
 msg_name_to_fqbin(conflict) -> <<"reckon.gateway.v1.Conflict">>;
 msg_name_to_fqbin(read_dcb_context_request) -> <<"reckon.gateway.v1.ReadDcbContextRequest">>;
 msg_name_to_fqbin(read_dcb_context_response) -> <<"reckon.gateway.v1.ReadDcbContextResponse">>;
+msg_name_to_fqbin(ccc_read_by_payload_request) -> <<"reckon.gateway.v1.CccReadByPayloadRequest">>;
+msg_name_to_fqbin(ccc_read_by_payload_response) -> <<"reckon.gateway.v1.CccReadByPayloadResponse">>;
+msg_name_to_fqbin(ccc_read_by_payload_hash_request) -> <<"reckon.gateway.v1.CccReadByPayloadHashRequest">>;
+msg_name_to_fqbin(ccc_read_by_payload_hash_response) -> <<"reckon.gateway.v1.CccReadByPayloadHashResponse">>;
 msg_name_to_fqbin(proposed_event) -> <<"reckon.gateway.v1.ProposedEvent">>;
 msg_name_to_fqbin(recorded_event) -> <<"reckon.gateway.v1.RecordedEvent">>;
 msg_name_to_fqbin(snapshot_record) -> <<"reckon.gateway.v1.SnapshotRecord">>;
@@ -3297,7 +3979,20 @@ get_all_source_basenames() -> ["reckon_dcb.proto", "reckon_shared.proto"].
 get_all_proto_names() -> ["reckon_dcb", "reckon_shared"].
 
 
-get_msg_containment("reckon_dcb") -> [append_if_no_tag_matches_request, append_if_no_tag_matches_response, committed, conflict, filter_list, read_dcb_context_request, read_dcb_context_response, tag_filter, tag_list];
+get_msg_containment("reckon_dcb") ->
+    [append_if_no_tag_matches_request,
+     append_if_no_tag_matches_response,
+     ccc_read_by_payload_hash_request,
+     ccc_read_by_payload_hash_response,
+     ccc_read_by_payload_request,
+     ccc_read_by_payload_response,
+     committed,
+     conflict,
+     filter_list,
+     read_dcb_context_request,
+     read_dcb_context_response,
+     tag_filter,
+     tag_list];
 get_msg_containment("reckon_shared") -> [proposed_event, recorded_event, snapshot_record, subscription_info];
 get_msg_containment(P) -> error({gpb_error, {badproto, P}}).
 
@@ -3312,7 +4007,8 @@ get_service_containment("reckon_shared") -> [];
 get_service_containment(P) -> error({gpb_error, {badproto, P}}).
 
 
-get_rpc_containment("reckon_dcb") -> [{'reckon.gateway.v1.DcbService', 'AppendIfNoTagMatches'}, {'reckon.gateway.v1.DcbService', 'ReadDcbContext'}];
+get_rpc_containment("reckon_dcb") ->
+    [{'reckon.gateway.v1.DcbService', 'AppendIfNoTagMatches'}, {'reckon.gateway.v1.DcbService', 'ReadDcbContext'}, {'reckon.gateway.v1.DcbService', 'CccReadByPayload'}, {'reckon.gateway.v1.DcbService', 'CccReadByPayloadHash'}];
 get_rpc_containment("reckon_shared") -> [];
 get_rpc_containment(P) -> error({gpb_error, {badproto, P}}).
 
@@ -3331,8 +4027,12 @@ get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ReadDcbContextRequest">>) ->
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.FilterList">>) -> "reckon_dcb";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.Conflict">>) -> "reckon_dcb";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.Committed">>) -> "reckon_dcb";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.CccReadByPayloadRequest">>) -> "reckon_dcb";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.CccReadByPayloadHashRequest">>) -> "reckon_dcb";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.AppendIfNoTagMatchesRequest">>) -> "reckon_dcb";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.ReadDcbContextResponse">>) -> "reckon_dcb";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.CccReadByPayloadResponse">>) -> "reckon_dcb";
+get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.CccReadByPayloadHashResponse">>) -> "reckon_dcb";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.AppendIfNoTagMatchesResponse">>) -> "reckon_dcb";
 get_proto_by_msg_name_as_fqbin(<<"reckon.gateway.v1.SubscriptionInfo">>) -> "reckon_shared";
 get_proto_by_msg_name_as_fqbin(E) -> error({gpb_error, {badmsg, E}}).
