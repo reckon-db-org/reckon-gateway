@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.0 (2026-06-24)
+
+**Admin UI: CCC Payload Query + Hash Query views; fix Context Query icon.**
+
+- Fix: "Context Query" nav item displayed the GitHub mark (Bootstrap Icons
+  `github` path accidentally copy-pasted). Replaced with the correct funnel
+  icon (`bi-funnel`), which matches the filter semantics of the view.
+- Add CCC section to sidebar with two new views:
+  - **Payload Query** — `GET /dcb/by-payload?key=K&value=V` — enter a payload
+    key and value, returns all matching events in a table.
+  - **Hash Query** — `POST /dcb/by-payload-hash` — add one or more key-value
+    pairs (dynamic rows); queries the composite payload-hash CCC index.
+- Optimize `scripts/build-and-push.sh` to use `docker build --push` (single
+  daemon pass instead of separate build + push).
+
 ## 0.14.0 (2026-06-23)
 
 - Add gRPC handlers for `CccReadByPayload` and `CccReadByPayloadHash`

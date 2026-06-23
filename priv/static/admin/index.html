@@ -316,8 +316,20 @@
         Event Types
       </div>
       <div class="nav-item" data-view="dcb-context" onclick="nav('dcb-context')">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z"/></svg>
         Context Query
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">CCC</div>
+      <div class="nav-item" data-view="ccc-payload" onclick="nav('ccc-payload')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg>
+        Payload Query
+      </div>
+      <div class="nav-item" data-view="ccc-hash" onclick="nav('ccc-hash')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8.39 12.648a1.32 1.32 0 0 0-.015.18c0 .305.21.508.5.508.266 0 .492-.172.555-.477l.554-2.703h1.204c.421 0 .617-.234.617-.547 0-.312-.188-.53-.617-.53h-.985l.516-2.524h1.265c.43 0 .618-.227.618-.547 0-.313-.188-.524-.618-.524h-1.046l.476-2.273c.008-.04.015-.11.015-.18 0-.313-.234-.508-.508-.508-.265 0-.5.172-.554.477l-.524 2.504H7.195l.476-2.273c.015-.04.015-.11.015-.18 0-.313-.234-.508-.508-.508-.265 0-.5.172-.554.477l-.524 2.504H4.917c-.43 0-.617.22-.617.524 0 .312.187.547.617.547h.985L5.39 8.63H4.125c-.43 0-.617.227-.617.547 0 .313.187.53.617.53h1.046l-.476 2.274c-.008.04-.016.11-.016.18 0 .312.234.507.508.507.265 0 .5-.172.554-.477l.524-2.504h2.007l-.476 2.273zm-1.54-3.33.515-2.524h2.007l-.515 2.524H6.85z"/></svg>
+        Hash Query
       </div>
     </div>
   </nav>
@@ -628,6 +640,48 @@
       </div>
     </div>
 
+    <!-- ── VIEW: CCC PAYLOAD QUERY ───────────────────────────── -->
+    <div id="view-ccc-payload" class="view">
+      <div class="page-header">
+        <h1>CCC Payload Query</h1>
+        <p>Find events where a payload field exactly matches a value — requires a <code style="font-family:var(--mono)">{ccc, key}</code> index on the store</p>
+      </div>
+      <div class="controls">
+        <input type="text" id="ccc-payload-key"   placeholder="payload key"   style="width:180px"
+               onkeydown="if(event.key==='Enter')loadCccPayload()">
+        <input type="text" id="ccc-payload-value" placeholder="payload value" style="width:200px"
+               onkeydown="if(event.key==='Enter')loadCccPayload()">
+        <label style="font-size:0.78rem;color:var(--text-muted)">Batch</label>
+        <input type="number" id="ccc-payload-batch" value="200" min="1" max="10000" style="width:90px">
+        <button class="btn btn-sm" onclick="loadCccPayload()">Query</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap" id="ccc-payload-table">
+          <div class="empty">enter a payload key and value to query</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: CCC HASH QUERY ──────────────────────────────── -->
+    <div id="view-ccc-hash" class="view">
+      <div class="page-header">
+        <h1>CCC Hash Query</h1>
+        <p>Find events matching a combination of payload fields — requires a <code style="font-family:var(--mono)">{ccc_hash, [keys]}</code> index on the store</p>
+      </div>
+      <div id="ccc-hash-pairs" style="margin-bottom:0.5rem"></div>
+      <div class="controls" style="margin-bottom:1rem">
+        <button class="btn btn-ghost btn-sm" onclick="addCccHashPair()">+ Add field</button>
+        <label style="font-size:0.78rem;color:var(--text-muted)">Batch</label>
+        <input type="number" id="ccc-hash-batch" value="200" min="1" max="10000" style="width:90px">
+        <button class="btn btn-sm" onclick="loadCccHash()">Query</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap" id="ccc-hash-table">
+          <div class="empty">add field pairs and query</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -669,6 +723,8 @@ function nav(view) {
   if (view === 'dcb-log')        loadDcbLog();
   if (view === 'dcb-tags')       loadDcbTags();
   if (view === 'dcb-event-types') loadDcbEventTypes();
+  if (view === 'ccc-payload')    { /* user types + queries */ }
+  if (view === 'ccc-hash')       initCccHashPairs();
 }
 
 // ── STORE SELECTOR ───────────────────────────────────────────
@@ -1152,6 +1208,69 @@ async function loadDcbContext() {
     document.getElementById('dcb-events-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
     document.getElementById('dcb-max-seq').textContent = 'error';
     document.getElementById('dcb-event-count').textContent = '—';
+  }
+}
+
+// ── CCC PAYLOAD QUERY ─────────────────────────────────────────
+async function loadCccPayload() {
+  if (!S.currentStore) { alert('Select a store first'); return; }
+  const key   = document.getElementById('ccc-payload-key').value.trim();
+  const value = document.getElementById('ccc-payload-value').value.trim();
+  const batch = parseInt(document.getElementById('ccc-payload-batch').value) || 200;
+  if (!key || !value) return;
+
+  document.getElementById('ccc-payload-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const params = new URLSearchParams({ key, value, batch_size: batch });
+    const d = await api(`/v1/stores/${S.currentStore}/dcb/by-payload?${params}`);
+    renderEventTable('ccc-payload-table', d.events || [], true);
+  } catch(e) {
+    document.getElementById('ccc-payload-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+// ── CCC HASH QUERY ────────────────────────────────────────────
+function initCccHashPairs() {
+  const container = document.getElementById('ccc-hash-pairs');
+  if (!container.children.length) addCccHashPair();
+}
+
+function addCccHashPair() {
+  const container = document.getElementById('ccc-hash-pairs');
+  const row = document.createElement('div');
+  row.className = 'controls';
+  row.style.marginBottom = '0.35rem';
+  row.innerHTML = `
+    <input type="text" placeholder="key"   style="width:180px" class="ccc-hash-key">
+    <input type="text" placeholder="value" style="width:200px" class="ccc-hash-val"
+           onkeydown="if(event.key==='Enter')loadCccHash()">
+    <button class="btn btn-ghost btn-sm" onclick="this.closest('div').remove()">✕</button>`;
+  container.appendChild(row);
+}
+
+async function loadCccHash() {
+  if (!S.currentStore) { alert('Select a store first'); return; }
+  const batch  = parseInt(document.getElementById('ccc-hash-batch').value) || 200;
+  const keys   = [...document.querySelectorAll('.ccc-hash-key')].map(i => i.value.trim()).filter(Boolean);
+  const values = [...document.querySelectorAll('.ccc-hash-val')].map(i => i.value.trim()).filter(Boolean);
+  if (!keys.length || keys.length !== values.length) {
+    document.getElementById('ccc-hash-table').innerHTML =
+      '<div class="error-msg">Add at least one pair with both key and value filled in</div>';
+    return;
+  }
+
+  document.getElementById('ccc-hash-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const r = await fetch(`/v1/stores/${S.currentStore}/dcb/by-payload-hash`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ keys, values, batch_size: batch }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    renderEventTable('ccc-hash-table', d.events || [], true);
+  } catch(e) {
+    document.getElementById('ccc-hash-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
   }
 }
 
