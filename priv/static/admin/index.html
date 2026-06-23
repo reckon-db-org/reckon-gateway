@@ -721,8 +721,8 @@ async function loadStreams() {
   document.getElementById('streams-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
   try {
     const d = await api(`/v1/stores/${S.currentStore}/streams`);
-    S.allStreams = d.stream_ids || [];
-    renderStreams(S.allStreams);
+    S.allStreams = ['_dcb', ...(d.stream_ids || [])];
+    filterStreams();
   } catch(e) {
     document.getElementById('streams-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
   }
@@ -739,15 +739,17 @@ function renderStreams(streams) {
     document.getElementById('streams-table').innerHTML = '<div class="empty">No streams found</div>';
     return;
   }
-  const rows = streams.map(s => `
-    <tr class="clickable" onclick="openStream('${esc(s)}')">
-      <td class="mono">${esc(s)}</td>
-    </tr>`).join('');
+  const rows = streams.map(s => {
+    const isDcb = s === '_dcb';
+    const label = isDcb ? `${esc(s)} <span class="badge badge-purple" style="font-size:0.65rem;vertical-align:middle">DCB</span>` : esc(s);
+    return `<tr class="clickable" onclick="openStream('${esc(s)}')"><td class="mono">${label}</td></tr>`;
+  }).join('');
   document.getElementById('streams-table').innerHTML =
     `<table><thead><tr><th>Stream ID</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function openStream(streamId) {
+  if (streamId === '_dcb') { nav('dcb-context'); return; }
   S.currentStream = streamId;
   document.getElementById('detail-stream-id').textContent = streamId;
   document.getElementById('detail-stream-title').textContent = streamId;
