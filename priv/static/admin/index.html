@@ -1115,7 +1115,9 @@ function buildDcbFilter() {
   if (mode === 'raw') {
     const raw = document.getElementById('dcb-raw-input').value.trim();
     if (!raw) throw new Error('enter a JSON filter');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    // Accept both {tag_filter: {...}} (full body) and {...} (filter only)
+    return parsed.tag_filter !== undefined ? parsed.tag_filter : parsed;
   }
 }
 
