@@ -239,6 +239,14 @@ event_matches(Event, {event_type, T}) when is_map(Event) ->
     maps:get(event_type, Event, maps:get(<<"event_type">>, Event, undefined)) =:= T;
 event_matches(_Tags, {event_type, _}) when is_list(_Tags) ->
     false;
+event_matches(#event{} = E, {and_, Filters}) ->
+    Filters =/= [] andalso lists:all(fun(F) -> event_matches(E, F) end, Filters);
+event_matches(#event{} = E, {or_, Filters}) ->
+    lists:any(fun(F) -> event_matches(E, F) end, Filters);
+event_matches(Event, {and_, Filters}) when is_map(Event) ->
+    Filters =/= [] andalso lists:all(fun(F) -> event_matches(Event, F) end, Filters);
+event_matches(Event, {or_, Filters}) when is_map(Event) ->
+    lists:any(fun(F) -> event_matches(Event, F) end, Filters);
 event_matches(#event{tags = Tags}, Filter) ->
     match_tags(normalize_tags(Tags), Filter);
 event_matches(Event, Filter) when is_map(Event) ->
