@@ -303,6 +303,18 @@
 
     <div class="nav-section">
       <div class="nav-label">DCB</div>
+      <div class="nav-item" data-view="dcb-log" onclick="nav('dcb-log')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z"/><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg>
+        Log
+      </div>
+      <div class="nav-item" data-view="dcb-tags" onclick="nav('dcb-tags')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2zm3.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>
+        Tags
+      </div>
+      <div class="nav-item" data-view="dcb-event-types" onclick="nav('dcb-event-types')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/></svg>
+        Event Types
+      </div>
       <div class="nav-item" data-view="dcb-context" onclick="nav('dcb-context')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
         Context Query
@@ -560,6 +572,62 @@
       </div>
     </div>
 
+    <!-- ── VIEW: DCB LOG ─────────────────────────────────────── -->
+    <div id="view-dcb-log" class="view">
+      <div class="page-header">
+        <h1>DCB Log</h1>
+        <p>Sequential view of all events in the Dynamic Consistency Boundary</p>
+      </div>
+
+      <div class="card" style="margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+          <label style="font-size:0.78rem;color:var(--text-muted)">From seq</label>
+          <input type="number" id="dcb-log-from" value="0" min="0" style="width:90px">
+          <label style="font-size:0.78rem;color:var(--text-muted)">Limit</label>
+          <input type="number" id="dcb-log-limit" value="50" min="1" max="200" style="width:80px">
+          <button class="btn btn-sm" onclick="loadDcbLog()">Load</button>
+          <span id="dcb-log-meta" style="font-size:0.78rem;color:var(--text-dim);margin-left:0.5rem"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tbl-wrap" id="dcb-log-table">
+          <div class="empty">click Load to fetch DCB events</div>
+        </div>
+        <div id="dcb-log-pagination" style="display:flex;gap:0.5rem;margin-top:0.75rem;justify-content:flex-end"></div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: DCB TAGS ────────────────────────────────────── -->
+    <div id="view-dcb-tags" class="view">
+      <div class="page-header">
+        <h1>DCB Tags</h1>
+        <p>All tags in the by_tag index, sorted by event count. Click a tag to query its context.</p>
+      </div>
+
+      <div class="card">
+        <button class="btn btn-sm" onclick="loadDcbTags()" style="margin-bottom:0.75rem">Refresh</button>
+        <div class="tbl-wrap" id="dcb-tags-table">
+          <div class="empty">click Refresh to load tags</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: DCB EVENT TYPES ─────────────────────────────── -->
+    <div id="view-dcb-event-types" class="view">
+      <div class="page-header">
+        <h1>DCB Event Types</h1>
+        <p>All event types in the by_event_type index, sorted by count. Click a type to query its context.</p>
+      </div>
+
+      <div class="card">
+        <button class="btn btn-sm" onclick="loadDcbEventTypes()" style="margin-bottom:0.75rem">Refresh</button>
+        <div class="tbl-wrap" id="dcb-types-table">
+          <div class="empty">click Refresh to load event types</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -597,7 +665,10 @@ function nav(view) {
   if (view === 'by-type')      { /* user types + searches */ }
   if (view === 'by-tags')      { /* user types + searches */ }
   if (view === 'by-metadata')  { /* user types + searches */ }
-  if (view === 'dcb-context')  { /* user builds filter + queries */ }
+  if (view === 'dcb-context')    { /* user builds filter + queries */ }
+  if (view === 'dcb-log')        loadDcbLog();
+  if (view === 'dcb-tags')       loadDcbTags();
+  if (view === 'dcb-event-types') loadDcbEventTypes();
 }
 
 // ── STORE SELECTOR ───────────────────────────────────────────
@@ -749,7 +820,7 @@ function renderStreams(streams) {
 }
 
 function openStream(streamId) {
-  if (streamId === '_dcb') { nav('dcb-context'); return; }
+  if (streamId === '_dcb') { nav('dcb-log'); return; }
   S.currentStream = streamId;
   document.getElementById('detail-stream-id').textContent = streamId;
   document.getElementById('detail-stream-title').textContent = streamId;
@@ -887,6 +958,128 @@ async function loadByMetadata() {
   } catch(e) {
     document.getElementById('bymeta-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
   }
+}
+
+// ── DCB LOG ───────────────────────────────────────────────────
+async function loadDcbLog() {
+  if (!S.currentStore) { alert('Select a store first'); return; }
+  const from  = parseInt(document.getElementById('dcb-log-from').value)  || 0;
+  const limit = parseInt(document.getElementById('dcb-log-limit').value) || 50;
+
+  document.getElementById('dcb-log-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  document.getElementById('dcb-log-meta').textContent = '';
+  document.getElementById('dcb-log-pagination').innerHTML = '';
+
+  try {
+    const params = new URLSearchParams({ from, limit });
+    const d = await api(`/v1/stores/${S.currentStore}/dcb/log?${params}`);
+    const events = d.events || [];
+    const total  = d.total_count ?? 0;
+
+    document.getElementById('dcb-log-meta').textContent =
+      `${events.length} events shown (total: ${total}, from seq ${from})`;
+
+    renderEventTable('dcb-log-table', events, false);
+
+    // pagination buttons
+    const pag = document.getElementById('dcb-log-pagination');
+    const prevFrom = Math.max(0, from - limit);
+    const nextFrom = from + events.length;
+    if (from > 0) {
+      const b = document.createElement('button');
+      b.className = 'btn btn-sm';
+      b.textContent = '← Prev';
+      b.onclick = () => {
+        document.getElementById('dcb-log-from').value = prevFrom;
+        loadDcbLog();
+      };
+      pag.appendChild(b);
+    }
+    if (nextFrom < total) {
+      const b = document.createElement('button');
+      b.className = 'btn btn-sm';
+      b.textContent = 'Next →';
+      b.onclick = () => {
+        document.getElementById('dcb-log-from').value = nextFrom;
+        loadDcbLog();
+      };
+      pag.appendChild(b);
+    }
+  } catch(e) {
+    document.getElementById('dcb-log-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+// ── DCB TAGS ──────────────────────────────────────────────────
+async function loadDcbTags() {
+  if (!S.currentStore) { alert('Select a store first'); return; }
+  document.getElementById('dcb-tags-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const d = await api(`/v1/stores/${S.currentStore}/dcb/tags`);
+    const tags = d.tags || [];
+    if (!tags.length) {
+      document.getElementById('dcb-tags-table').innerHTML = '<div class="empty">No tags in DCB log</div>';
+      return;
+    }
+    const rows = tags.map(t =>
+      `<tr class="clickable" onclick="dcbTagToContextQuery(${JSON.stringify(t.tag)})">
+        <td class="mono">${esc(t.tag)}</td>
+        <td class="mono">${t.count}</td>
+        <td style="font-size:0.72rem;color:var(--text-dim)">click to query context →</td>
+      </tr>`
+    ).join('');
+    document.getElementById('dcb-tags-table').innerHTML =
+      `<table>
+        <thead><tr><th>Tag</th><th>Event Count</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('dcb-tags-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+function dcbTagToContextQuery(tag) {
+  document.getElementById('dcb-filter-mode').value = 'match_any';
+  document.getElementById('dcb-tags-input').value = tag;
+  onDcbModeChange();
+  nav('dcb-context');
+  loadDcbContext();
+}
+
+// ── DCB EVENT TYPES ───────────────────────────────────────────
+async function loadDcbEventTypes() {
+  if (!S.currentStore) { alert('Select a store first'); return; }
+  document.getElementById('dcb-types-table').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const d = await api(`/v1/stores/${S.currentStore}/dcb/event-types`);
+    const types = d.event_types || [];
+    if (!types.length) {
+      document.getElementById('dcb-types-table').innerHTML = '<div class="empty">No events in DCB log</div>';
+      return;
+    }
+    const rows = types.map(t =>
+      `<tr class="clickable" onclick="dcbTypeToContextQuery(${JSON.stringify(t.event_type)})">
+        <td><span class="badge badge-purple">${esc(t.event_type)}</span></td>
+        <td class="mono">${t.count}</td>
+        <td style="font-size:0.72rem;color:var(--text-dim)">click to query context →</td>
+      </tr>`
+    ).join('');
+    document.getElementById('dcb-types-table').innerHTML =
+      `<table>
+        <thead><tr><th>Event Type</th><th>Event Count</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('dcb-types-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+function dcbTypeToContextQuery(eventType) {
+  document.getElementById('dcb-filter-mode').value = 'event_type';
+  document.getElementById('dcb-type-input').value = eventType;
+  onDcbModeChange();
+  nav('dcb-context');
+  loadDcbContext();
 }
 
 // ── DCB CONTEXT ───────────────────────────────────────────────

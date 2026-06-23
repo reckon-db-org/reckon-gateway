@@ -12,8 +12,11 @@
 %%%   GET  /v1/stores/:store_id              store instances
 %%%   *    /v1/stores/:store_id/streams/*    StreamService (sync)
 %%%   *    /v1/stores/:store_id/events/*     cross-stream indexed reads
-%%%   POST /v1/stores/:store_id/dcb/context  DCB context read
-%%%   POST /v1/stores/:store_id/dcb/append   DCB conditional append
+%%%   POST /v1/stores/:store_id/dcb/context      DCB context read
+%%%   POST /v1/stores/:store_id/dcb/append       DCB conditional append
+%%%   GET  /v1/stores/:store_id/dcb/log          DCB event log (paginated)
+%%%   GET  /v1/stores/:store_id/dcb/tags         DCB tag index with counts
+%%%   GET  /v1/stores/:store_id/dcb/event-types  DCB event type index
 %%%   GET  /admin/[...]                      static admin UI
 -module(reckon_gateway_http_listener).
 
@@ -59,6 +62,12 @@ child_spec() ->
              reckon_gateway_http_dcb, #{op => context}},
             {"/v1/stores/:store_id/dcb/append",
              reckon_gateway_http_dcb, #{op => append}},
+            {"/v1/stores/:store_id/dcb/log",
+             reckon_gateway_http_dcb, #{op => log}},
+            {"/v1/stores/:store_id/dcb/tags",
+             reckon_gateway_http_dcb, #{op => tags}},
+            {"/v1/stores/:store_id/dcb/event-types",
+             reckon_gateway_http_dcb, #{op => event_types}},
             %% Admin UI — served from priv/static/admin/
             {"/admin",
              cowboy_static, {priv_file, reckon_gateway, "static/admin/index.html"}},

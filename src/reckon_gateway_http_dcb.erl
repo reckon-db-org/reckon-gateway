@@ -2,8 +2,11 @@
 %%%
 %%% Routes (under /v1/stores/:store_id/):
 %%%
-%%%   POST /dcb/context   ReadDcbContext
-%%%   POST /dcb/append    AppendIfNoTagMatches
+%%%   POST /dcb/context         ReadDcbContext
+%%%   POST /dcb/append          AppendIfNoTagMatches
+%%%   GET  /dcb/log             Paginated DCB event log
+%%%   GET  /dcb/tags            Tag index with event counts
+%%%   GET  /dcb/event-types     Event type index with event counts
 %%%
 %%% Request body uses the JSON TagFilter algebra:
 %%%   {"match_any": [...]}  {"match_all": [...]}  {"event_type": "..."}
@@ -62,6 +65,53 @@ handle(<<"POST">>, append, Req0) ->
                             do_append(StoreId, Filter, SeqCutoff, Events, R)
                     end
                 end)
+        end
+    end);
+
+%% GET /dcb/log?from=0&limit=50
+%% Response: {"events": [...], "total_count": N, "from_seq": N, "limit": N}
+handle(<<"GET">>, log, Req0) ->
+    with_store(Req0, fun(StoreId, R) ->
+        FromSeq = reckon_gateway_http:qs_int(R, <<"from">>, 0),
+        Limit   = min(reckon_gateway_http:qs_int(R, <<"limit">>, 50), 200),
+        case reckon_gateway_dispatch:call(dcb_read_log, [StoreId, FromSeq, Limit]) of
+            {ok, #{events := Events, total_count := TotalCount}} ->
+                reckon_gateway_http:reply_json(200, #{
+                    <<"events">>      => [reckon_gateway_http:event_to_json_map(E) || E <- Events],
+                    <<"total_count">> => TotalCount,
+                    <<"from_seq">>    => FromSeq,
+                    <<"limit">>       => Limit
+                }, R);
+            {error, Reason} ->
+                reckon_gateway_http:dispatch_error(Reason, R)
+        end
+    end);
+
+%% GET /dcb/tags
+%% Response: {"tags": [{"tag": "...", "count": N}, ...]}
+handle(<<"GET">>, tags, Req0) ->
+    with_store(Req0, fun(StoreId, R) ->
+        case reckon_gateway_dispatch:call(dcb_all_tags, [StoreId]) of
+            {ok, Tags} ->
+                reckon_gateway_http:reply_json(200, #{
+                    <<"tags">> => [#{<<"tag">> => T, <<"count">> => C} || {T, C} <- Tags]
+                }, R);
+            {error, Reason} ->
+                reckon_gateway_http:dispatch_error(Reason, R)
+        end
+    end);
+
+%% GET /dcb/event-types
+%% Response: {"event_types": [{"event_type": "...", "count": N}, ...]}
+handle(<<"GET">>, event_types, Req0) ->
+    with_store(Req0, fun(StoreId, R) ->
+        case reckon_gateway_dispatch:call(dcb_all_event_types, [StoreId]) of
+            {ok, Types} ->
+                reckon_gateway_http:reply_json(200, #{
+                    <<"event_types">> => [#{<<"event_type">> => T, <<"count">> => C} || {T, C} <- Types]
+                }, R);
+            {error, Reason} ->
+                reckon_gateway_http:dispatch_error(Reason, R)
         end
     end);
 

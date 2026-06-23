@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.12.0 (2026-06-23)
+
+**DCB read API + admin UI: Log, Tags, Event Types views.**
+
+- Three new HTTP endpoints:
+  - `GET /v1/stores/:store_id/dcb/log?from=0&limit=50` — paginated sequential
+    read of DCB events; returns `{events, total_count, from_seq, limit}`.
+  - `GET /v1/stores/:store_id/dcb/tags` — all tags from the by_tag index
+    with event counts, sorted descending.
+  - `GET /v1/stores/:store_id/dcb/event-types` — all event types from the
+    by_event_type index with event counts, sorted descending.
+- Admin UI gains three new DCB views:
+  - **Log** — paginated event viewer with Prev/Next navigation;
+    clicking `_dcb` in the Streams list now lands here.
+  - **Tags** — tag list with counts; clicking a tag pre-fills Context Query.
+  - **Event Types** — event type list; clicking a type pre-fills Context Query.
+- Requires reckon-db ≥ 5.2.2 and reckon-gater ≥ 3.4.1.
+
 ## 0.11.0 (2026-06-22)
 
 **HTTP/JSON API + embedded admin UI.**
