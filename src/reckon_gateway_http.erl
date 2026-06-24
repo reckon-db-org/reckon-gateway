@@ -54,7 +54,13 @@ read_json_body(Req0) ->
             end
     end.
 
-qs_int(Req, Key, Default) ->
+%% cowboy_req:match_qs/2 keys the result map by the ATOM form of the field
+%% name (it runs binary_to_existing_atom over the parsed query string). The
+%% field names supplied here are fixed literals from the handlers, so convert
+%% the binary key to an atom before matching — passing a binary name never
+%% matches and silently yields the default.
+qs_int(Req, KeyBin, Default) ->
+    Key = binary_to_atom(KeyBin, utf8),
     case cowboy_req:match_qs([{Key, [], undefined}], Req) of
         #{Key := undefined} -> Default;
         #{Key := V} when is_binary(V) ->
@@ -63,7 +69,8 @@ qs_int(Req, Key, Default) ->
         _ -> Default
     end.
 
-qs_binary(Req, Key, Default) ->
+qs_binary(Req, KeyBin, Default) ->
+    Key = binary_to_atom(KeyBin, utf8),
     case cowboy_req:match_qs([{Key, [], undefined}], Req) of
         #{Key := undefined} -> Default;
         #{Key := V}         -> V;

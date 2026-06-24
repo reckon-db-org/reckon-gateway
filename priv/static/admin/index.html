@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ReckonDB Admin</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/admin/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/admin/favicon-16x16.png">
+  <link rel="shortcut icon" href="/admin/favicon.ico">
+  <link rel="apple-touch-icon" href="/admin/apple-touch-icon.png">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -22,6 +26,8 @@
       --yellow:     #d29922;
       --red:        #f85149;
       --blue:       #58a6ff;
+      --lime:       #84CC16;
+      --lime-bright:#B8E234;
       --mono:       'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
     }
 
@@ -48,13 +54,13 @@
     .spacer { flex: 1; }
     #header-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
     .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
-    .status-dot.healthy   { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.healthy   { background: var(--lime); box-shadow: 0 0 6px var(--lime); }
     .status-dot.degraded  { background: var(--yellow); }
     .status-dot.unhealthy { background: var(--red); }
     #header-version { font-size: 0.7rem; color: var(--text-dim); font-family: var(--mono); }
     #sse-indicator { display: flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; color: var(--text-dim); }
     #sse-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
-    #sse-indicator .dot.live { background: var(--green); box-shadow: 0 0 5px var(--green); animation: pulse 2s infinite; }
+    #sse-indicator .dot.live { background: var(--lime); box-shadow: 0 0 5px var(--lime); animation: pulse 2s infinite; }
     @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
 
     /* ── TOAST ──────────────────────────────────────────────── */
@@ -90,7 +96,8 @@
       user-select: none;
     }
     .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
-    .nav-item.active { color: var(--text); border-left-color: var(--accent); background: rgba(124,58,237,0.08); }
+    .nav-item.active { color: var(--text); border-left-color: var(--lime); background: rgba(132,204,22,0.10); }
+    .nav-item.active svg { color: var(--lime); }
     .nav-item svg { flex-shrink: 0; opacity: 0.7; }
     .nav-item.active svg { opacity: 1; }
 
@@ -230,14 +237,7 @@
 <!-- ── HEADER ──────────────────────────────────────────────── -->
 <div id="header">
   <div class="brand">
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="10" cy="10" r="3" fill="currentColor"/>
-      <line x1="10" y1="2" x2="10" y2="6"  stroke="currentColor" stroke-width="1.5"/>
-      <line x1="10" y1="14" x2="10" y2="18" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="2"  y1="10" x2="6"  y2="10" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="14" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1.5"/>
-    </svg>
+    <img src="/admin/reckondb-mark.svg" width="24" height="24" alt="ReckonDB">
     ReckonDB Admin
   </div>
   <select id="store-selector" onchange="onStoreChange()">
@@ -278,7 +278,7 @@
     </div>
 
     <div class="nav-section">
-      <div class="nav-label">Store</div>
+      <div class="nav-label">Classic</div>
       <div class="nav-item" data-view="streams" onclick="nav('streams')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v2h6a.5.5 0 0 1 .5.5v1h2V6a.5.5 0 0 1 .5-.5h6v-2A1.5 1.5 0 0 0 14.5 2h-13zm13 5a.5.5 0 0 1 .5.5v1h-4.5V8a.5.5 0 0 0-1 0v.5H5V8a.5.5 0 0 0-1 0v.5H0v4A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5V7.5a.5.5 0 0 1 .5.5z"/></svg>
         Streams
@@ -644,10 +644,11 @@
     <div id="view-ccc-payload" class="view">
       <div class="page-header">
         <h1>CCC Payload Query</h1>
-        <p>Find events where a payload field exactly matches a value — requires a <code style="font-family:var(--mono)">{ccc, key}</code> index on the store</p>
+        <p>Find events where a payload field exactly matches a value — requires a <code style="font-family:var(--mono)">{payload, Key}</code> index declared on the store</p>
       </div>
       <div class="controls">
-        <input type="text" id="ccc-payload-key"   placeholder="payload key"   style="width:180px"
+        <select id="ccc-payload-key" style="width:180px"></select>
+        <input type="text" id="ccc-payload-key-manual" placeholder="payload key" style="width:180px;display:none"
                onkeydown="if(event.key==='Enter')loadCccPayload()">
         <input type="text" id="ccc-payload-value" placeholder="payload value" style="width:200px"
                onkeydown="if(event.key==='Enter')loadCccPayload()">
@@ -655,6 +656,7 @@
         <input type="number" id="ccc-payload-batch" value="200" min="1" max="10000" style="width:90px">
         <button class="btn btn-sm" onclick="loadCccPayload()">Query</button>
       </div>
+      <div id="ccc-payload-note" style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.5rem"></div>
       <div class="card">
         <div class="tbl-wrap" id="ccc-payload-table">
           <div class="empty">enter a payload key and value to query</div>
@@ -666,11 +668,18 @@
     <div id="view-ccc-hash" class="view">
       <div class="page-header">
         <h1>CCC Hash Query</h1>
-        <p>Find events matching a combination of payload fields — requires a <code style="font-family:var(--mono)">{ccc_hash, [keys]}</code> index on the store</p>
+        <p>Find events matching a combination of payload fields — requires a <code style="font-family:var(--mono)">{payload_hash, [Keys]}</code> index declared on the store. Pick a declared combination, then enter a value for each field.</p>
       </div>
-      <div id="ccc-hash-pairs" style="margin-bottom:0.5rem"></div>
-      <div class="controls" style="margin-bottom:1rem">
+      <div class="controls" id="ccc-hash-combo-wrap" style="margin-bottom:0.75rem">
+        <label style="font-size:0.78rem;color:var(--text-muted)">Combination</label>
+        <select id="ccc-hash-combo" style="width:280px" onchange="renderCccHashFields()"></select>
+      </div>
+      <div id="ccc-hash-note" style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.5rem"></div>
+      <div id="ccc-hash-fields" style="margin-bottom:0.5rem"></div>
+      <div class="controls" id="ccc-hash-manual-add" style="margin-bottom:0.75rem;display:none">
         <button class="btn btn-ghost btn-sm" onclick="addCccHashPair()">+ Add field</button>
+      </div>
+      <div class="controls" style="margin-bottom:1rem">
         <label style="font-size:0.78rem;color:var(--text-muted)">Batch</label>
         <input type="number" id="ccc-hash-batch" value="200" min="1" max="10000" style="width:90px">
         <button class="btn btn-sm" onclick="loadCccHash()">Query</button>
@@ -723,8 +732,8 @@ function nav(view) {
   if (view === 'dcb-log')        loadDcbLog();
   if (view === 'dcb-tags')       loadDcbTags();
   if (view === 'dcb-event-types') loadDcbEventTypes();
-  if (view === 'ccc-payload')    { /* user types + queries */ }
-  if (view === 'ccc-hash')       initCccHashPairs();
+  if (view === 'ccc-payload')    loadCccPayloadIndexes();
+  if (view === 'ccc-hash')       loadCccHashIndexes();
 }
 
 // ── STORE SELECTOR ───────────────────────────────────────────
@@ -1211,10 +1220,69 @@ async function loadDcbContext() {
   }
 }
 
+// ── CCC INDEX DISCOVERY ───────────────────────────────────────
+// Fetches the store's declared payload indexes so the operator picks from
+// real, queryable fields instead of guessing key names. Returns
+// {payload: [Key], payload_hash: [[Key]]}.
+//
+// Discovery is a progressive enhancement: the by-payload / by-payload-hash
+// queries work against any node that has the CCC read API (reckon-gater
+// 3.6+), but the introspection API (get_payload_indexes/1) only exists in
+// 3.7+. When discovery is unavailable (rpc_failed on an older node) or the
+// store declares no indexes, both views fall back to manual key entry so the
+// operator can still run the query.
+async function fetchCccIndexes() {
+  if (!S.currentStore) return { payload: [], payload_hash: [] };
+  try {
+    const d = await api(`/v1/stores/${S.currentStore}/dcb/payload-indexes`);
+    return { payload: d.payload || [], payload_hash: d.payload_hash || [] };
+  } catch(e) {
+    // 502/rpc_failed → node predates the introspection API. Signal fallback.
+    const unavailable = /HTTP 50[02]/.test(e.message);
+    return { payload: [], payload_hash: [], error: e.message, unavailable };
+  }
+}
+
 // ── CCC PAYLOAD QUERY ─────────────────────────────────────────
+function setCccPayloadMode(manual) {
+  document.getElementById('ccc-payload-key').style.display        = manual ? 'none' : '';
+  document.getElementById('ccc-payload-key-manual').style.display = manual ? '' : 'none';
+}
+
+async function loadCccPayloadIndexes() {
+  const sel = document.getElementById('ccc-payload-key');
+  const note = document.getElementById('ccc-payload-note');
+  sel.innerHTML = '<option value="">loading…</option>';
+  setCccPayloadMode(false);
+  note.textContent = '';
+  const { payload, error, unavailable } = await fetchCccIndexes();
+
+  if (payload.length) {
+    sel.innerHTML = payload.map(k => `<option value="${k}">${k}</option>`).join('');
+    setCccPayloadMode(false);
+    note.textContent = '';
+    document.getElementById('ccc-payload-table').innerHTML =
+      '<div class="empty">pick a field, enter a value, and query</div>';
+    return;
+  }
+
+  // No discovered indexes — fall back to manual key entry.
+  setCccPayloadMode(true);
+  note.textContent = unavailable
+    ? 'Index discovery unavailable on this store’s node (needs reckon-gater 3.7+). Enter a declared payload key manually.'
+    : (error
+        ? `Index discovery failed (${error}). Enter a payload key manually.`
+        : 'Store declares no single-field payload indexes ({payload, Key}). Enter a key manually if you know one is indexed.');
+  document.getElementById('ccc-payload-table').innerHTML =
+    '<div class="empty">enter a payload key and value to query</div>';
+}
+
 async function loadCccPayload() {
   if (!S.currentStore) { alert('Select a store first'); return; }
-  const key   = document.getElementById('ccc-payload-key').value.trim();
+  const manual = document.getElementById('ccc-payload-key-manual').style.display !== 'none';
+  const key   = (manual
+    ? document.getElementById('ccc-payload-key-manual').value
+    : document.getElementById('ccc-payload-key').value).trim();
   const value = document.getElementById('ccc-payload-value').value.trim();
   const batch = parseInt(document.getElementById('ccc-payload-batch').value) || 200;
   if (!key || !value) return;
@@ -1230,32 +1298,89 @@ async function loadCccPayload() {
 }
 
 // ── CCC HASH QUERY ────────────────────────────────────────────
-function initCccHashPairs() {
-  const container = document.getElementById('ccc-hash-pairs');
-  if (!container.children.length) addCccHashPair();
+// Declared combinations are lists of field NAMES. The operator selects a
+// combination and fills in a value per named field — the SHA-256 is computed
+// server-side and never surfaces in the UI. When no combinations are
+// discoverable, falls back to freeform key/value rows.
+async function loadCccHashIndexes() {
+  const sel = document.getElementById('ccc-hash-combo');
+  const note = document.getElementById('ccc-hash-note');
+  sel.innerHTML = '<option value="">loading…</option>';
+  document.getElementById('ccc-hash-fields').innerHTML = '';
+  note.textContent = '';
+  const { payload_hash, error, unavailable } = await fetchCccIndexes();
+
+  if (payload_hash.length) {
+    // Discovered combinations — drive a combination picker.
+    document.getElementById('ccc-hash-combo-wrap').style.display = '';
+    document.getElementById('ccc-hash-manual-add').style.display = 'none';
+    sel.innerHTML = payload_hash
+      .map((combo, i) => `<option value="${i}">${combo.join(' + ')}</option>`)
+      .join('');
+    S.cccHashCombos = payload_hash;
+    S.cccHashManual = false;
+    renderCccHashFields();
+    document.getElementById('ccc-hash-table').innerHTML =
+      '<div class="empty">fill in a value for each field and query</div>';
+    return;
+  }
+
+  // No discovered combinations — fall back to freeform key/value rows.
+  S.cccHashManual = true;
+  document.getElementById('ccc-hash-combo-wrap').style.display = 'none';
+  document.getElementById('ccc-hash-manual-add').style.display = '';
+  note.textContent = unavailable
+    ? 'Index discovery unavailable on this store’s node (needs reckon-gater 3.7+). Enter the declared field/value pairs manually.'
+    : (error
+        ? `Index discovery failed (${error}). Enter field/value pairs manually.`
+        : 'Store declares no composite payload indexes ({payload_hash, [Keys]}). Enter pairs manually if you know a combination is indexed.');
+  document.getElementById('ccc-hash-fields').innerHTML = '';
+  addCccHashPair();
+  document.getElementById('ccc-hash-table').innerHTML =
+    '<div class="empty">add field pairs and query</div>';
 }
 
+function renderCccHashFields() {
+  const combos = S.cccHashCombos || [];
+  const idx = parseInt(document.getElementById('ccc-hash-combo').value);
+  const combo = combos[idx] || [];
+  document.getElementById('ccc-hash-fields').innerHTML = combo.map(k => `
+    <div class="controls" style="margin-bottom:0.35rem">
+      <label style="width:180px;font-family:var(--mono);font-size:0.82rem">${k}</label>
+      <input type="text" placeholder="value for ${k}" style="width:240px"
+             class="ccc-hash-val" data-key="${k}"
+             onkeydown="if(event.key==='Enter')loadCccHash()">
+    </div>`).join('');
+}
+
+// Freeform fallback row: both key and value typed by the operator.
 function addCccHashPair() {
-  const container = document.getElementById('ccc-hash-pairs');
   const row = document.createElement('div');
   row.className = 'controls';
   row.style.marginBottom = '0.35rem';
   row.innerHTML = `
     <input type="text" placeholder="key"   style="width:180px" class="ccc-hash-key">
-    <input type="text" placeholder="value" style="width:200px" class="ccc-hash-val"
+    <input type="text" placeholder="value" style="width:240px" class="ccc-hash-val"
            onkeydown="if(event.key==='Enter')loadCccHash()">
     <button class="btn btn-ghost btn-sm" onclick="this.closest('div').remove()">✕</button>`;
-  container.appendChild(row);
+  document.getElementById('ccc-hash-fields').appendChild(row);
 }
 
 async function loadCccHash() {
   if (!S.currentStore) { alert('Select a store first'); return; }
   const batch  = parseInt(document.getElementById('ccc-hash-batch').value) || 200;
-  const keys   = [...document.querySelectorAll('.ccc-hash-key')].map(i => i.value.trim()).filter(Boolean);
-  const values = [...document.querySelectorAll('.ccc-hash-val')].map(i => i.value.trim()).filter(Boolean);
-  if (!keys.length || keys.length !== values.length) {
+  let keys, values;
+  if (S.cccHashManual) {
+    keys   = [...document.querySelectorAll('.ccc-hash-key')].map(i => i.value.trim());
+    values = [...document.querySelectorAll('.ccc-hash-val')].map(i => i.value.trim());
+  } else {
+    const inputs = [...document.querySelectorAll('.ccc-hash-val')];
+    keys   = inputs.map(i => i.dataset.key);
+    values = inputs.map(i => i.value.trim());
+  }
+  if (!keys.length || keys.some(k => !k) || values.some(v => !v)) {
     document.getElementById('ccc-hash-table').innerHTML =
-      '<div class="error-msg">Add at least one pair with both key and value filled in</div>';
+      '<div class="error-msg">Enter a key and value for every field in the combination</div>';
     return;
   }
 

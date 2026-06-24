@@ -9,6 +9,7 @@
 %%%   GET  /dcb/event-types           Event type index with event counts
 %%%   GET  /dcb/by-payload            CCC payload-field read
 %%%   POST /dcb/by-payload-hash       CCC composite payload-hash read
+%%%   GET  /dcb/payload-indexes       CCC declared payload index discovery
 %%%
 %%% Request body uses the JSON TagFilter algebra:
 %%%   {"match_any": [...]}  {"match_all": [...]}  {"event_type": "..."}
@@ -174,6 +175,29 @@ handle(<<"POST">>, by_payload_hash, Req0) ->
                                 reckon_gateway_http:dispatch_error(Reason, R)
                         end
                 end
+        end
+    end);
+
+%% GET /dcb/payload-indexes
+%% Lists the CCC payload indexes a store has declared, so callers (and the
+%% admin UI) can discover queryable fields instead of guessing key names.
+%% Response: {"payload": ["account_id", ...],
+%%            "payload_hash": [["flight_id", "seat_no"], ...]}
+handle(<<"GET">>, payload_indexes, Req0) ->
+    with_store(Req0, fun(StoreId, R) ->
+        case reckon_gateway_dispatch:call(get_payload_indexes, [StoreId]) of
+            {ok, Single} ->
+                case reckon_gateway_dispatch:call(get_payload_hash_indexes, [StoreId]) of
+                    {ok, Combos} ->
+                        reckon_gateway_http:reply_json(200, #{
+                            <<"payload">>      => Single,
+                            <<"payload_hash">> => Combos
+                        }, R);
+                    {error, Reason} ->
+                        reckon_gateway_http:dispatch_error(Reason, R)
+                end;
+            {error, Reason} ->
+                reckon_gateway_http:dispatch_error(Reason, R)
         end
     end);
 

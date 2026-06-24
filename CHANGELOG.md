@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.16.0 (2026-06-24)
+
+**CCC index discovery: declared payload indexes are now introspectable,
+and the admin UI drives its CCC views off them.**
+
+- Add `GET /v1/stores/:store_id/dcb/payload-indexes` — returns the store's
+  declared CCC indexes as `{"payload": [Key], "payload_hash": [[Key]]}`,
+  backed by `reckon_gater_api:get_payload_indexes/1` and
+  `get_payload_hash_indexes/1` via dispatch. Previously these introspection
+  calls existed only in-VM; nothing remote could list a store's CCC indexes.
+- Admin UI **Payload Query**: the payload key is now a dropdown populated
+  from the discovery endpoint (declared `{payload, Key}` fields), with an
+  honest empty state when none are declared — no more guessing key names.
+- Admin UI **Hash Query**: replaced the freeform key/value rows with a
+  combination picker built from declared `{payload_hash, [Keys]}` indexes.
+  Selecting a combination renders one labelled value input per **field
+  name**. The operator never types or sees a hash — the SHA-256 stays a
+  server-side addressing detail.
+- Fix: CCC view help text referenced non-existent `{ccc, key}` /
+  `{ccc_hash, [keys]}` config tuples. Corrected to the real store-config
+  syntax `{payload, Key}` / `{payload_hash, [Keys]}`.
+- **Fix (regression, since 0.15.0): `GET /dcb/by-payload` always returned
+  `missing key`.** `qs_binary/3` and `qs_int/3` passed *binary* field names
+  to `cowboy_req:match_qs/2`, which keys its result map by the *atom* form of
+  the name (via `binary_to_existing_atom`). The binary name never matched, so
+  every query param silently fell back to its default — invisible for
+  `qs_int` (sane numeric defaults), fatal for `qs_binary` (`undefined`
+  default → "missing key"). Now convert to atoms inside the helpers.
+- CCC index discovery is a **progressive enhancement, not a hard dependency**.
+  The `by-payload` / `by-payload-hash` queries work on any node with the CCC
+  read API (reckon-gater 3.6+), but introspection requires 3.7+. When
+  discovery is unavailable (`rpc_failed` on an older node) or the store
+  declares no indexes, both CCC views now fall back to manual key entry
+  (payload: free-text key; hash: freeform key/value rows) with an explanatory
+  note, so the operator can still run the query. Previously an older backend
+  produced a dead `HTTP 502` with no inputs.
+
+**Admin UI branding (reckon-artwork):**
+
+- Replace the placeholder header glyph with the ReckonDB brand mark
+  (sphere + Eye of Horus, cropped from the wordmark) at
+  `priv/static/admin/reckondb-mark.svg`; keep the "ReckonDB Admin" label.
+- Add favicons (`favicon-16x16.png`, `favicon-32x32.png`, `favicon.ico`,
+  `apple-touch-icon.png`) from reckon-artwork; the admin page had none.
+- Introduce brand lime (`#84CC16` / `#B8E234`) as a secondary accent:
+  active nav indicator (left-border + tint + icon), healthy status dot, and
+  the live SSE dot. Purple stays the primary accent (buttons, focus, hover).
+- Rename the **Store** sidebar group to **Classic**, pairing it with DCB and
+  CCC as the three access paradigms (classic stream reads vs the
+  consistency-boundary primitives).
+
 ## 0.15.0 (2026-06-24)
 
 **Admin UI: CCC Payload Query + Hash Query views; fix Context Query icon.**
