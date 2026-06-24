@@ -56,11 +56,11 @@ read_json_body(Req0) ->
 
 %% cowboy_req:match_qs/2 keys the result map by the ATOM form of the field
 %% name (it runs binary_to_existing_atom over the parsed query string). The
-%% field names supplied here are fixed literals from the handlers, so convert
-%% the binary key to an atom before matching — passing a binary name never
-%% matches and silently yields the default.
-qs_int(Req, KeyBin, Default) ->
-    Key = binary_to_atom(KeyBin, utf8),
+%% field names here are fixed literals from the handlers; some pass them as
+%% atoms, some as binaries — normalise to an atom before matching. Passing a
+%% binary name never matches and silently yields the default.
+qs_int(Req, KeyName, Default) ->
+    Key = qs_key(KeyName),
     case cowboy_req:match_qs([{Key, [], undefined}], Req) of
         #{Key := undefined} -> Default;
         #{Key := V} when is_binary(V) ->
@@ -69,13 +69,17 @@ qs_int(Req, KeyBin, Default) ->
         _ -> Default
     end.
 
-qs_binary(Req, KeyBin, Default) ->
-    Key = binary_to_atom(KeyBin, utf8),
+qs_binary(Req, KeyName, Default) ->
+    Key = qs_key(KeyName),
     case cowboy_req:match_qs([{Key, [], undefined}], Req) of
         #{Key := undefined} -> Default;
         #{Key := V}         -> V;
         _                   -> Default
     end.
+
+%% Accept either an atom or a binary field name.
+qs_key(K) when is_atom(K)   -> K;
+qs_key(K) when is_binary(K) -> binary_to_atom(K, utf8).
 
 %% Comma-separated list query param: "a,b,c" → [<<"a">>, <<"b">>, <<"c">>]
 qs_list(Req, Key, Default) ->

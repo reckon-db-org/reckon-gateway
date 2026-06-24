@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.1 (2026-06-24)
+
+**Fix: qs_int/qs_binary crashed on atom field names (regression from 0.16.0).**
+
+- 0.16.0's `binary_to_atom` conversion in `qs_int/3` + `qs_binary/3` assumed
+  every caller passed a binary field name. Several handlers (e.g.
+  `reckon_gateway_http_streams` with `offset`/`from`/`limit`, and the
+  by-type/by-tags/by-metadata streams) pass **atom** names, so
+  `binary_to_atom(offset, utf8)` raised `badarg` and crashed the request
+  process. Normalise via `qs_key/1`, which accepts atom or binary. Atom-key
+  endpoints worked before 0.16.0 and were the ones broken by it; binary-key
+  (DCB/CCC) endpoints were broken before 0.16.0 and fixed by it — now both work.
+
 ## 0.16.0 (2026-06-24)
 
 **CCC index discovery: declared payload indexes are now introspectable,
