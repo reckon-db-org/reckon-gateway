@@ -32,113 +32,99 @@
 %%====================================================================
 
 get_store_stats(#{store_id := StoreIdBin}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(get_store_stats, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(store_stats, [StoreId]) of
-                {ok, Stats} ->
-                    {ok, #{total_streams => maps:get(total_streams, Stats, 0),
-                           total_events => maps:get(total_events, Stats, 0),
-                           total_subscriptions => maps:get(total_subscriptions, Stats, 0),
-                           total_snapshots => maps:get(total_snapshots, Stats, 0),
-                           details => maps_to_strings(Stats)}, Md};
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(get_store_stats, <<"13">>, Reason)
-            end
-    end.
+    with_store_id(StoreIdBin, get_store_stats,
+        fun(StoreId) -> store_stats_reply(reckon_gateway_dispatch:call(store_stats, [StoreId]), Md) end).
+
+store_stats_reply({ok, Stats}, Md) ->
+    {ok, #{total_streams => maps:get(total_streams, Stats, 0),
+           total_events => maps:get(total_events, Stats, 0),
+           total_subscriptions => maps:get(total_subscriptions, Stats, 0),
+           total_snapshots => maps:get(total_snapshots, Stats, 0),
+           details => maps_to_strings(Stats)}, Md};
+store_stats_reply({error, Reason}, _Md) ->
+    reckon_gateway_error:wrap(get_store_stats, <<"13">>, Reason).
 
 get_stream_info(#{store_id := StoreIdBin, stream_id := StreamId}, Md) ->
-    %% Validate stream_id is non-empty BEFORE dispatching. The
-    %% parksim-side reckon_db_store_inspector:stream_info/2 (reckon-db
-    %% 1.6.3) crashes with case_clause -1 on an empty binary, which
-    %% the reckon-gater 1.x with_retry wrapper then retries 11 times
-    %% (~155s wall) before surfacing as INTERNAL. lazyreckon polls
-    %% this RPC with an empty stream_id between store-selection and
-    %% stream-selection; without this guard every refresh stalls the
-    %% gateway and lazyreckon's streams pane shows "rpc error: code
-    %% = Internal".
-    case StreamId of
-        <<>> ->
-            reckon_gateway_error:wrap(get_stream_info, <<"3">>, empty_stream_id);
-        _ ->
-            case reckon_gateway_convert:try_store_id(StoreIdBin) of
-                {error, invalid_store_id} ->
-                    reckon_gateway_error:wrap(get_stream_info, <<"3">>, invalid_store_id);
-                {ok, StoreId} ->
-                    case reckon_gateway_dispatch:call(stream_info, [StoreId, StreamId]) of
-                        {ok, Info} ->
-                            {ok, #{stream_id => StreamId,
-                                   version => maps:get(version, Info, 0),
-                                   event_count => maps:get(event_count, Info, 0),
-                                   created_at => maps:get(created_at, Info, 0),
-                                   last_event_at => maps:get(last_event_at, Info, 0),
-                                   event_types => maps:get(event_types, Info, [])}, Md};
-                        {error, Reason} ->
-                            reckon_gateway_error:wrap(get_stream_info, <<"5">>, Reason)
-                    end
-            end
-    end.
+    stream_info_guard(StreamId, StoreIdBin, Md).
+
+%% @private Validate stream_id is non-empty BEFORE dispatching. The
+%% parksim-side reckon_db_store_inspector:stream_info/2 (reckon-db
+%% 1.6.3) crashes with case_clause -1 on an empty binary, which
+%% the reckon-gater 1.x with_retry wrapper then retries 11 times
+%% (~155s wall) before surfacing as INTERNAL. lazyreckon polls
+%% this RPC with an empty stream_id between store-selection and
+%% stream-selection; without this guard every refresh stalls the
+%% gateway and lazyreckon's streams pane shows "rpc error: code
+%% = Internal".
+stream_info_guard(<<>>, _StoreIdBin, _Md) ->
+    reckon_gateway_error:wrap(get_stream_info, <<"3">>, empty_stream_id);
+stream_info_guard(StreamId, StoreIdBin, Md) ->
+    with_store_id(StoreIdBin, get_stream_info,
+        fun(StoreId) ->
+            stream_info_reply(
+                reckon_gateway_dispatch:call(stream_info, [StoreId, StreamId]), StreamId, Md)
+        end).
+
+stream_info_reply({ok, Info}, StreamId, Md) ->
+    {ok, #{stream_id => StreamId,
+           version => maps:get(version, Info, 0),
+           event_count => maps:get(event_count, Info, 0),
+           created_at => maps:get(created_at, Info, 0),
+           last_event_at => maps:get(last_event_at, Info, 0),
+           event_types => maps:get(event_types, Info, [])}, Md};
+stream_info_reply({error, Reason}, _StreamId, _Md) ->
+    reckon_gateway_error:wrap(get_stream_info, <<"5">>, Reason).
 
 get_event_type_summary(#{store_id := StoreIdBin}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(get_event_type_summary, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(event_type_summary, [StoreId]) of
-                {ok, Summary} ->
-                    Entries = [#{event_type => maps:get(event_type, S, <<>>),
-                                 count => maps:get(count, S, 0)}
-                               || S <- Summary],
-                    {ok, #{entries => Entries}, Md};
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(get_event_type_summary, <<"13">>, Reason)
-            end
-    end.
+    with_store_id(StoreIdBin, get_event_type_summary,
+        fun(StoreId) ->
+            event_type_summary_reply(
+                reckon_gateway_dispatch:call(event_type_summary, [StoreId]), Md)
+        end).
+
+event_type_summary_reply({ok, Summary}, Md) ->
+    Entries = [#{event_type => maps:get(event_type, S, <<>>),
+                 count => maps:get(count, S, 0)} || S <- Summary],
+    {ok, #{entries => Entries}, Md};
+event_type_summary_reply({error, Reason}, _Md) ->
+    reckon_gateway_error:wrap(get_event_type_summary, <<"13">>, Reason).
 
 %%====================================================================
 %% Scavenging
 %%====================================================================
 
 scavenge(#{store_id := StoreIdBin, stream_id := StreamId, options := Opts}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(scavenge, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(scavenge, [StoreId, StreamId, Opts]) of
-                {ok, Result} ->
-                    {ok, scavenge_result_to_proto(Result), Md};
-                {error, Reason} ->
-                    scavenge_error(scavenge, Reason)
-            end
-    end.
+    with_store_id(StoreIdBin, scavenge,
+        fun(StoreId) ->
+            scavenge_reply(reckon_gateway_dispatch:call(scavenge, [StoreId, StreamId, Opts]),
+                           scavenge, Md)
+        end).
 
 scavenge_matching(#{store_id := StoreIdBin, pattern := Pattern, options := Opts}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(scavenge_matching, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(scavenge_matching, [StoreId, Pattern, Opts]) of
-                {ok, Results} ->
-                    ProtoResults = [scavenge_result_to_proto(R) || R <- Results],
-                    {ok, #{results => ProtoResults}, Md};
-                {error, Reason} ->
-                    scavenge_error(scavenge_matching, Reason)
-            end
-    end.
+    with_store_id(StoreIdBin, scavenge_matching,
+        fun(StoreId) ->
+            scavenge_matching_reply(
+                reckon_gateway_dispatch:call(scavenge_matching, [StoreId, Pattern, Opts]), Md)
+        end).
+
+scavenge_matching_reply({ok, Results}, Md) ->
+    {ok, #{results => [scavenge_result_to_proto(R) || R <- Results]}, Md};
+scavenge_matching_reply({error, Reason}, _Md) ->
+    scavenge_error(scavenge_matching, Reason).
 
 scavenge_dry_run(#{store_id := StoreIdBin, stream_id := StreamId, options := Opts}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(scavenge_dry_run, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(scavenge_dry_run, [StoreId, StreamId, Opts]) of
-                {ok, Result} ->
-                    {ok, scavenge_result_to_proto(Result), Md};
-                {error, Reason} ->
-                    scavenge_error(scavenge_dry_run, Reason)
-            end
-    end.
+    with_store_id(StoreIdBin, scavenge_dry_run,
+        fun(StoreId) ->
+            scavenge_reply(
+                reckon_gateway_dispatch:call(scavenge_dry_run, [StoreId, StreamId, Opts]),
+                scavenge_dry_run, Md)
+        end).
+
+%% @private Single-result scavenge reply, shared by scavenge/scavenge_dry_run.
+scavenge_reply({ok, Result}, _Op, Md) ->
+    {ok, scavenge_result_to_proto(Result), Md};
+scavenge_reply({error, Reason}, Op, _Md) ->
+    scavenge_error(Op, Reason).
 
 %% @private Map worker-side errors to the right gRPC status code.
 %% Caller-side errors (no_snapshot, stream_not_found, invalid_stream_id)
@@ -179,30 +165,24 @@ delete_link(#{store_id := StoreIdBin, name := Name}, Md) ->
     end.
 
 get_link(#{store_id := StoreIdBin, name := Name}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(get_link, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(get_link, [StoreId, Name]) of
-                {ok, Link} ->
-                    {ok, link_to_proto(Link), Md};
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(get_link, <<"5">>, {Name, Reason})
-            end
-    end.
+    with_store_id(StoreIdBin, get_link,
+        fun(StoreId) ->
+            link_reply(reckon_gateway_dispatch:call(get_link, [StoreId, Name]), Name, Md)
+        end).
+
+link_reply({ok, Link}, _Name, Md) ->
+    {ok, link_to_proto(Link), Md};
+link_reply({error, Reason}, Name, _Md) ->
+    reckon_gateway_error:wrap(get_link, <<"5">>, {Name, Reason}).
 
 list_links(#{store_id := StoreIdBin}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(list_links, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(list_links, [StoreId]) of
-                {ok, Links} ->
-                    {ok, #{links => [link_to_proto(L) || L <- Links]}, Md};
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(list_links, <<"13">>, Reason)
-            end
-    end.
+    with_store_id(StoreIdBin, list_links,
+        fun(StoreId) -> list_links_reply(reckon_gateway_dispatch:call(list_links, [StoreId]), Md) end).
+
+list_links_reply({ok, Links}, Md) ->
+    {ok, #{links => [link_to_proto(L) || L <- Links]}, Md};
+list_links_reply({error, Reason}, _Md) ->
+    reckon_gateway_error:wrap(list_links, <<"13">>, Reason).
 
 start_link(#{store_id := StoreIdBin, name := Name}, Md) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
@@ -223,24 +203,32 @@ stop_link(#{store_id := StoreIdBin, name := Name}, Md) ->
     end.
 
 get_link_info(#{store_id := StoreIdBin, name := Name}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(get_link_info, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(link_info, [StoreId, Name]) of
-                {ok, Info} ->
-                    {ok, #{name => Name,
-                           status => maps:get(status, Info, <<"unknown">>),
-                           events_processed => maps:get(events_processed, Info, 0),
-                           details => maps_to_strings(Info)}, Md};
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(get_link_info, <<"5">>, {Name, Reason})
-            end
-    end.
+    with_store_id(StoreIdBin, get_link_info,
+        fun(StoreId) ->
+            link_info_reply(reckon_gateway_dispatch:call(link_info, [StoreId, Name]), Name, Md)
+        end).
+
+link_info_reply({ok, Info}, Name, Md) ->
+    {ok, #{name => Name,
+           status => maps:get(status, Info, <<"unknown">>),
+           events_processed => maps:get(events_processed, Info, 0),
+           details => maps_to_strings(Info)}, Md};
+link_info_reply({error, Reason}, Name, _Md) ->
+    reckon_gateway_error:wrap(get_link_info, <<"5">>, {Name, Reason}).
 
 %%====================================================================
 %% Internal
 %%====================================================================
+
+%% @private Resolve a store-id binary, wrapping the canonical
+%% invalid_store_id gRPC error, then run Fun with the parsed id.
+with_store_id(StoreIdBin, ErrFn, Fun) ->
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            reckon_gateway_error:wrap(ErrFn, <<"3">>, invalid_store_id);
+        {ok, StoreId} ->
+            Fun(StoreId)
+    end.
 
 scavenge_result_to_proto(Result) ->
     #{events_removed => maps:get(events_removed, Result, 0),
