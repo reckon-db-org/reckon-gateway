@@ -30,172 +30,56 @@ handle(<<"OPTIONS">>, _Op, Req) ->
 
 %% List streams
 handle(<<"GET">>, list, Req) ->
-    with_store(Req, fun(StoreId, R) ->
-        case reckon_gateway_dispatch:call(get_streams, [StoreId]) of
-            {ok, Streams} ->
-                reckon_gateway_http:reply_json(200, #{<<"stream_ids">> => Streams}, R);
-            {error, Reason} ->
-                reckon_gateway_http:dispatch_error(Reason, R)
-        end
-    end);
+    with_store(Req, fun handle_list/2);
 
 %% Delete stream
 handle(<<"DELETE">>, stream, Req) ->
     StreamId = cowboy_req:binding(stream_id, Req),
-    with_store(Req, fun(StoreId, R) ->
-        case reckon_gateway_dispatch:call(delete_stream, [StoreId, StreamId]) of
-            ok              -> reckon_gateway_http:reply_json(200, #{<<"deleted">> => true}, R);
-            {error, Reason} -> reckon_gateway_http:dispatch_error(Reason, R)
-        end
-    end);
+    with_store(Req, fun(StoreId, R) -> handle_delete(StoreId, R, StreamId) end);
 
 %% Append events
 handle(<<"POST">>, events, Req0) ->
     StreamId = cowboy_req:binding(stream_id, Req0),
-    with_store(Req0, fun(StoreId, R0) ->
-        case reckon_gateway_http:read_json_body(R0) of
-            {error, invalid_json} ->
-                reckon_gateway_http:reply_error(400, <<"invalid_json">>, R0);
-            {ok, Body, R} ->
-                RawVersion = maps:get(<<"expected_version">>, Body, -2),
-                Expected = reckon_gateway_http:parse_expected_version(RawVersion),
-                RawEvents = maps:get(<<"events">>, Body, []),
-                case parse_proposed(RawEvents) of
-                    {error, Reason} ->
-                        reckon_gateway_http:reply_error(400, Reason, R);
-                    {ok, Events} ->
-                        case reckon_gateway_dispatch:call(
-                                 append_events,
-                                 [StoreId, StreamId, Expected, Events]) of
-                            {ok, NewVersion} ->
-                                reckon_gateway_http:reply_json(200, #{
-                                    <<"version">> => NewVersion,
-                                    <<"count">>   => length(Events)
-                                }, R);
-                            {error, Reason} ->
-                                reckon_gateway_http:dispatch_error(Reason, R)
-                        end
-                end
-        end
-    end);
+    with_store(Req0, fun(StoreId, R0) -> handle_append(StoreId, R0, StreamId) end);
 
 %% Read events (forward or backward)
 handle(<<"GET">>, events, Req) ->
     StreamId = cowboy_req:binding(stream_id, Req),
     From  = reckon_gateway_http:qs_int(Req, from, 0),
     Limit = reckon_gateway_http:qs_int(Req, limit, 100),
-    Dir   = reckon_gateway_http:qs_binary(Req, dir, <<"forward">>),
-    Op = case Dir of
-        <<"backward">> -> stream_backward;
-        _              -> stream_forward
-    end,
-    with_store(Req, fun(StoreId, R) ->
-        case reckon_gateway_dispatch:call(Op, [StoreId, StreamId, From, Limit]) of
-            {ok, Events} ->
-                reckon_gateway_http:reply_json(200, #{
-                    <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events],
-                    <<"count">>  => length(Events)
-                }, R);
-            {error, Reason} ->
-                reckon_gateway_http:dispatch_error(Reason, R)
-        end
-    end);
+    Op    = read_dir_op(reckon_gateway_http:qs_binary(Req, dir, <<"forward">>)),
+    with_store(Req, fun(StoreId, R) -> handle_read(StoreId, R, Op, StreamId, From, Limit) end);
 
 %% Stream version
 handle(<<"GET">>, version, Req) ->
     StreamId = cowboy_req:binding(stream_id, Req),
-    with_store(Req, fun(StoreId, R) ->
-        case reckon_gateway_dispatch:call(get_version, [StoreId, StreamId]) of
-            {ok, Version}   -> reckon_gateway_http:reply_json(200, #{<<"version">> => Version}, R);
-            {error, Reason} -> reckon_gateway_http:dispatch_error(Reason, R)
-        end
-    end);
+    with_store(Req, fun(StoreId, R) -> handle_version(StoreId, R, StreamId) end);
 
 %% Read by event types: ?types=a,b,c&limit=N
 handle(<<"GET">>, by_type, Req) ->
     Types = reckon_gateway_http:qs_list(Req, types, []),
     Limit = reckon_gateway_http:qs_int(Req, limit, 0),
-    with_store(Req, fun(StoreId, R) ->
-        case Types of
-            [] ->
-                reckon_gateway_http:reply_error(400, <<"missing types parameter">>, R);
-            _ ->
-                case reckon_gateway_dispatch:call(read_by_event_types, [StoreId, Types, Limit]) of
-                    {ok, Events} ->
-                        reckon_gateway_http:reply_json(200, #{
-                            <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events],
-                            <<"count">>  => length(Events)
-                        }, R);
-                    {error, Reason} ->
-                        reckon_gateway_http:dispatch_error(Reason, R)
-                end
-        end
-    end);
+    with_store(Req, fun(StoreId, R) -> handle_by_type(StoreId, R, Types, Limit) end);
 
 %% Read by tags: ?tags=a,b&match=any|all&limit=N
 handle(<<"GET">>, by_tags, Req) ->
     Tags  = reckon_gateway_http:qs_list(Req, tags, []),
-    Match = reckon_gateway_http:qs_binary(Req, match, <<"any">>),
     Limit = reckon_gateway_http:qs_int(Req, limit, 0),
-    MatchAtom = case Match of <<"all">> -> all; _ -> any end,
-    with_store(Req, fun(StoreId, R) ->
-        case Tags of
-            [] ->
-                reckon_gateway_http:reply_error(400, <<"missing tags parameter">>, R);
-            _ ->
-                Opts = #{match => MatchAtom, batch_size => Limit},
-                case reckon_gateway_dispatch:call(read_by_tags, [StoreId, Tags, Opts]) of
-                    {ok, Events} ->
-                        reckon_gateway_http:reply_json(200, #{
-                            <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events],
-                            <<"count">>  => length(Events)
-                        }, R);
-                    {error, Reason} ->
-                        reckon_gateway_http:dispatch_error(Reason, R)
-                end
-        end
-    end);
+    MatchAtom = match_atom(reckon_gateway_http:qs_binary(Req, match, <<"any">>)),
+    with_store(Req, fun(StoreId, R) -> handle_by_tags(StoreId, R, Tags, MatchAtom, Limit) end);
 
 %% Read by metadata: ?key=K&value=V&limit=N
 handle(<<"GET">>, by_metadata, Req) ->
     Key   = reckon_gateway_http:qs_binary(Req, key, undefined),
     Value = reckon_gateway_http:qs_binary(Req, value, undefined),
     Limit = reckon_gateway_http:qs_int(Req, limit, 0),
-    with_store(Req, fun(StoreId, R) ->
-        case {Key, Value} of
-            {undefined, _} ->
-                reckon_gateway_http:reply_error(400, <<"missing key parameter">>, R);
-            {_, undefined} ->
-                reckon_gateway_http:reply_error(400, <<"missing value parameter">>, R);
-            _ ->
-                case reckon_gateway_dispatch:call(read_by_metadata, [StoreId, Key, Value]) of
-                    {ok, Events} ->
-                        Limited = if Limit > 0 -> lists:sublist(Events, Limit); true -> Events end,
-                        reckon_gateway_http:reply_json(200, #{
-                            <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Limited],
-                            <<"count">>  => length(Limited)
-                        }, R);
-                    {error, Reason} ->
-                        reckon_gateway_http:dispatch_error(Reason, R)
-                end
-        end
-    end);
+    with_store(Req, fun(StoreId, R) -> handle_by_metadata(StoreId, R, Key, Value, Limit) end);
 
 %% Read global: ?offset=N&limit=N
 handle(<<"GET">>, global, Req) ->
     Offset = reckon_gateway_http:qs_int(Req, offset, 0),
     Limit  = reckon_gateway_http:qs_int(Req, limit, 100),
-    with_store(Req, fun(StoreId, R) ->
-        case reckon_gateway_dispatch:call(read_all_global, [StoreId, Offset, Limit]) of
-            {ok, Events} ->
-                reckon_gateway_http:reply_json(200, #{
-                    <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events],
-                    <<"count">>  => length(Events)
-                }, R);
-            {error, Reason} ->
-                reckon_gateway_http:dispatch_error(Reason, R)
-        end
-    end);
+    with_store(Req, fun(StoreId, R) -> handle_global(StoreId, R, Offset, Limit) end);
 
 handle(Method, Op, Req) ->
     reckon_gateway_http:reply_error(405,
@@ -213,6 +97,100 @@ with_store(Req, Fun) ->
         {ok, StoreId} ->
             Fun(StoreId, Req)
     end.
+
+handle_list(StoreId, R) ->
+    case reckon_gateway_dispatch:call(get_streams, [StoreId]) of
+        {ok, Streams} ->
+            reckon_gateway_http:reply_json(200, #{<<"stream_ids">> => Streams}, R);
+        {error, Reason} ->
+            reckon_gateway_http:dispatch_error(Reason, R)
+    end.
+
+handle_delete(StoreId, R, StreamId) ->
+    case reckon_gateway_dispatch:call(delete_stream, [StoreId, StreamId]) of
+        ok              -> reckon_gateway_http:reply_json(200, #{<<"deleted">> => true}, R);
+        {error, Reason} -> reckon_gateway_http:dispatch_error(Reason, R)
+    end.
+
+handle_append(StoreId, R0, StreamId) ->
+    append_body(reckon_gateway_http:read_json_body(R0), StoreId, StreamId, R0).
+
+append_body({error, invalid_json}, _StoreId, _StreamId, R0) ->
+    reckon_gateway_http:reply_error(400, <<"invalid_json">>, R0);
+append_body({ok, Body, R}, StoreId, StreamId, _R0) ->
+    RawVersion = maps:get(<<"expected_version">>, Body, -2),
+    Expected = reckon_gateway_http:parse_expected_version(RawVersion),
+    RawEvents = maps:get(<<"events">>, Body, []),
+    append_parsed(parse_proposed(RawEvents), StoreId, StreamId, Expected, R).
+
+append_parsed({error, Reason}, _StoreId, _StreamId, _Expected, R) ->
+    reckon_gateway_http:reply_error(400, Reason, R);
+append_parsed({ok, Events}, StoreId, StreamId, Expected, R) ->
+    append_result(
+        reckon_gateway_dispatch:call(append_events, [StoreId, StreamId, Expected, Events]),
+        length(Events), R).
+
+append_result({ok, NewVersion}, Count, R) ->
+    reckon_gateway_http:reply_json(200, #{<<"version">> => NewVersion, <<"count">> => Count}, R);
+append_result({error, Reason}, _Count, R) ->
+    reckon_gateway_http:dispatch_error(Reason, R).
+
+read_dir_op(<<"backward">>) -> stream_backward;
+read_dir_op(_)             -> stream_forward.
+
+handle_read(StoreId, R, Op, StreamId, From, Limit) ->
+    reply_events_count(reckon_gateway_dispatch:call(Op, [StoreId, StreamId, From, Limit]), R).
+
+handle_version(StoreId, R, StreamId) ->
+    case reckon_gateway_dispatch:call(get_version, [StoreId, StreamId]) of
+        {ok, Version}   -> reckon_gateway_http:reply_json(200, #{<<"version">> => Version}, R);
+        {error, Reason} -> reckon_gateway_http:dispatch_error(Reason, R)
+    end.
+
+handle_by_type(_StoreId, R, [], _Limit) ->
+    reckon_gateway_http:reply_error(400, <<"missing types parameter">>, R);
+handle_by_type(StoreId, R, Types, Limit) ->
+    reply_events_count(
+        reckon_gateway_dispatch:call(read_by_event_types, [StoreId, Types, Limit]), R).
+
+match_atom(<<"all">>) -> all;
+match_atom(_)         -> any.
+
+handle_by_tags(_StoreId, R, [], _MatchAtom, _Limit) ->
+    reckon_gateway_http:reply_error(400, <<"missing tags parameter">>, R);
+handle_by_tags(StoreId, R, Tags, MatchAtom, Limit) ->
+    Opts = #{match => MatchAtom, batch_size => Limit},
+    reply_events_count(reckon_gateway_dispatch:call(read_by_tags, [StoreId, Tags, Opts]), R).
+
+handle_by_metadata(_StoreId, R, undefined, _Value, _Limit) ->
+    reckon_gateway_http:reply_error(400, <<"missing key parameter">>, R);
+handle_by_metadata(_StoreId, R, _Key, undefined, _Limit) ->
+    reckon_gateway_http:reply_error(400, <<"missing value parameter">>, R);
+handle_by_metadata(StoreId, R, Key, Value, Limit) ->
+    by_metadata_reply(reckon_gateway_dispatch:call(read_by_metadata, [StoreId, Key, Value]), Limit, R).
+
+by_metadata_reply({ok, Events}, Limit, R) ->
+    Limited = maybe_limit(Limit, Events),
+    reckon_gateway_http:reply_json(200, #{
+        <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Limited],
+        <<"count">>  => length(Limited)
+    }, R);
+by_metadata_reply({error, Reason}, _Limit, R) ->
+    reckon_gateway_http:dispatch_error(Reason, R).
+
+maybe_limit(Limit, Events) when Limit > 0 -> lists:sublist(Events, Limit);
+maybe_limit(_Limit, Events)               -> Events.
+
+handle_global(StoreId, R, Offset, Limit) ->
+    reply_events_count(reckon_gateway_dispatch:call(read_all_global, [StoreId, Offset, Limit]), R).
+
+reply_events_count({ok, Events}, R) ->
+    reckon_gateway_http:reply_json(200, #{
+        <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events],
+        <<"count">>  => length(Events)
+    }, R);
+reply_events_count({error, Reason}, R) ->
+    reckon_gateway_http:dispatch_error(Reason, R).
 
 parse_proposed(RawEvents) when is_list(RawEvents) ->
     parse_proposed_loop(RawEvents, []);

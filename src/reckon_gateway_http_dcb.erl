@@ -36,147 +36,39 @@ handle(<<"OPTIONS">>, _Op, Req) ->
 %% Body: {"tag_filter": {...}, "batch_size": N}
 %% Response: {"events": [...], "max_seq": N}
 handle(<<"POST">>, context, Req0) ->
-    with_store(Req0, fun(StoreId, R0) ->
-        case reckon_gateway_http:read_json_body(R0) of
-            {error, invalid_json} ->
-                reckon_gateway_http:reply_error(400, <<"invalid_json">>, R0);
-            {ok, Body, R} ->
-                FilterRaw = maps:get(<<"tag_filter">>, Body, undefined),
-                BatchSize = maps:get(<<"batch_size">>, Body, 0),
-                with_filter(FilterRaw, R, fun(Filter) ->
-                    do_context(StoreId, Filter, BatchSize, R)
-                end)
-        end
-    end);
+    with_store(Req0, fun handle_context/2);
 
 %% POST /dcb/append
 %% Body: {"tag_filter": {...}, "seq_cutoff": N, "events": [...]}
 %% Response: {"committed": {"last_seq": N}} or {"conflict": {"max_seq": N}}
 handle(<<"POST">>, append, Req0) ->
-    with_store(Req0, fun(StoreId, R0) ->
-        case reckon_gateway_http:read_json_body(R0) of
-            {error, invalid_json} ->
-                reckon_gateway_http:reply_error(400, <<"invalid_json">>, R0);
-            {ok, Body, R} ->
-                FilterRaw = maps:get(<<"tag_filter">>, Body, undefined),
-                SeqCutoff = maps:get(<<"seq_cutoff">>, Body, -1),
-                RawEvents = maps:get(<<"events">>, Body, []),
-                with_filter(FilterRaw, R, fun(Filter) ->
-                    case parse_proposed(RawEvents, R) of
-                        {error, Req1} -> Req1;
-                        {ok, Events}  ->
-                            do_append(StoreId, Filter, SeqCutoff, Events, R)
-                    end
-                end)
-        end
-    end);
+    with_store(Req0, fun handle_append/2);
 
 %% GET /dcb/log?from=0&limit=50
 %% Response: {"events": [...], "total_count": N, "from_seq": N, "limit": N}
 handle(<<"GET">>, log, Req0) ->
-    with_store(Req0, fun(StoreId, R) ->
-        FromSeq = reckon_gateway_http:qs_int(R, <<"from">>, 0),
-        Limit   = min(reckon_gateway_http:qs_int(R, <<"limit">>, 50), 200),
-        case reckon_gateway_dispatch:call(dcb_read_log, [StoreId, FromSeq, Limit]) of
-            {ok, #{events := Events, total_count := TotalCount}} ->
-                reckon_gateway_http:reply_json(200, #{
-                    <<"events">>      => [reckon_gateway_http:event_to_json_map(E) || E <- Events],
-                    <<"total_count">> => TotalCount,
-                    <<"from_seq">>    => FromSeq,
-                    <<"limit">>       => Limit
-                }, R);
-            {error, Reason} ->
-                reckon_gateway_http:dispatch_error(Reason, R)
-        end
-    end);
+    with_store(Req0, fun handle_log/2);
 
 %% GET /dcb/tags
 %% Response: {"tags": [{"tag": "...", "count": N}, ...]}
 handle(<<"GET">>, tags, Req0) ->
-    with_store(Req0, fun(StoreId, R) ->
-        case reckon_gateway_dispatch:call(dcb_all_tags, [StoreId]) of
-            {ok, Tags} ->
-                reckon_gateway_http:reply_json(200, #{
-                    <<"tags">> => [#{<<"tag">> => T, <<"count">> => C} || {T, C} <- Tags]
-                }, R);
-            {error, Reason} ->
-                reckon_gateway_http:dispatch_error(Reason, R)
-        end
-    end);
+    with_store(Req0, fun handle_tags/2);
 
 %% GET /dcb/event-types
 %% Response: {"event_types": [{"event_type": "...", "count": N}, ...]}
 handle(<<"GET">>, event_types, Req0) ->
-    with_store(Req0, fun(StoreId, R) ->
-        case reckon_gateway_dispatch:call(dcb_all_event_types, [StoreId]) of
-            {ok, Types} ->
-                reckon_gateway_http:reply_json(200, #{
-                    <<"event_types">> => [#{<<"event_type">> => T, <<"count">> => C} || {T, C} <- Types]
-                }, R);
-            {error, Reason} ->
-                reckon_gateway_http:dispatch_error(Reason, R)
-        end
-    end);
+    with_store(Req0, fun handle_event_types/2);
 
 %% GET /dcb/by-payload?key=K&value=V&limit=N
 %% Response: {"events": [...]}
 handle(<<"GET">>, by_payload, Req0) ->
-    with_store(Req0, fun(StoreId, R) ->
-        Key   = reckon_gateway_http:qs_binary(R, <<"key">>,   undefined),
-        Value = reckon_gateway_http:qs_binary(R, <<"value">>, undefined),
-        Limit = min(reckon_gateway_http:qs_int(R, <<"limit">>, ?MAX_BATCH), ?MAX_BATCH),
-        case {Key, Value} of
-            {undefined, _} ->
-                reckon_gateway_http:reply_error(400, <<"missing key">>, R);
-            {_, undefined} ->
-                reckon_gateway_http:reply_error(400, <<"missing value">>, R);
-            _ ->
-                case reckon_gateway_dispatch:call(ccc_read_by_payload, [StoreId, Key, Value, Limit]) of
-                    {ok, Events} ->
-                        reckon_gateway_http:reply_json(200, #{
-                            <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events]
-                        }, R);
-                    {error, Reason} ->
-                        reckon_gateway_http:dispatch_error(Reason, R)
-                end
-        end
-    end);
+    with_store(Req0, fun handle_by_payload/2);
 
 %% POST /dcb/by-payload-hash
 %% Body: {"keys": [...], "values": [...], "limit": N}
 %% Response: {"events": [...]}
 handle(<<"POST">>, by_payload_hash, Req0) ->
-    with_store(Req0, fun(StoreId, R0) ->
-        case reckon_gateway_http:read_json_body(R0) of
-            {error, invalid_json} ->
-                reckon_gateway_http:reply_error(400, <<"invalid_json">>, R0);
-            {ok, Body, R} ->
-                Keys   = maps:get(<<"keys">>,   Body, undefined),
-                Values = maps:get(<<"values">>, Body, undefined),
-                Limit  = min(maps:get(<<"limit">>, Body, ?MAX_BATCH), ?MAX_BATCH),
-                case {Keys, Values} of
-                    {undefined, _} ->
-                        reckon_gateway_http:reply_error(400, <<"missing keys">>, R);
-                    {_, undefined} ->
-                        reckon_gateway_http:reply_error(400, <<"missing values">>, R);
-                    _ when not is_list(Keys) ->
-                        reckon_gateway_http:reply_error(400, <<"keys must be an array">>, R);
-                    _ when not is_list(Values) ->
-                        reckon_gateway_http:reply_error(400, <<"values must be an array">>, R);
-                    _ when length(Keys) =/= length(Values) ->
-                        reckon_gateway_http:reply_error(400, <<"keys and values must have equal length">>, R);
-                    _ ->
-                        case reckon_gateway_dispatch:call(ccc_read_by_payload_hash, [StoreId, Keys, Values, Limit]) of
-                            {ok, Events} ->
-                                reckon_gateway_http:reply_json(200, #{
-                                    <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events]
-                                }, R);
-                            {error, Reason} ->
-                                reckon_gateway_http:dispatch_error(Reason, R)
-                        end
-                end
-        end
-    end);
+    with_store(Req0, fun handle_by_payload_hash/2);
 
 %% GET /dcb/payload-indexes
 %% Lists the CCC payload indexes a store has declared, so callers (and the
@@ -184,22 +76,7 @@ handle(<<"POST">>, by_payload_hash, Req0) ->
 %% Response: {"payload": ["account_id", ...],
 %%            "payload_hash": [["flight_id", "seat_no"], ...]}
 handle(<<"GET">>, payload_indexes, Req0) ->
-    with_store(Req0, fun(StoreId, R) ->
-        case reckon_gateway_dispatch:call(get_payload_indexes, [StoreId]) of
-            {ok, Single} ->
-                case reckon_gateway_dispatch:call(get_payload_hash_indexes, [StoreId]) of
-                    {ok, Combos} ->
-                        reckon_gateway_http:reply_json(200, #{
-                            <<"payload">>      => Single,
-                            <<"payload_hash">> => Combos
-                        }, R);
-                    {error, Reason} ->
-                        reckon_gateway_http:dispatch_error(Reason, R)
-                end;
-            {error, Reason} ->
-                reckon_gateway_http:dispatch_error(Reason, R)
-        end
-    end);
+    with_store(Req0, fun handle_payload_indexes/2);
 
 handle(Method, Op, Req) ->
     reckon_gateway_http:reply_error(405,
@@ -226,19 +103,144 @@ with_filter(FilterRaw, Req, Fun) ->
         {ok, Filter} -> Fun(Filter)
     end.
 
+handle_context(StoreId, R0) ->
+    context_body(reckon_gateway_http:read_json_body(R0), StoreId, R0).
+
+context_body({error, invalid_json}, _StoreId, R0) ->
+    reckon_gateway_http:reply_error(400, <<"invalid_json">>, R0);
+context_body({ok, Body, R}, StoreId, _R0) ->
+    FilterRaw = maps:get(<<"tag_filter">>, Body, undefined),
+    BatchSize = maps:get(<<"batch_size">>, Body, 0),
+    with_filter(FilterRaw, R, fun(Filter) -> do_context(StoreId, Filter, BatchSize, R) end).
+
+handle_append(StoreId, R0) ->
+    append_body(reckon_gateway_http:read_json_body(R0), StoreId, R0).
+
+append_body({error, invalid_json}, _StoreId, R0) ->
+    reckon_gateway_http:reply_error(400, <<"invalid_json">>, R0);
+append_body({ok, Body, R}, StoreId, _R0) ->
+    FilterRaw = maps:get(<<"tag_filter">>, Body, undefined),
+    SeqCutoff = maps:get(<<"seq_cutoff">>, Body, -1),
+    RawEvents = maps:get(<<"events">>, Body, []),
+    with_filter(FilterRaw, R,
+        fun(Filter) -> append_with_filter(StoreId, Filter, SeqCutoff, RawEvents, R) end).
+
+append_with_filter(StoreId, Filter, SeqCutoff, RawEvents, R) ->
+    case parse_proposed(RawEvents, R) of
+        {error, Req1} -> Req1;
+        {ok, Events}  -> do_append(StoreId, Filter, SeqCutoff, Events, R)
+    end.
+
+handle_log(StoreId, R) ->
+    FromSeq = reckon_gateway_http:qs_int(R, <<"from">>, 0),
+    Limit   = min(reckon_gateway_http:qs_int(R, <<"limit">>, 50), 200),
+    case reckon_gateway_dispatch:call(dcb_read_log, [StoreId, FromSeq, Limit]) of
+        {ok, #{events := Events, total_count := TotalCount}} ->
+            reckon_gateway_http:reply_json(200, #{
+                <<"events">>      => [reckon_gateway_http:event_to_json_map(E) || E <- Events],
+                <<"total_count">> => TotalCount,
+                <<"from_seq">>    => FromSeq,
+                <<"limit">>       => Limit
+            }, R);
+        {error, Reason} ->
+            reckon_gateway_http:dispatch_error(Reason, R)
+    end.
+
+handle_tags(StoreId, R) ->
+    case reckon_gateway_dispatch:call(dcb_all_tags, [StoreId]) of
+        {ok, Tags} ->
+            reckon_gateway_http:reply_json(200, #{
+                <<"tags">> => [#{<<"tag">> => T, <<"count">> => C} || {T, C} <- Tags]
+            }, R);
+        {error, Reason} ->
+            reckon_gateway_http:dispatch_error(Reason, R)
+    end.
+
+handle_event_types(StoreId, R) ->
+    case reckon_gateway_dispatch:call(dcb_all_event_types, [StoreId]) of
+        {ok, Types} ->
+            reckon_gateway_http:reply_json(200, #{
+                <<"event_types">> => [#{<<"event_type">> => T, <<"count">> => C} || {T, C} <- Types]
+            }, R);
+        {error, Reason} ->
+            reckon_gateway_http:dispatch_error(Reason, R)
+    end.
+
+handle_by_payload(StoreId, R) ->
+    Key   = reckon_gateway_http:qs_binary(R, <<"key">>,   undefined),
+    Value = reckon_gateway_http:qs_binary(R, <<"value">>, undefined),
+    Limit = min(reckon_gateway_http:qs_int(R, <<"limit">>, ?MAX_BATCH), ?MAX_BATCH),
+    by_payload_check(Key, Value, StoreId, Limit, R).
+
+by_payload_check(undefined, _Value, _StoreId, _Limit, R) ->
+    reckon_gateway_http:reply_error(400, <<"missing key">>, R);
+by_payload_check(_Key, undefined, _StoreId, _Limit, R) ->
+    reckon_gateway_http:reply_error(400, <<"missing value">>, R);
+by_payload_check(Key, Value, StoreId, Limit, R) ->
+    reply_events(reckon_gateway_dispatch:call(ccc_read_by_payload, [StoreId, Key, Value, Limit]), R).
+
+handle_by_payload_hash(StoreId, R0) ->
+    case reckon_gateway_http:read_json_body(R0) of
+        {error, invalid_json} ->
+            reckon_gateway_http:reply_error(400, <<"invalid_json">>, R0);
+        {ok, Body, R} ->
+            Keys   = maps:get(<<"keys">>,   Body, undefined),
+            Values = maps:get(<<"values">>, Body, undefined),
+            Limit  = min(maps:get(<<"limit">>, Body, ?MAX_BATCH), ?MAX_BATCH),
+            by_payload_hash_check(Keys, Values, StoreId, Limit, R)
+    end.
+
+by_payload_hash_check(undefined, _Values, _StoreId, _Limit, R) ->
+    reckon_gateway_http:reply_error(400, <<"missing keys">>, R);
+by_payload_hash_check(_Keys, undefined, _StoreId, _Limit, R) ->
+    reckon_gateway_http:reply_error(400, <<"missing values">>, R);
+by_payload_hash_check(Keys, _Values, _StoreId, _Limit, R) when not is_list(Keys) ->
+    reckon_gateway_http:reply_error(400, <<"keys must be an array">>, R);
+by_payload_hash_check(_Keys, Values, _StoreId, _Limit, R) when not is_list(Values) ->
+    reckon_gateway_http:reply_error(400, <<"values must be an array">>, R);
+by_payload_hash_check(Keys, Values, _StoreId, _Limit, R) when length(Keys) =/= length(Values) ->
+    reckon_gateway_http:reply_error(400, <<"keys and values must have equal length">>, R);
+by_payload_hash_check(Keys, Values, StoreId, Limit, R) ->
+    reply_events(reckon_gateway_dispatch:call(ccc_read_by_payload_hash,
+                                              [StoreId, Keys, Values, Limit]), R).
+
+reply_events({ok, Events}, R) ->
+    reckon_gateway_http:reply_json(200, #{
+        <<"events">> => [reckon_gateway_http:event_to_json_map(E) || E <- Events]
+    }, R);
+reply_events({error, Reason}, R) ->
+    reckon_gateway_http:dispatch_error(Reason, R).
+
+handle_payload_indexes(StoreId, R) ->
+    payload_indexes_reply(reckon_gateway_dispatch:call(get_payload_indexes, [StoreId]), StoreId, R).
+
+payload_indexes_reply({error, Reason}, _StoreId, R) ->
+    reckon_gateway_http:dispatch_error(Reason, R);
+payload_indexes_reply({ok, Single}, StoreId, R) ->
+    payload_hash_reply(reckon_gateway_dispatch:call(get_payload_hash_indexes, [StoreId]), Single, R).
+
+payload_hash_reply({error, Reason}, _Single, R) ->
+    reckon_gateway_http:dispatch_error(Reason, R);
+payload_hash_reply({ok, Combos}, Single, R) ->
+    reckon_gateway_http:reply_json(200, #{
+        <<"payload">>      => Single,
+        <<"payload_hash">> => Combos
+    }, R).
+
 parse_proposed(RawEvents, Req) when is_list(RawEvents) ->
-    lists:foldl(fun
-        (_, {error, _} = E) -> E;
-        (E, {ok, Acc}) ->
-            case reckon_gateway_http:proposed_from_json(E) of
-                {error, Reason} ->
-                    {error, reckon_gateway_http:reply_error(400, Reason, Req)};
-                Map ->
-                    {ok, [Map | Acc]}
-            end
-    end, {ok, []}, RawEvents);
+    lists:foldl(fun(E, Acc) -> proposed_step(E, Acc, Req) end, {ok, []}, RawEvents);
 parse_proposed(_, Req) ->
     {error, reckon_gateway_http:reply_error(400, <<"events must be an array">>, Req)}.
+
+proposed_step(_, {error, _} = E, _Req) ->
+    E;
+proposed_step(E, {ok, Acc}, Req) ->
+    proposed_add(reckon_gateway_http:proposed_from_json(E), Acc, Req).
+
+proposed_add({error, Reason}, _Acc, Req) ->
+    {error, reckon_gateway_http:reply_error(400, Reason, Req)};
+proposed_add(Map, Acc, _Req) ->
+    {ok, [Map | Acc]}.
 
 %% Mirrors reckon_gateway_dcb_service:do_read/4 — fetches by tags AND
 %% by event_types, deduplicates, filters against the full predicate,
@@ -247,27 +249,27 @@ do_context(StoreId, Filter, BatchSize, Req) ->
     BS = safe_batch(BatchSize),
     AllTags       = reckon_gateway_dcb_service:collect_tags(Filter),
     AllEventTypes = collect_event_types(Filter),
-    case {AllTags, AllEventTypes} of
-        {[], []} ->
-            reckon_gateway_http:reply_json(200,
-                #{<<"events">> => [], <<"max_seq">> => -1}, Req);
-        _ ->
-            TagResult  = fetch_by_tags(StoreId, AllTags, BS),
-            TypeResult = fetch_by_types(StoreId, AllEventTypes, BS),
-            case {TagResult, TypeResult} of
-                {{error, Reason}, _} ->
-                    reckon_gateway_http:dispatch_error(Reason, Req);
-                {_, {error, Reason}} ->
-                    reckon_gateway_http:dispatch_error(Reason, Req);
-                {{ok, TagEvs}, {ok, TypeEvs}} ->
-                    Merged = merge_and_filter(TagEvs, TypeEvs, Filter),
-                    MaxSeq = max_seq(Merged),
-                    reckon_gateway_http:reply_json(200, #{
-                        <<"events">>  => [reckon_gateway_http:event_to_json_map(E) || E <- Merged],
-                        <<"max_seq">> => MaxSeq
-                    }, Req)
-            end
-    end.
+    do_context_run(AllTags, AllEventTypes, StoreId, Filter, BS, Req).
+
+do_context_run([], [], _StoreId, _Filter, _BS, Req) ->
+    reckon_gateway_http:reply_json(200,
+        #{<<"events">> => [], <<"max_seq">> => -1}, Req);
+do_context_run(AllTags, AllEventTypes, StoreId, Filter, BS, Req) ->
+    TagResult  = fetch_by_tags(StoreId, AllTags, BS),
+    TypeResult = fetch_by_types(StoreId, AllEventTypes, BS),
+    context_reply(TagResult, TypeResult, Filter, Req).
+
+context_reply({error, Reason}, _TypeResult, _Filter, Req) ->
+    reckon_gateway_http:dispatch_error(Reason, Req);
+context_reply(_TagResult, {error, Reason}, _Filter, Req) ->
+    reckon_gateway_http:dispatch_error(Reason, Req);
+context_reply({ok, TagEvs}, {ok, TypeEvs}, Filter, Req) ->
+    Merged = merge_and_filter(TagEvs, TypeEvs, Filter),
+    MaxSeq = max_seq(Merged),
+    reckon_gateway_http:reply_json(200, #{
+        <<"events">>  => [reckon_gateway_http:event_to_json_map(E) || E <- Merged],
+        <<"max_seq">> => MaxSeq
+    }, Req).
 
 fetch_by_tags(_StoreId, [], _BS) -> {ok, []};
 fetch_by_tags(StoreId, Tags, BS) ->
