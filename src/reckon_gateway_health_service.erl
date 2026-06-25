@@ -31,27 +31,21 @@
 -define(API_COMPAT_VERSION, <<"reckon.gateway.v1">>).
 
 check(#{store_id := StoreIdBin}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(check, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case single_mode_short_circuit(StoreId) of
-                true ->
-                    {ok, #{status => 'HEALTH_STATUS_HEALTHY',
-                           details => #{<<"mode">> => <<"single">>}}, Md};
-                false ->
-                    case reckon_gateway_dispatch:call(quick_health_check, [StoreId]) of
-                        {ok, _} ->
-                            {ok, #{status => 'HEALTH_STATUS_HEALTHY', details => #{}}, Md};
-                        {error, Reason} ->
-                            %% Dispatch failure IS the answer — return
-                            %% UNHEALTHY, not a gRPC error. Still log
-                            %% the reason for triage.
-                            reckon_gateway_error:log(check, <<"unhealthy">>, Reason),
-                            {ok, #{status => 'HEALTH_STATUS_UNHEALTHY', details => #{}}, Md}
-                    end
-            end
-    end.
+    with_store_id(StoreIdBin, check,
+        fun(StoreId) -> check_mode(single_mode_short_circuit(StoreId), StoreId, Md) end).
+
+check_mode(true, _StoreId, Md) ->
+    {ok, #{status => 'HEALTH_STATUS_HEALTHY', details => #{<<"mode">> => <<"single">>}}, Md};
+check_mode(false, StoreId, Md) ->
+    check_result(reckon_gateway_dispatch:call(quick_health_check, [StoreId]), Md).
+
+check_result({ok, _}, Md) ->
+    {ok, #{status => 'HEALTH_STATUS_HEALTHY', details => #{}}, Md};
+check_result({error, Reason}, Md) ->
+    %% Dispatch failure IS the answer — return UNHEALTHY, not a gRPC
+    %% error. Still log the reason for triage.
+    reckon_gateway_error:log(check, <<"unhealthy">>, Reason),
+    {ok, #{status => 'HEALTH_STATUS_UNHEALTHY', details => #{}}, Md}.
 
 health(#{}, Md) ->
     %% Catalogue-mode gateway: this is the GATEWAY's own health, NOT
@@ -62,29 +56,41 @@ health(#{}, Md) ->
     %% status from the catalogue instead — no BEAM round-trip required.
     Snapshot = reckon_gateway_catalogue:status(),
     Clusters = maps:get(clusters, Snapshot, []),
-    Status = case Clusters of
-        [] ->
-            %% No connectors configured at all — gateway is up but
-            %% has nothing to route to.
-            'HEALTH_STATUS_DEGRADED';
-        _ ->
-            case lists:any(fun(#{status := up}) -> true; (_) -> false end,
-                           Clusters) of
-                true  -> 'HEALTH_STATUS_HEALTHY';
-                false -> 'HEALTH_STATUS_DEGRADED'
-            end
-    end,
+    Status = health_status(Clusters),
     %% `stores' is `map<string, uint32>' in the proto (per-cluster
     %% store count). cluster_id binary -> store_count int.
-    StoresMap = lists:foldl(
-        fun(#{cluster_id := CId, store_count := SC}, Acc) ->
-            Acc#{atom_to_binary(CId, utf8) => SC}
-        end, #{}, Clusters),
+    StoresMap = lists:foldl(fun store_count_acc/2, #{}, Clusters),
     {ok, #{status => Status,
            stores => StoresMap,
            total_workers => maps:get(catalogue_size, Snapshot, 0),
            node => atom_to_binary(node(), utf8),
            timestamp => erlang:system_time(millisecond)}, Md}.
+
+%% @private No connectors configured at all means the gateway is up
+%% but has nothing to route to.
+health_status([]) ->
+    'HEALTH_STATUS_DEGRADED';
+health_status(Clusters) ->
+    health_status_any(lists:any(fun cluster_up/1, Clusters)).
+
+health_status_any(true)  -> 'HEALTH_STATUS_HEALTHY';
+health_status_any(false) -> 'HEALTH_STATUS_DEGRADED'.
+
+cluster_up(#{status := up}) -> true;
+cluster_up(_)               -> false.
+
+store_count_acc(#{cluster_id := CId, store_count := SC}, Acc) ->
+    Acc#{atom_to_binary(CId, utf8) => SC}.
+
+%% @private Resolve a store-id binary, wrapping the canonical
+%% invalid_store_id gRPC error, then run Fun with the parsed id.
+with_store_id(StoreIdBin, ErrFn, Fun) ->
+    case reckon_gateway_convert:try_store_id(StoreIdBin) of
+        {error, invalid_store_id} ->
+            reckon_gateway_error:wrap(ErrFn, <<"3">>, invalid_store_id);
+        {ok, StoreId} ->
+            Fun(StoreId)
+    end.
 
 verify_cluster_consistency(#{store_id := StoreIdBin}, Md) ->
     raft_only_check(StoreIdBin, verify_cluster_consistency, Md).
@@ -109,26 +115,20 @@ check_raft_log_consistency(#{store_id := StoreIdBin}, Md) ->
 %% return HEALTHY with a mode=single detail instead of touching the
 %% BEAM at all.
 raft_only_check(StoreIdBin, DispatchFn, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(DispatchFn, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case single_mode_short_circuit(StoreId) of
-                true ->
-                    {ok, #{status  => 'CLUSTER_STATUS_HEALTHY',
-                           details => #{<<"mode">>   => <<"single">>,
-                                        <<"reason">> => <<"no cluster to verify">>}},
-                     Md};
-                false ->
-                    case reckon_gateway_dispatch:call(DispatchFn, [StoreId]) of
-                        {ok, #{status := Status} = Info} ->
-                            {ok, #{status  => cluster_status(Status),
-                                   details => maps_to_strings(Info)}, Md};
-                        {error, Reason} ->
-                            reckon_gateway_error:wrap(DispatchFn, <<"13">>, Reason)
-                    end
-            end
-    end.
+    with_store_id(StoreIdBin, DispatchFn,
+        fun(StoreId) -> raft_mode(single_mode_short_circuit(StoreId), StoreId, DispatchFn, Md) end).
+
+raft_mode(true, _StoreId, _DispatchFn, Md) ->
+    {ok, #{status  => 'CLUSTER_STATUS_HEALTHY',
+           details => #{<<"mode">>   => <<"single">>,
+                        <<"reason">> => <<"no cluster to verify">>}}, Md};
+raft_mode(false, StoreId, DispatchFn, Md) ->
+    raft_reply(reckon_gateway_dispatch:call(DispatchFn, [StoreId]), DispatchFn, Md).
+
+raft_reply({ok, #{status := Status} = Info}, _DispatchFn, Md) ->
+    {ok, #{status => cluster_status(Status), details => maps_to_strings(Info)}, Md};
+raft_reply({error, Reason}, DispatchFn, _Md) ->
+    reckon_gateway_error:wrap(DispatchFn, <<"13">>, Reason).
 
 %% @private Returns true if the catalogue knows this store and it is
 %% single-mode. False on unknown stores OR cluster-mode stores — in
@@ -140,38 +140,35 @@ single_mode_short_circuit(StoreId) ->
     end.
 
 get_memory_level(#{store_id := StoreIdBin}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(get_memory_level, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(get_memory_level, [StoreId]) of
-                {ok, Level} ->
-                    ProtoLevel = case Level of
-                        low -> 'MEMORY_LEVEL_LOW'; normal -> 'MEMORY_LEVEL_NORMAL';
-                        high -> 'MEMORY_LEVEL_HIGH'; critical -> 'MEMORY_LEVEL_CRITICAL';
-                        _ -> 'MEMORY_LEVEL_NORMAL'
-                    end,
-                    {ok, #{level => ProtoLevel}, Md};
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(get_memory_level, <<"13">>, Reason)
-            end
-    end.
+    with_store_id(StoreIdBin, get_memory_level,
+        fun(StoreId) ->
+            memory_level_reply(reckon_gateway_dispatch:call(get_memory_level, [StoreId]), Md)
+        end).
+
+memory_level_reply({ok, Level}, Md) ->
+    {ok, #{level => proto_memory_level(Level)}, Md};
+memory_level_reply({error, Reason}, _Md) ->
+    reckon_gateway_error:wrap(get_memory_level, <<"13">>, Reason).
+
+proto_memory_level(low)      -> 'MEMORY_LEVEL_LOW';
+proto_memory_level(normal)   -> 'MEMORY_LEVEL_NORMAL';
+proto_memory_level(high)     -> 'MEMORY_LEVEL_HIGH';
+proto_memory_level(critical) -> 'MEMORY_LEVEL_CRITICAL';
+proto_memory_level(_)        -> 'MEMORY_LEVEL_NORMAL'.
 
 get_memory_stats(#{store_id := StoreIdBin}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(get_memory_stats, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case reckon_gateway_dispatch:call(get_memory_stats, [StoreId]) of
-                {ok, Stats} ->
-                    {ok, #{used_bytes => maps:get(used, Stats, 0),
-                           total_bytes => maps:get(total, Stats, 0),
-                           usage_percent => maps:get(usage_percent, Stats, 0.0),
-                           breakdown => maps_to_strings(maps:get(breakdown, Stats, #{}))}, Md};
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(get_memory_stats, <<"13">>, Reason)
-            end
-    end.
+    with_store_id(StoreIdBin, get_memory_stats,
+        fun(StoreId) ->
+            memory_stats_reply(reckon_gateway_dispatch:call(get_memory_stats, [StoreId]), Md)
+        end).
+
+memory_stats_reply({ok, Stats}, Md) ->
+    {ok, #{used_bytes => maps:get(used, Stats, 0),
+           total_bytes => maps:get(total, Stats, 0),
+           usage_percent => maps:get(usage_percent, Stats, 0.0),
+           breakdown => maps_to_strings(maps:get(breakdown, Stats, #{}))}, Md};
+memory_stats_reply({error, Reason}, _Md) ->
+    reckon_gateway_error:wrap(get_memory_stats, <<"13">>, Reason).
 
 %% @doc GetServerInfo — advertise the tamper-resistance algorithm,
 %% per-store integrity status, and version information so polyglot
@@ -181,28 +178,24 @@ get_memory_stats(#{store_id := StoreIdBin}, Md) ->
 %% (an opaque integer the server uses to coordinate rotation) appears
 %% in the response.
 get_server_info(#{store_id := StoreIdBin}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(get_server_info, <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            IntegrityEnabled = integrity_enabled_for_store(StoreId),
-            {AlgoBin, KeyId} = case IntegrityEnabled of
-                true ->
-                    %% Key ID is fixed at 1 in reckon-db 2.1.0; rotation
-                    %% machinery (2.2+) will introduce variable IDs.
-                    {?INTEGRITY_ALGO, 1};
-                false ->
-                    {<<>>, 0}
-            end,
-            {ok, #{
-                reckon_db_version => reckon_db_version(),
-                reckon_gateway_version => reckon_gateway_version(),
-                integrity_algo => AlgoBin,
-                integrity_enabled => IntegrityEnabled,
-                hmac_key_id => KeyId,
-                api_compatibility_version => ?API_COMPAT_VERSION
-            }, Md}
-    end.
+    with_store_id(StoreIdBin, get_server_info, fun(StoreId) -> server_info_reply(StoreId, Md) end).
+
+server_info_reply(StoreId, Md) ->
+    IntegrityEnabled = integrity_enabled_for_store(StoreId),
+    {AlgoBin, KeyId} = integrity_advert(IntegrityEnabled),
+    {ok, #{
+        reckon_db_version => reckon_db_version(),
+        reckon_gateway_version => reckon_gateway_version(),
+        integrity_algo => AlgoBin,
+        integrity_enabled => IntegrityEnabled,
+        hmac_key_id => KeyId,
+        api_compatibility_version => ?API_COMPAT_VERSION
+    }, Md}.
+
+%% @private Key ID is fixed at 1 in reckon-db 2.1.0; rotation
+%% machinery (2.2+) will introduce variable IDs.
+integrity_advert(true)  -> {?INTEGRITY_ALGO, 1};
+integrity_advert(false) -> {<<>>, 0}.
 
 %% @private Whether the addressed store has integrity enabled.
 %% Wraps the local reckon_db check; falls back to `false` on errors
