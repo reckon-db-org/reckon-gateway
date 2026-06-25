@@ -23,16 +23,8 @@ handle(<<"OPTIONS">>, _Op, Req) ->
 handle(<<"GET">>, gateway, Req) ->
     Snapshot = reckon_gateway_catalogue:status(),
     Clusters = maps:get(clusters, Snapshot, []),
-    Status = case Clusters of
-        [] -> <<"degraded">>;
-        _  ->
-            case lists:any(fun(#{status := up}) -> true; (_) -> false end, Clusters) of
-                true  -> <<"healthy">>;
-                false -> <<"degraded">>
-            end
-    end,
     reckon_gateway_http:reply_json(200, #{
-        <<"status">>          => Status,
+        <<"status">>          => gateway_status(Clusters),
         <<"node">>            => atom_to_binary(node(), utf8),
         <<"catalogue_size">>  => maps:get(catalogue_size, Snapshot, 0),
         <<"timestamp_ms">>    => erlang:system_time(millisecond)
@@ -40,34 +32,11 @@ handle(<<"GET">>, gateway, Req) ->
 
 %% GET /v1/health/:store_id
 handle(<<"GET">>, store, Req) ->
-    with_store(Req, fun(StoreId, R) ->
-        {StatusAtom, Details} = case reckon_gateway_dispatch:call(quick_health_check, [StoreId]) of
-            {ok, _}         -> {healthy, #{}};
-            {error, Reason} -> {unhealthy, #{<<"reason">> => reason_bin(Reason)}}
-        end,
-        reckon_gateway_http:reply_json(200, #{
-            <<"status">>  => atom_to_binary(StatusAtom, utf8),
-            <<"details">> => Details
-        }, R)
-    end);
+    with_store(Req, fun handle_store_health/2);
 
 %% GET /v1/server-info/:store_id
 handle(<<"GET">>, server_info, Req) ->
-    with_store(Req, fun(StoreId, R) ->
-        IntegrityEnabled = integrity_enabled(StoreId),
-        {Algo, KeyId} = case IntegrityEnabled of
-            true  -> {<<"sha256-deterministic-etf-v1">>, 1};
-            false -> {<<>>, 0}
-        end,
-        reckon_gateway_http:reply_json(200, #{
-            <<"reckon_db_version">>         => app_vsn(reckon_db),
-            <<"reckon_gateway_version">>    => app_vsn(reckon_gateway),
-            <<"api_compatibility_version">> => <<"reckon.gateway.v1">>,
-            <<"integrity_algo">>            => Algo,
-            <<"integrity_enabled">>         => IntegrityEnabled,
-            <<"hmac_key_id">>               => KeyId
-        }, R)
-    end);
+    with_store(Req, fun handle_server_info/2);
 
 %% GET /v1/stores
 handle(<<"GET">>, list_stores, Req) ->
@@ -102,6 +71,40 @@ with_store(Req, Fun) ->
         {ok, StoreId} ->
             Fun(StoreId, Req)
     end.
+
+gateway_status([])       -> <<"degraded">>;
+gateway_status(Clusters) -> gateway_status_any(lists:any(fun cluster_up/1, Clusters)).
+
+gateway_status_any(true)  -> <<"healthy">>;
+gateway_status_any(false) -> <<"degraded">>.
+
+cluster_up(#{status := up}) -> true;
+cluster_up(_)               -> false.
+
+handle_store_health(StoreId, R) ->
+    {StatusAtom, Details} = health_result(reckon_gateway_dispatch:call(quick_health_check, [StoreId])),
+    reckon_gateway_http:reply_json(200, #{
+        <<"status">>  => atom_to_binary(StatusAtom, utf8),
+        <<"details">> => Details
+    }, R).
+
+health_result({ok, _})         -> {healthy, #{}};
+health_result({error, Reason}) -> {unhealthy, #{<<"reason">> => reason_bin(Reason)}}.
+
+handle_server_info(StoreId, R) ->
+    IntegrityEnabled = integrity_enabled(StoreId),
+    {Algo, KeyId} = integrity_advert(IntegrityEnabled),
+    reckon_gateway_http:reply_json(200, #{
+        <<"reckon_db_version">>         => app_vsn(reckon_db),
+        <<"reckon_gateway_version">>    => app_vsn(reckon_gateway),
+        <<"api_compatibility_version">> => <<"reckon.gateway.v1">>,
+        <<"integrity_algo">>            => Algo,
+        <<"integrity_enabled">>         => IntegrityEnabled,
+        <<"hmac_key_id">>               => KeyId
+    }, R).
+
+integrity_advert(true)  -> {<<"sha256-deterministic-etf-v1">>, 1};
+integrity_advert(false) -> {<<>>, 0}.
 
 entry_to_json(#{store_id := StoreId,
                 node := Node,

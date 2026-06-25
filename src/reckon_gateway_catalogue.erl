@@ -138,21 +138,7 @@ init([]) ->
 
 handle_call({lookup, StoreId}, _From,
             #state{catalogue = Cat, clusters = CMap} = State) ->
-    Reply = case maps:find(StoreId, Cat) of
-        error ->
-            {error, not_found};
-        {ok, ClusterId} ->
-            case maps:get(ClusterId, CMap, undefined) of
-                undefined ->
-                    {error, not_found};
-                #{members := Members, status := Status, api_module := Api}
-                  when Status =/= unreachable, Members =/= [] ->
-                    {ok, ClusterId, Members, Api};
-                _ ->
-                    {error, unreachable}
-            end
-    end,
-    {reply, Reply, State};
+    {reply, lookup_reply(maps:find(StoreId, Cat), CMap), State};
 
 handle_call(list_all, _From,
             #state{catalogue = Cat, clusters = CMap} = State) ->
@@ -171,23 +157,7 @@ handle_call(list_entries, _From,
 
 handle_call({store_mode, StoreId}, _From,
             #state{catalogue = Cat, clusters = CMap} = State) ->
-    Reply = case maps:find(StoreId, Cat) of
-        error ->
-            {error, not_found};
-        {ok, ClusterId} ->
-            Entries = prev_stores(ClusterId, CMap),
-            case [maps:get(mode, E, undefined)
-                  || E <- Entries, maps:get(store_id, E) =:= StoreId] of
-                [Mode | _] when Mode =:= single; Mode =:= cluster ->
-                    {ok, Mode};
-                _ ->
-                    %% Mode unset on entry (legacy connector, etc.) —
-                    %% fall back to cluster so we don't silently
-                    %% mis-route consistency checks on a real cluster.
-                    {ok, cluster}
-            end
-    end,
-    {reply, Reply, State};
+    {reply, store_mode_reply(maps:find(StoreId, Cat), StoreId, CMap), State};
 
 handle_call(status, _From,
             #state{catalogue = Cat, clusters = CMap} = State) ->
@@ -213,38 +183,11 @@ handle_cast({publish, ClusterId, Info},
     RemovedIds = PrevIds -- NewIds,
     %% Apply per-store_id add/remove against the denorm catalogue.
     {Cat1, NewLogged, AcceptedAdds} = lists:foldl(
-        fun(StoreId, {AccCat, AccLogged, AccAccepted}) ->
-            case maps:find(StoreId, AccCat) of
-                error ->
-                    {AccCat#{StoreId => ClusterId},
-                     AccLogged,
-                     [StoreId | AccAccepted]};
-                {ok, ClusterId} ->
-                    %% Self-republish; harmless.
-                    {AccCat, AccLogged, AccAccepted};
-                {ok, OtherCluster} ->
-                    Key = {StoreId, ClusterId, OtherCluster},
-                    case sets:is_element(Key, AccLogged) of
-                        true -> ok;
-                        false ->
-                            logger:warning("[reckon_gateway_catalogue] store_id ~p"
-                                           " offered by both ~p and ~p; first-seen"
-                                           " (~p) wins",
-                                           [StoreId, ClusterId, OtherCluster,
-                                            OtherCluster])
-                    end,
-                    {AccCat, sets:add_element(Key, AccLogged), AccAccepted}
-            end
-        end, {Cat, LoggedCollisions, []}, AddedIds),
+        fun(StoreId, Acc) -> publish_add_step(StoreId, ClusterId, Acc) end,
+        {Cat, LoggedCollisions, []}, AddedIds),
     {Cat2, AcceptedRemoves} = lists:foldl(
-        fun(StoreId, {AccCat, AccAccepted}) ->
-            case maps:find(StoreId, AccCat) of
-                {ok, ClusterId} ->
-                    {maps:remove(StoreId, AccCat),
-                     [StoreId | AccAccepted]};
-                _               -> {AccCat, AccAccepted}  %% owned by someone else now
-            end
-        end, {Cat1, []}, RemovedIds),
+        fun(StoreId, Acc) -> publish_remove_step(StoreId, ClusterId, Acc) end,
+        {Cat1, []}, RemovedIds),
     CMap1 = CMap#{ClusterId => Info},
     case {AddedIds, RemovedIds} of
         {[], []} -> ok;
@@ -332,17 +275,17 @@ notify_subscribers(Subs, ClusterId, Entries, AcceptedIds, Type)
     _ = AcceptedIds, _ = Entries, _ = ClusterId, _ = Type, ok;
 notify_subscribers(Subs, ClusterId, Entries, AcceptedIds, Type) ->
     Pids = maps:values(Subs),
-    lists:foreach(
-        fun(Id) ->
-            case [E || E <- Entries, maps:get(store_id, E) =:= Id] of
-                [Entry | _] ->
-                    Annotated = Entry#{cluster_id => ClusterId},
-                    Msg = {store_event, Type, Annotated},
-                    [P ! Msg || P <- Pids];
-                [] ->
-                    ok
-            end
-        end, AcceptedIds).
+    lists:foreach(fun(Id) -> notify_one(Id, Pids, Entries, ClusterId, Type) end, AcceptedIds).
+
+notify_one(Id, Pids, Entries, ClusterId, Type) ->
+    notify_match([E || E <- Entries, maps:get(store_id, E) =:= Id], Pids, ClusterId, Type).
+
+notify_match([Entry | _], Pids, ClusterId, Type) ->
+    Annotated = Entry#{cluster_id => ClusterId},
+    Msg = {store_event, Type, Annotated},
+    [P ! Msg || P <- Pids];
+notify_match([], _Pids, _ClusterId, _Type) ->
+    ok.
 
 cluster_snapshot(Id, #{members := M, stores := S,
                        status  := Status, last_refresh := LR}) ->
@@ -351,3 +294,71 @@ cluster_snapshot(Id, #{members := M, stores := S,
       store_count  => length(S),
       status       => Status,
       last_refresh => LR}.
+
+%%====================================================================
+%% Catalogue mutation/lookup helpers (flattened out of gen_server
+%% callbacks to keep nesting shallow)
+%%====================================================================
+
+%% @private lookup reply: resolve store -> cluster -> reachable members.
+lookup_reply(error, _CMap) ->
+    {error, not_found};
+lookup_reply({ok, ClusterId}, CMap) ->
+    lookup_cluster(maps:get(ClusterId, CMap, undefined), ClusterId).
+
+lookup_cluster(undefined, _ClusterId) ->
+    {error, not_found};
+lookup_cluster(#{members := Members, status := Status, api_module := Api}, ClusterId)
+  when Status =/= unreachable, Members =/= [] ->
+    {ok, ClusterId, Members, Api};
+lookup_cluster(_, _ClusterId) ->
+    {error, unreachable}.
+
+%% @private store_mode reply: find the store's owning cluster, read the
+%% per-entry mode, default to cluster when unset.
+store_mode_reply(error, _StoreId, _CMap) ->
+    {error, not_found};
+store_mode_reply({ok, ClusterId}, StoreId, CMap) ->
+    Entries = prev_stores(ClusterId, CMap),
+    store_mode_pick([maps:get(mode, E, undefined)
+                     || E <- Entries, maps:get(store_id, E) =:= StoreId]).
+
+store_mode_pick([Mode | _]) when Mode =:= single; Mode =:= cluster ->
+    {ok, Mode};
+store_mode_pick(_) ->
+    %% Mode unset on entry (legacy connector, etc.) — fall back to
+    %% cluster so we don't silently mis-route consistency checks.
+    {ok, cluster}.
+
+%% @private Fold step for added store_ids on publish. First-seen
+%% cluster wins; collisions are logged once.
+publish_add_step(StoreId, ClusterId, {AccCat, _, _} = Acc) ->
+    publish_add_find(maps:find(StoreId, AccCat), StoreId, ClusterId, Acc).
+
+publish_add_find(error, StoreId, ClusterId, {AccCat, AccLogged, AccAccepted}) ->
+    {AccCat#{StoreId => ClusterId}, AccLogged, [StoreId | AccAccepted]};
+publish_add_find({ok, ClusterId}, _StoreId, ClusterId, Acc) ->
+    %% Self-republish; harmless.
+    Acc;
+publish_add_find({ok, OtherCluster}, StoreId, ClusterId, {AccCat, AccLogged, AccAccepted}) ->
+    Key = {StoreId, ClusterId, OtherCluster},
+    maybe_log_collision(sets:is_element(Key, AccLogged), StoreId, ClusterId, OtherCluster),
+    {AccCat, sets:add_element(Key, AccLogged), AccAccepted}.
+
+maybe_log_collision(true, _StoreId, _ClusterId, _OtherCluster) ->
+    ok;
+maybe_log_collision(false, StoreId, ClusterId, OtherCluster) ->
+    logger:warning("[reckon_gateway_catalogue] store_id ~p offered by both ~p and ~p;"
+                   " first-seen (~p) wins",
+                   [StoreId, ClusterId, OtherCluster, OtherCluster]).
+
+%% @private Fold step for removed store_ids on publish. Only drop the
+%% entry if this cluster still owns it.
+publish_remove_step(StoreId, ClusterId, {AccCat, _} = Acc) ->
+    publish_remove_find(maps:find(StoreId, AccCat), StoreId, ClusterId, Acc).
+
+publish_remove_find({ok, ClusterId}, StoreId, ClusterId, {AccCat, AccAccepted}) ->
+    {maps:remove(StoreId, AccCat), [StoreId | AccAccepted]};
+publish_remove_find(_, _StoreId, _ClusterId, Acc) ->
+    %% owned by someone else now
+    Acc.

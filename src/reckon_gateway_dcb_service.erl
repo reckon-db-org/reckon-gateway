@@ -63,22 +63,17 @@ append_if_no_tag_matches(#{store_id := StoreIdBin,
                            tag_filter := FilterProto,
                            seq_cutoff := SeqCutoff,
                            events := ProposedEvents}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(append_if_no_tag_matches,
-                                       <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case decode_filter(FilterProto) of
-                {error, FilterErr} ->
-                    reckon_gateway_error:wrap(append_if_no_tag_matches,
-                                               <<"3">>, FilterErr);
-                {ok, Filter} ->
-                    Events = [reckon_gateway_convert:proposed_to_event(
-                                E, ?DCB_STREAM_ID)
-                              || E <- ProposedEvents],
-                    do_append(StoreId, Filter, SeqCutoff, Events, Md)
-            end
-    end.
+    with_store_id(StoreIdBin, append_if_no_tag_matches,
+        fun(StoreId) ->
+            append_decoded(decode_filter(FilterProto), StoreId, SeqCutoff, ProposedEvents, Md)
+        end).
+
+append_decoded({error, FilterErr}, _StoreId, _SeqCutoff, _ProposedEvents, _Md) ->
+    reckon_gateway_error:wrap(append_if_no_tag_matches, <<"3">>, FilterErr);
+append_decoded({ok, Filter}, StoreId, SeqCutoff, ProposedEvents, Md) ->
+    Events = [reckon_gateway_convert:proposed_to_event(E, ?DCB_STREAM_ID)
+              || E <- ProposedEvents],
+    do_append(StoreId, Filter, SeqCutoff, Events, Md).
 
 do_append(StoreId, Filter, SeqCutoff, Events, Md) ->
     case reckon_gateway_dispatch:call(
@@ -114,40 +109,32 @@ do_append(StoreId, Filter, SeqCutoff, Events, Md) ->
 read_dcb_context(#{store_id := StoreIdBin,
                     tag_filter := FilterProto,
                     batch_size := BatchSize}, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(read_dcb_context,
-                                       <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            case decode_filter(FilterProto) of
-                {error, FilterErr} ->
-                    reckon_gateway_error:wrap(read_dcb_context,
-                                               <<"3">>, FilterErr);
-                {ok, Filter} ->
-                    do_read(StoreId, Filter, BatchSize, Md)
-            end
-    end.
+    with_store_id(StoreIdBin, read_dcb_context,
+        fun(StoreId) -> read_decoded(decode_filter(FilterProto), StoreId, BatchSize, Md) end).
+
+read_decoded({error, FilterErr}, _StoreId, _BatchSize, _Md) ->
+    reckon_gateway_error:wrap(read_dcb_context, <<"3">>, FilterErr);
+read_decoded({ok, Filter}, StoreId, BatchSize, Md) ->
+    do_read(StoreId, Filter, BatchSize, Md).
 
 do_read(StoreId, Filter, BatchSize, Md) ->
     BS = safe_batch_size(BatchSize),
     AllTags = collect_tags(Filter),
     AllEventTypes = collect_event_types(Filter),
-    case {AllTags, AllEventTypes} of
-        {[], []} ->
-            {ok, #{events => [], max_seq => -1}, Md};
-        _ ->
-            TagEvents = read_by_tags_or_empty(StoreId, AllTags, BS),
-            TypeEvents = read_by_event_types_or_empty(StoreId, AllEventTypes, BS),
-            case merge_and_filter(TagEvents, TypeEvents, Filter) of
-                {error, Reason} ->
-                    map_read_error(read_dcb_context, Reason);
-                {ok, Matching} ->
-                    Recorded = [reckon_gateway_convert:event_to_recorded(E)
-                                || E <- Matching],
-                    MaxSeq = compute_max_seq(Matching),
-                    {ok, #{events => Recorded, max_seq => MaxSeq}, Md}
-            end
-    end.
+    do_read_run(AllTags, AllEventTypes, StoreId, Filter, BS, Md).
+
+do_read_run([], [], _StoreId, _Filter, _BS, Md) ->
+    {ok, #{events => [], max_seq => -1}, Md};
+do_read_run(AllTags, AllEventTypes, StoreId, Filter, BS, Md) ->
+    TagEvents = read_by_tags_or_empty(StoreId, AllTags, BS),
+    TypeEvents = read_by_event_types_or_empty(StoreId, AllEventTypes, BS),
+    read_merged(merge_and_filter(TagEvents, TypeEvents, Filter), Md).
+
+read_merged({error, Reason}, _Md) ->
+    map_read_error(read_dcb_context, Reason);
+read_merged({ok, Matching}, Md) ->
+    Recorded = [reckon_gateway_convert:event_to_recorded(E) || E <- Matching],
+    {ok, #{events => Recorded, max_seq => compute_max_seq(Matching)}, Md}.
 
 read_by_tags_or_empty(_StoreId, [], _BS) -> {ok, []};
 read_by_tags_or_empty(StoreId, Tags, BS) ->
@@ -184,29 +171,13 @@ dcb_event_key(#{version := V, stream_id := S})    -> {S, V}.
 ccc_read_by_payload(#{store_id := StoreIdBin,
                        key      := Key,
                        value    := Value} = Req, Md) ->
-    case reckon_gateway_convert:try_store_id(StoreIdBin) of
-        {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(ccc_read_by_payload,
-                                       <<"3">>, invalid_store_id);
-        {ok, StoreId} ->
-            BS = safe_batch_size(maps:get(batch_size, Req, 0)),
-            case reckon_gateway_dispatch:call(
-                   ccc_read_by_payload, [StoreId, Key, Value, BS]) of
-                {ok, Events} ->
-                    Recorded = [reckon_gateway_convert:event_to_recorded(E)
-                                || E <- Events],
-                    {ok, #{events => Recorded}, Md};
-                {error, store_unknown} ->
-                    reckon_gateway_error:wrap(ccc_read_by_payload,
-                                               <<"5">>, store_unknown);
-                {error, cluster_unavailable} ->
-                    reckon_gateway_error:wrap(ccc_read_by_payload,
-                                               <<"14">>, cluster_unavailable);
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(ccc_read_by_payload,
-                                               <<"13">>, Reason)
-            end
-    end.
+    with_store_id(StoreIdBin, ccc_read_by_payload,
+        fun(StoreId) ->
+            ccc_reply(
+                reckon_gateway_dispatch:call(ccc_read_by_payload,
+                    [StoreId, Key, Value, safe_batch_size(maps:get(batch_size, Req, 0))]),
+                ccc_read_by_payload, Md)
+        end).
 
 %%====================================================================
 %% CccReadByPayloadHash
@@ -215,34 +186,37 @@ ccc_read_by_payload(#{store_id := StoreIdBin,
 ccc_read_by_payload_hash(#{store_id := StoreIdBin,
                              keys     := Keys,
                              values   := Values} = Req, Md) ->
+    with_store_id(StoreIdBin, ccc_read_by_payload_hash,
+        fun(StoreId) -> hash_validate(Keys, Values, StoreId, Req, Md) end).
+
+hash_validate(Keys, _Values, _StoreId, _Req, _Md) when length(Keys) =:= 0 ->
+    reckon_gateway_error:wrap(ccc_read_by_payload_hash, <<"3">>, empty_keys);
+hash_validate(Keys, Values, _StoreId, _Req, _Md) when length(Keys) =/= length(Values) ->
+    reckon_gateway_error:wrap(ccc_read_by_payload_hash, <<"3">>, keys_values_length_mismatch);
+hash_validate(Keys, Values, StoreId, Req, Md) ->
+    ccc_reply(
+        reckon_gateway_dispatch:call(ccc_read_by_payload_hash,
+            [StoreId, Keys, Values, safe_batch_size(maps:get(batch_size, Req, 0))]),
+        ccc_read_by_payload_hash, Md).
+
+%% @private Shared CCC read reply: events on success, code-mapped errors.
+ccc_reply({ok, Events}, _Op, Md) ->
+    {ok, #{events => [reckon_gateway_convert:event_to_recorded(E) || E <- Events]}, Md};
+ccc_reply({error, store_unknown}, Op, _Md) ->
+    reckon_gateway_error:wrap(Op, <<"5">>, store_unknown);
+ccc_reply({error, cluster_unavailable}, Op, _Md) ->
+    reckon_gateway_error:wrap(Op, <<"14">>, cluster_unavailable);
+ccc_reply({error, Reason}, Op, _Md) ->
+    reckon_gateway_error:wrap(Op, <<"13">>, Reason).
+
+%% @private Resolve a store-id binary, wrapping the canonical
+%% invalid_store_id gRPC error, then run Fun with the parsed id.
+with_store_id(StoreIdBin, ErrFn, Fun) ->
     case reckon_gateway_convert:try_store_id(StoreIdBin) of
         {error, invalid_store_id} ->
-            reckon_gateway_error:wrap(ccc_read_by_payload_hash,
-                                       <<"3">>, invalid_store_id);
-        {ok, _} when length(Keys) =:= 0 ->
-            reckon_gateway_error:wrap(ccc_read_by_payload_hash,
-                                       <<"3">>, empty_keys);
-        {ok, _} when length(Keys) =/= length(Values) ->
-            reckon_gateway_error:wrap(ccc_read_by_payload_hash,
-                                       <<"3">>, keys_values_length_mismatch);
+            reckon_gateway_error:wrap(ErrFn, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
-            BS = safe_batch_size(maps:get(batch_size, Req, 0)),
-            case reckon_gateway_dispatch:call(
-                   ccc_read_by_payload_hash, [StoreId, Keys, Values, BS]) of
-                {ok, Events} ->
-                    Recorded = [reckon_gateway_convert:event_to_recorded(E)
-                                || E <- Events],
-                    {ok, #{events => Recorded}, Md};
-                {error, store_unknown} ->
-                    reckon_gateway_error:wrap(ccc_read_by_payload_hash,
-                                               <<"5">>, store_unknown);
-                {error, cluster_unavailable} ->
-                    reckon_gateway_error:wrap(ccc_read_by_payload_hash,
-                                               <<"14">>, cluster_unavailable);
-                {error, Reason} ->
-                    reckon_gateway_error:wrap(ccc_read_by_payload_hash,
-                                               <<"13">>, Reason)
-            end
+            Fun(StoreId)
     end.
 
 %%====================================================================
