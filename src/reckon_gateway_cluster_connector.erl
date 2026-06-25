@@ -254,14 +254,16 @@ discover_one(ClusterId, Member) ->
     end.
 
 dedup_entries(Entries) ->
-    {_Seen, Out} = lists:foldl(
-        fun(#{store_id := Id} = E, {Seen, Acc}) ->
-            case sets:is_element(Id, Seen) of
-                true  -> {Seen, Acc};
-                false -> {sets:add_element(Id, Seen), [E | Acc]}
-            end
-        end, {sets:new(), []}, Entries),
+    {_Seen, Out} = lists:foldl(fun dedup_step/2, {sets:new(), []}, Entries),
     lists:reverse(Out).
+
+dedup_step(#{store_id := Id} = E, {Seen, Acc}) ->
+    dedup_add(sets:is_element(Id, Seen), Id, E, Seen, Acc).
+
+dedup_add(true, _Id, _E, Seen, Acc) ->
+    {Seen, Acc};
+dedup_add(false, Id, E, Seen, Acc) ->
+    {sets:add_element(Id, Seen), [E | Acc]}.
 
 publish_catalogue(ClusterId, Members, ApiModule, Stores, Status, Now) ->
     reckon_gateway_catalogue:publish(ClusterId, #{

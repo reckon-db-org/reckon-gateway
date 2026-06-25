@@ -30,28 +30,22 @@ call(Fn, Args) ->
 
 -spec call(atom(), [term()], pos_integer() | infinity) -> term().
 call(Fn, [StoreId | _] = Args, Timeout) when is_atom(StoreId) ->
-    case reckon_gateway_catalogue:lookup(StoreId) of
-        {ok, _ClusterId, Members, ApiModule} ->
-            case pick_member(Members) of
-                {ok, Member} ->
-                    invoke(Member, ApiModule, Fn, Args, Timeout);
-                error ->
-                    logger:warning(
-                        "dispatch: ~p has no healthy member for ~p",
-                        [StoreId, Fn]),
-                    {error, cluster_unavailable}
-            end;
-        {error, not_found} ->
-            logger:debug(
-                "dispatch: store_unknown ~p (op=~p)",
-                [StoreId, Fn]),
-            {error, store_unknown};
-        {error, unreachable} ->
-            logger:warning(
-                "dispatch: catalogue unreachable for ~p (op=~p)",
-                [StoreId, Fn]),
-            {error, cluster_unavailable}
-    end.
+    dispatch_lookup(reckon_gateway_catalogue:lookup(StoreId), StoreId, Fn, Args, Timeout).
+
+dispatch_lookup({ok, _ClusterId, Members, ApiModule}, StoreId, Fn, Args, Timeout) ->
+    dispatch_member(pick_member(Members), ApiModule, StoreId, Fn, Args, Timeout);
+dispatch_lookup({error, not_found}, StoreId, Fn, _Args, _Timeout) ->
+    logger:debug("dispatch: store_unknown ~p (op=~p)", [StoreId, Fn]),
+    {error, store_unknown};
+dispatch_lookup({error, unreachable}, StoreId, Fn, _Args, _Timeout) ->
+    logger:warning("dispatch: catalogue unreachable for ~p (op=~p)", [StoreId, Fn]),
+    {error, cluster_unavailable}.
+
+dispatch_member({ok, Member}, ApiModule, _StoreId, Fn, Args, Timeout) ->
+    invoke(Member, ApiModule, Fn, Args, Timeout);
+dispatch_member(error, _ApiModule, StoreId, Fn, _Args, _Timeout) ->
+    logger:warning("dispatch: ~p has no healthy member for ~p", [StoreId, Fn]),
+    {error, cluster_unavailable}.
 
 %% First healthy member wins. Future iteration can round-robin or
 %% prefer the gateway-local-network-closest member.

@@ -40,18 +40,19 @@
 %%====================================================================
 
 read_json_body(Req0) ->
-    case cowboy_req:has_body(Req0) of
-        false ->
-            {ok, #{}, Req0};
-        true ->
-            {ok, Body, Req} = cowboy_req:read_body(Req0),
-            case Body of
-                <<>> -> {ok, #{}, Req};
-                _    ->
-                    try {ok, json:decode(Body), Req}
-                    catch _:_ -> {error, invalid_json}
-                    end
-            end
+    read_body_present(cowboy_req:has_body(Req0), Req0).
+
+read_body_present(false, Req0) ->
+    {ok, #{}, Req0};
+read_body_present(true, Req0) ->
+    {ok, Body, Req} = cowboy_req:read_body(Req0),
+    decode_body(Body, Req).
+
+decode_body(<<>>, Req) ->
+    {ok, #{}, Req};
+decode_body(Body, Req) ->
+    try {ok, json:decode(Body), Req}
+    catch _:_ -> {error, invalid_json}
     end.
 
 %% cowboy_req:match_qs/2 keys the result map by the ATOM form of the field
@@ -63,11 +64,13 @@ qs_int(Req, KeyName, Default) ->
     Key = qs_key(KeyName),
     case cowboy_req:match_qs([{Key, [], undefined}], Req) of
         #{Key := undefined} -> Default;
-        #{Key := V} when is_binary(V) ->
-            try binary_to_integer(V) catch _:_ -> Default end;
+        #{Key := V} when is_binary(V) -> parse_int(V, Default);
         #{Key := V} when is_integer(V) -> V;
         _ -> Default
     end.
+
+parse_int(V, Default) ->
+    try binary_to_integer(V) catch _:_ -> Default end.
 
 qs_binary(Req, KeyName, Default) ->
     Key = qs_key(KeyName),

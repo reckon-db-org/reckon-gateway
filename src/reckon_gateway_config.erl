@@ -51,22 +51,22 @@ load_clusters() ->
     end.
 
 load_from(Path) ->
-    case filelib:is_regular(Path) of
-        false ->
-            %% Allowed: gateway boots with empty catalogue and every
-            %% data RPC will return store_unknown.
-            logger:warning("[reckon_gateway_config] clusters file not found at ~ts", [Path]),
-            {ok, []};
-        true ->
-            case file:consult(Path) of
-                {ok, [Specs]} when is_list(Specs) ->
-                    validate(Specs);
-                {ok, Other} ->
-                    {error, {invalid_format, Path, Other}};
-                {error, Reason} ->
-                    {error, {read_failed, Path, Reason}}
-            end
-    end.
+    load_existing(filelib:is_regular(Path), Path).
+
+load_existing(false, Path) ->
+    %% Allowed: gateway boots with empty catalogue and every data RPC
+    %% will return store_unknown.
+    logger:warning("[reckon_gateway_config] clusters file not found at ~ts", [Path]),
+    {ok, []};
+load_existing(true, Path) ->
+    consult_specs(file:consult(Path), Path).
+
+consult_specs({ok, [Specs]}, _Path) when is_list(Specs) ->
+    validate(Specs);
+consult_specs({ok, Other}, Path) ->
+    {error, {invalid_format, Path, Other}};
+consult_specs({error, Reason}, Path) ->
+    {error, {read_failed, Path, Reason}}.
 
 validate(Specs) ->
     case validate_loop(Specs, sets:new(), []) of
@@ -77,31 +77,34 @@ validate(Specs) ->
 validate_loop([], _Seen, Acc) ->
     {ok, Acc};
 validate_loop([Spec | Rest], Seen, Acc) ->
-    case normalise(Spec) of
-        {ok, #{cluster_id := Id} = N} ->
-            case sets:is_element(Id, Seen) of
-                true  -> {error, {duplicate_cluster_id, Id}};
-                false -> validate_loop(Rest, sets:add_element(Id, Seen), [N | Acc])
-            end;
-        {error, _} = E ->
-            E
-    end.
+    validate_normalised(normalise(Spec), Rest, Seen, Acc).
+
+validate_normalised({ok, #{cluster_id := Id} = N}, Rest, Seen, Acc) ->
+    validate_dedup(sets:is_element(Id, Seen), Id, N, Rest, Seen, Acc);
+validate_normalised({error, _} = E, _Rest, _Seen, _Acc) ->
+    E.
+
+validate_dedup(true, Id, _N, _Rest, _Seen, _Acc) ->
+    {error, {duplicate_cluster_id, Id}};
+validate_dedup(false, Id, N, Rest, Seen, Acc) ->
+    validate_loop(Rest, sets:add_element(Id, Seen), [N | Acc]).
 
 normalise(#{cluster_id := Id, members := Members, cookie := Cookie} = Spec)
     when is_atom(Id), is_list(Members), is_binary(Cookie),
          byte_size(Cookie) > 0, Members =/= [] ->
-    case lists:all(fun erlang:is_atom/1, Members) of
-        false -> {error, {invalid_cluster_spec, redact(Spec)}};
-        true ->
-            case maps:get(api_module, Spec, reckon_gater_api) of
-                Mod when is_atom(Mod) ->
-                    {ok, Spec#{api_module => Mod}};
-                _ ->
-                    {error, {invalid_cluster_spec, redact(Spec)}}
-            end
-    end;
+    normalise_members(lists:all(fun erlang:is_atom/1, Members), Spec);
 normalise(Other) ->
     {error, {invalid_cluster_spec, redact(Other)}}.
+
+normalise_members(false, Spec) ->
+    {error, {invalid_cluster_spec, redact(Spec)}};
+normalise_members(true, Spec) ->
+    normalise_api_module(maps:get(api_module, Spec, reckon_gater_api), Spec).
+
+normalise_api_module(Mod, Spec) when is_atom(Mod) ->
+    {ok, Spec#{api_module => Mod}};
+normalise_api_module(_, Spec) ->
+    {error, {invalid_cluster_spec, redact(Spec)}}.
 
 %% @private When a spec is malformed we still want a useful error,
 %% but we mustn't surface the cookie value in logs or return tuples.
@@ -190,16 +193,16 @@ local_cluster_id() ->
 %% the OS environment. Un-substituted `${VAR}' placeholders fall through
 %% to the OS env path.
 env_string(AppKey, OsKey, Default) ->
-    case application:get_env(reckon_gateway, AppKey) of
-        {ok, V} ->
-            case to_string(V) of
-                ""        -> from_os(OsKey, Default);
-                "${" ++ _ -> from_os(OsKey, Default);
-                S         -> S
-            end;
-        _ ->
-            from_os(OsKey, Default)
-    end.
+    env_string_app(application:get_env(reckon_gateway, AppKey), OsKey, Default).
+
+env_string_app({ok, V}, OsKey, Default) ->
+    env_string_value(to_string(V), OsKey, Default);
+env_string_app(_, OsKey, Default) ->
+    from_os(OsKey, Default).
+
+env_string_value("", OsKey, Default)        -> from_os(OsKey, Default);
+env_string_value("${" ++ _, OsKey, Default) -> from_os(OsKey, Default);
+env_string_value(S, _OsKey, _Default)       -> S.
 
 to_string(V) when is_list(V)   -> V;
 to_string(V) when is_atom(V)   -> atom_to_list(V);

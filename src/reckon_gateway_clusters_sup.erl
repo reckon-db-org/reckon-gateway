@@ -69,16 +69,17 @@ current_specs() ->
 
 live_specs() ->
     Children = supervisor:which_children(?MODULE),
-    lists:foldl(fun({{connector, Id}, Pid, _, _}, Acc) when is_pid(Pid) ->
-                        try
-                            Status = reckon_gateway_cluster_connector:status(Id),
-                            Acc#{Id => spec_from_status(Status)}
-                        catch _:_ ->
-                            Acc
-                        end;
-                   (_, Acc) ->
-                        Acc
-                end, #{}, Children).
+    lists:foldl(fun live_spec_acc/2, #{}, Children).
+
+live_spec_acc({{connector, Id}, Pid, _, _}, Acc) when is_pid(Pid) ->
+    try
+        Status = reckon_gateway_cluster_connector:status(Id),
+        Acc#{Id => spec_from_status(Status)}
+    catch _:_ ->
+        Acc
+    end;
+live_spec_acc(_, Acc) ->
+    Acc.
 
 %% @private Reconstruct the comparable slice of a spec from a status
 %% snapshot. Cookie isn't in the status (deliberately); we get it

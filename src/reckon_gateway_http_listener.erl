@@ -99,23 +99,24 @@ child_spec() ->
 %%====================================================================
 
 http_port() ->
-    case application:get_env(reckon_gateway, http_port) of
-        {ok, P} when is_integer(P) -> P;
-        {ok, B} when is_binary(B)  -> binary_to_integer(B);
-        {ok, L} when is_list(L)    ->
-            case catch list_to_integer(L) of
-                P when is_integer(P) -> P;
-                _                    -> from_os()
-            end;
-        _ -> from_os()
-    end.
+    http_port_env(application:get_env(reckon_gateway, http_port)).
+
+http_port_env({ok, P}) when is_integer(P) -> P;
+http_port_env({ok, B}) when is_binary(B)  -> binary_to_integer(B);
+http_port_env({ok, L}) when is_list(L)    -> parse_port_list(catch list_to_integer(L));
+http_port_env(_)                          -> from_os().
+
+parse_port_list(P) when is_integer(P) -> P;
+parse_port_list(_)                    -> from_os().
 
 from_os() ->
-    case os:getenv("RECKON_GATEWAY_HTTP_PORT") of
-        false -> 8080;
-        ""    -> 8080;
-        V     ->
-            try list_to_integer(V)
-            catch _:_ -> 8080
-            end
+    from_os_env(os:getenv("RECKON_GATEWAY_HTTP_PORT")).
+
+from_os_env(false) -> 8080;
+from_os_env("")    -> 8080;
+from_os_env(V)     -> parse_os_port(V).
+
+parse_os_port(V) ->
+    try list_to_integer(V)
+    catch _:_ -> 8080
     end.

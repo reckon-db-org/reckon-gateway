@@ -23,41 +23,38 @@
 
 -spec start_link() -> ignore | {error, term()}.
 start_link() ->
-    case reckon_gateway_config:embedded_store_spec() of
-        disabled ->
-            logger:info("[reckon_gateway_store_starter] embedded store disabled"),
-            ignore;
-        #{store_id := StoreId,
-          data_dir := DataDir,
-          mode     := Mode} = Spec ->
-            case ensure_data_dir(DataDir) of
-                ok ->
-                    Config = #store_config{
-                        store_id = StoreId,
-                        data_dir = DataDir,
-                        mode     = Mode,
-                        indexes  = maps:get(indexes, Spec, [])
-                    },
-                    logger:info(
-                        "[reckon_gateway_store_starter] starting store ~p "
-                        "(mode=~p data_dir=~ts cluster_id=~p)",
-                        [StoreId, Mode, DataDir, maps:get(cluster_id, Spec)]),
-                    case reckon_db_sup:start_store(Config) of
-                        {ok, _Pid}                    -> ignore;
-                        {error, {already_started, _}} -> ignore;
-                        {error, Reason} = E ->
-                            logger:error(
-                                "[reckon_gateway_store_starter] start_store ~p "
-                                "failed: ~p", [StoreId, Reason]),
-                            E
-                    end;
-                {error, Reason} = E ->
-                    logger:error(
-                        "[reckon_gateway_store_starter] data_dir ~ts: ~p",
-                        [DataDir, Reason]),
-                    E
-            end
-    end.
+    start_with_spec(reckon_gateway_config:embedded_store_spec()).
+
+start_with_spec(disabled) ->
+    logger:info("[reckon_gateway_store_starter] embedded store disabled"),
+    ignore;
+start_with_spec(#{store_id := StoreId, data_dir := DataDir, mode := Mode} = Spec) ->
+    start_with_dir(ensure_data_dir(DataDir), StoreId, DataDir, Mode, Spec).
+
+start_with_dir({error, Reason} = E, _StoreId, DataDir, _Mode, _Spec) ->
+    logger:error("[reckon_gateway_store_starter] data_dir ~ts: ~p", [DataDir, Reason]),
+    E;
+start_with_dir(ok, StoreId, DataDir, Mode, Spec) ->
+    Config = #store_config{
+        store_id = StoreId,
+        data_dir = DataDir,
+        mode     = Mode,
+        indexes  = maps:get(indexes, Spec, [])
+    },
+    logger:info(
+        "[reckon_gateway_store_starter] starting store ~p "
+        "(mode=~p data_dir=~ts cluster_id=~p)",
+        [StoreId, Mode, DataDir, maps:get(cluster_id, Spec)]),
+    handle_start(reckon_db_sup:start_store(Config), StoreId).
+
+handle_start({ok, _Pid}, _StoreId) ->
+    ignore;
+handle_start({error, {already_started, _}}, _StoreId) ->
+    ignore;
+handle_start({error, Reason} = E, StoreId) ->
+    logger:error(
+        "[reckon_gateway_store_starter] start_store ~p failed: ~p", [StoreId, Reason]),
+    E.
 
 -spec child_spec() -> supervisor:child_spec().
 child_spec() ->
