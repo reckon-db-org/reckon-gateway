@@ -7,6 +7,7 @@ Every operational setting is env-driven. The release's `sys.config.src` interpol
 | Var | Default | Meaning |
 |---|---|---|
 | `RECKON_GATEWAY_PORT` | `50051` | gRPC listen port. Bound to `0.0.0.0`. |
+| `RECKON_GATEWAY_HTTP_PORT` | `8080` | HTTP/JSON listen port. Serves the REST API ([http-api.md](http-api.md)), the browser admin UI at `/admin` ([admin-ui.md](admin-ui.md)), and the `/v1/admin/events` SSE stream. Separate Cowboy listener from gRPC; both always start. Bound to `0.0.0.0`. |
 | `NODE_NAME` | `reckon_gateway@127.0.0.1` | Erlang long node name. Must be unique per host in a cluster. |
 | `RELEASE_COOKIE` | `reckon_gateway_unused_default` | BEAM dist cookie. Unused for `clusters.eterm` peers (per-peer cookies override). **Must match across cluster-mode embedded-store peers.** |
 | `RECKON_GATEWAY_DIST_HIDDEN_FLAG` | `""` (visible) | Literal BEAM vm.arg substitution. Set to `-hidden` to start the gateway as a hidden dist node. See [Hidden-node flag](#hidden-node-flag) below. |
@@ -60,6 +61,8 @@ Activated when `RECKON_GATEWAY_STORE_ENABLED=true` (also accepts `1`, `yes`). An
 | `RECKON_GATEWAY_DATA_DIR` | `/data` | Persistent volume root for Khepri/Ra WAL + state. Container declares `VOLUME /data`. |
 | `RECKON_GATEWAY_STORE_MODE` | `single` | `single` (standalone) or `cluster` (participates in Ra quorum). |
 | `RECKON_GATEWAY_LOCAL_CLUSTER_ID` | `local` | Catalogue label for the local store. Lets clients see it alongside remote `clusters.eterm` entries. |
+| `RECKON_GATEWAY_STORE_INDEXES` | `""` (none) | Comma-separated secondary indexes for the embedded store (reckon-db 5.0+). Each item is `tags`, `event_type`, or `meta:<key>`. Invalid items are logged and dropped. Example: `tags,event_type,meta:causation_id,meta:correlation_id`. Drives the `events/by-tags`, `by-type`, and `by-metadata` reads. **CCC payload indexes** (`{payload, Key}` / `{payload_hash, [Keys]}`) cannot be expressed here — declare them in `store.eterm` (see `RECKON_GATEWAY_STORE_PATH` below and [store-config.md](store-config.md)). |
+| `RECKON_GATEWAY_STORE_PATH` | `/etc/reckon-gateway/store.eterm` | Optional path to a `store.eterm` file declaring the **full** reckon-db `#store_config{}` (pools, timeout, `options`, integrity/HMAC, and `{payload,_}` / `{payload_hash,_}` indexes). Absent file → env-only config (unchanged behaviour). When present, each field it sets **wins per-field** over the env vars above; fields it omits fall back to env then default. A present-but-malformed file is a hard boot failure. Full reference: [store-config.md](store-config.md). |
 
 If `STORE_ENABLED=true` and either `STORE_ID` or `DATA_DIR` resolves empty, the gateway refuses to boot with `{embedded_store_misconfigured, missing_store_id}` (or `missing_data_dir`). Silent fallbacks to a no-identity store would be worse than an explicit crash.
 
@@ -89,16 +92,19 @@ This lets `sys.config.src` (which receives substituted values from rebar3 / `RUN
 ```bash
 # Catalogue-only (federates remote clusters; gateway holds no data):
 RECKON_GATEWAY_PORT=50051
+RECKON_GATEWAY_HTTP_PORT=8080
 RECKON_GATEWAY_CLUSTERS_PATH=/etc/reckon-gateway/clusters.eterm
 RECKON_GATEWAY_DIST_HIDDEN_FLAG=-hidden
 
 # Embedded single-node (one container = one store):
 RECKON_GATEWAY_PORT=50051
+RECKON_GATEWAY_HTTP_PORT=8080
 RECKON_GATEWAY_STORE_ENABLED=true
 RECKON_GATEWAY_STORE_ID=my_store
 RECKON_GATEWAY_DATA_DIR=/data
 RECKON_GATEWAY_STORE_MODE=single
 RECKON_GATEWAY_LOCAL_CLUSTER_ID=my_local
+RECKON_GATEWAY_STORE_INDEXES=tags,event_type
 RECKON_GATEWAY_DIST_HIDDEN_FLAG=-hidden
 
 # Embedded cluster (3+ containers form Ra quorum):

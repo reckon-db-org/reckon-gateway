@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.17.0 (2026-06-29)
+
+**Full `#store_config{}` configurability for the hosted store, via an
+optional `store.eterm` file — including CCC payload indexes, which
+could not be declared at all before.**
+
+- Add `RECKON_GATEWAY_STORE_PATH` (default `/etc/reckon-gateway/store.eterm`).
+  When the embedded store is enabled (`RECKON_GATEWAY_STORE_ENABLED=true`)
+  and the file is present, it declares the **full** reckon-db
+  `#store_config{}` surface the env vars couldn't express:
+  `timeout`, `writer_pool_size`, `reader_pool_size`, `gateway_pool_size`,
+  an arbitrary `options` map, `integrity` (HMAC tamper-resistance), and
+  the `{payload, Key}` / `{payload_hash, [Keys]}` **CCC payload indexes**.
+- **Fixes a real gap:** the embedded store previously had no way to
+  declare payload indexes (`RECKON_GATEWAY_STORE_INDEXES` only accepts
+  `tags` / `event_type` / `meta:<key>` and silently dropped `{payload,_}`).
+  CCC reads (`/dcb/by-payload`, `/by-payload-hash`, `/payload-indexes`)
+  against a gateway-hosted store now work end-to-end.
+- Per-field precedence: a field set in `store.eterm` wins; otherwise the
+  matching env var applies, then reckon-db's record default. Env-only
+  deployments are unchanged — no file means identical behaviour to 0.16.x.
+- The file is read **once at boot** (store config is a genesis property)
+  and **fully validated**; a present-but-malformed file is a hard boot
+  failure (`{embedded_store_misconfigured, {invalid_store_config_file, ...}}`),
+  never a silent fallback to a half-configured store.
+- HMAC secret hygiene preserved: `store.eterm` holds only the key
+  *reference* (`{env_var, Name}` / `{sealed_file, Path}`), never the key.
+- `Dockerfile` declares `EXPOSE 8080` + `RECKON_GATEWAY_HTTP_PORT` and the
+  optional `RECKON_GATEWAY_STORE_PATH`; the REST/admin port was previously
+  bound at runtime but undeclared at the image level.
+- Docs: new `docs/store-config.md` reference; README, `docs/http-api.md`,
+  `docs/admin-ui.md`, `docs/dcb-ccc.md`, `docs/architecture.md`, and
+  `docs/env-contract.md` brought up to date with the HTTP/REST API, admin
+  UI, SSE, and DCB/CCC surfaces that shipped across 0.8–0.16 and had not
+  been documented.
+
 ## 0.16.1 (2026-06-24)
 
 **Fix: qs_int/qs_binary crashed on atom field names (regression from 0.16.0).**

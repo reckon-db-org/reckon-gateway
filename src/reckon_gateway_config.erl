@@ -31,15 +31,35 @@
                          cookie     := binary(),
                          api_module => atom()}.   %% defaults to reckon_gater_api
 
--type embedded_store_spec() :: disabled |
-                               #{store_id   := atom(),
-                                 data_dir   := string(),
-                                 mode       := single | cluster,
-                                 cluster_id := atom(),
-                                 indexes    := [tags | event_type |
-                                                {meta, binary()}]}.
+-type index_decl() :: tags | event_type |
+                      {meta, binary()} |
+                      {payload, binary()} |
+                      {payload_hash, [binary()]}.
 
--export_type([cluster_spec/0, embedded_store_spec/0]).
+-type integrity_cfg() :: disabled |
+                         #{enabled := true,
+                           key_source := {env_var, binary()} |
+                                         {sealed_file, string()}}.
+
+%% The embedded-store spec mirrors reckon-db's #store_config{}. The
+%% required fields (store_id/data_dir/mode/cluster_id/indexes) always
+%% resolve (env or store.eterm). The optional tuning fields are
+%% `undefined' unless the operator set them in store.eterm, in which
+%% case the store_starter overrides reckon-db's record defaults.
+-type embedded_store_spec() :: disabled |
+                               #{store_id          := atom(),
+                                 data_dir          := string(),
+                                 mode              := single | cluster,
+                                 cluster_id        := atom(),
+                                 indexes           := [index_decl()],
+                                 timeout           := pos_integer() | undefined,
+                                 writer_pool_size  := pos_integer() | undefined,
+                                 reader_pool_size  := pos_integer() | undefined,
+                                 gateway_pool_size := pos_integer() | undefined,
+                                 options           := map() | undefined,
+                                 integrity         := integrity_cfg() | undefined}.
+
+-export_type([cluster_spec/0, embedded_store_spec/0, index_decl/0]).
 
 -spec load_clusters() -> {ok, [cluster_spec()]} | {error, term()}.
 load_clusters() ->
@@ -125,12 +145,104 @@ redact(Other)              -> Other.
 embedded_store_spec() ->
     case enabled() of
         false -> disabled;
-        true ->
-            #{store_id   => store_id(),
-              data_dir   => data_dir(),
-              mode       => store_mode(),
-              cluster_id => local_cluster_id(),
-              indexes    => store_indexes()}
+        true  -> build_spec(load_store_file())
+    end.
+
+%% @private Resolve every store_config field. The optional store.eterm
+%% map wins per-field; env (then default) fills anything it omits. This
+%% keeps env-only deployments working unchanged while letting the file
+%% declare the advanced surface (payload indexes, integrity, pools).
+build_spec(FileMap) ->
+    #{store_id          => field(FileMap, store_id,   fun store_id/0),
+      data_dir          => field(FileMap, data_dir,   fun data_dir/0),
+      mode              => field(FileMap, mode,        fun store_mode/0),
+      cluster_id        => field(FileMap, cluster_id,  fun local_cluster_id/0),
+      indexes           => field(FileMap, indexes,     fun store_indexes/0),
+      timeout           => maps:get(timeout,           FileMap, undefined),
+      writer_pool_size  => maps:get(writer_pool_size,  FileMap, undefined),
+      reader_pool_size  => maps:get(reader_pool_size,  FileMap, undefined),
+      gateway_pool_size => maps:get(gateway_pool_size, FileMap, undefined),
+      options           => maps:get(options,           FileMap, undefined),
+      integrity         => maps:get(integrity,         FileMap, undefined)}.
+
+field(FileMap, Key, EnvFun) ->
+    case maps:find(Key, FileMap) of
+        {ok, V} -> V;
+        error   -> EnvFun()
+    end.
+
+%%====================================================================
+%% store.eterm — optional full #store_config{} declaration
+%%====================================================================
+
+%% @private Load + validate the operator's store.eterm. Absent file is
+%% fine (env-only mode → empty map). A present-but-invalid file is a
+%% hard boot failure, same posture as the env misconfig crashes below.
+load_store_file() ->
+    load_store_path(store_config_path()).
+
+load_store_path(none) -> #{};
+load_store_path(Path) -> load_store_regular(filelib:is_regular(Path), Path).
+
+load_store_regular(false, _Path) -> #{};
+load_store_regular(true, Path)   -> consult_store(file:consult(Path), Path).
+
+consult_store({ok, [Map]}, Path) when is_map(Map) ->
+    validate_store_map(Map, Path);
+consult_store({ok, Other}, Path) ->
+    erlang:error({embedded_store_misconfigured,
+                  {invalid_store_config_file, Path, {expected_single_map, Other}}});
+consult_store({error, Reason}, Path) ->
+    erlang:error({embedded_store_misconfigured,
+                  {invalid_store_config_file, Path, {read_failed, Reason}}}).
+
+validate_store_map(Map, Path) ->
+    case validate_store_keys(maps:to_list(Map)) of
+        ok              -> Map;
+        {error, Reason} -> erlang:error({embedded_store_misconfigured,
+                                         {invalid_store_config_file, Path, Reason}})
+    end.
+
+validate_store_keys([]) -> ok;
+validate_store_keys([{K, V} | Rest]) ->
+    case valid_store_field(K, V) of
+        true  -> validate_store_keys(Rest);
+        false -> {error, {invalid_field, K, V}}
+    end.
+
+valid_store_field(store_id, V)          -> is_atom(V);
+valid_store_field(data_dir, V)          -> is_list(V);
+valid_store_field(cluster_id, V)        -> is_atom(V);
+valid_store_field(mode, V)              -> V =:= single orelse V =:= cluster;
+valid_store_field(timeout, V)           -> is_integer(V) andalso V > 0;
+valid_store_field(writer_pool_size, V)  -> is_integer(V) andalso V > 0;
+valid_store_field(reader_pool_size, V)  -> is_integer(V) andalso V > 0;
+valid_store_field(gateway_pool_size, V) -> is_integer(V) andalso V > 0;
+valid_store_field(options, V)           -> is_map(V);
+valid_store_field(indexes, V)           -> is_list(V) andalso lists:all(fun valid_index/1, V);
+valid_store_field(integrity, V)         -> valid_integrity(V);
+valid_store_field(_, _)                 -> false.
+
+valid_index(tags)                            -> true;
+valid_index(event_type)                      -> true;
+valid_index({meta, K})                       -> is_binary(K);
+valid_index({payload, K})                    -> is_binary(K);
+valid_index({payload_hash, Ks}) when is_list(Ks) -> lists:all(fun erlang:is_binary/1, Ks);
+valid_index(_)                               -> false.
+
+valid_integrity(disabled) -> true;
+valid_integrity(#{enabled := true, key_source := Src}) -> valid_key_source(Src);
+valid_integrity(_) -> false.
+
+valid_key_source({env_var, Name})    -> is_binary(Name);
+valid_key_source({sealed_file, Path}) -> is_list(Path);
+valid_key_source(_)                   -> false.
+
+store_config_path() ->
+    case env_string(store_config_path, "RECKON_GATEWAY_STORE_PATH",
+                    "/etc/reckon-gateway/store.eterm") of
+        ""   -> none;
+        Path -> Path
     end.
 
 %% @private Declared secondary indexes for the embedded store (reckon-db

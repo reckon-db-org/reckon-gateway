@@ -76,6 +76,9 @@ USER app
 # gRPC port
 EXPOSE 50051
 
+# HTTP/JSON REST API + admin UI + SSE (separate listener from gRPC).
+EXPOSE 8080
+
 # Erlang distribution ports (cluster catalogue uses per-peer cookies
 # to talk to N disjoint Erlang clusters at once).
 EXPOSE 4369
@@ -88,6 +91,7 @@ EXPOSE 9100-9200
 # clusters.eterm at RECKON_GATEWAY_CLUSTERS_PATH) and proxies every
 # gRPC request via rpc:call to whichever BEAM owns the target store.
 ENV RECKON_GATEWAY_PORT=50051
+ENV RECKON_GATEWAY_HTTP_PORT=8080
 ENV RECKON_GATEWAY_CLUSTERS_PATH=/etc/reckon-gateway/clusters.eterm
 
 # Embedded-store mode (opt-in, 0.6+): set STORE_ENABLED=true and the
@@ -101,6 +105,13 @@ ENV RECKON_GATEWAY_STORE_ID=local_store
 ENV RECKON_GATEWAY_DATA_DIR=/data
 ENV RECKON_GATEWAY_STORE_MODE=single
 ENV RECKON_GATEWAY_LOCAL_CLUSTER_ID=local
+
+# Optional: full #store_config{} declaration (pools, timeout, payload
+# indexes for CCC, integrity/HMAC). Absent file => env-only config.
+# Bind-mount the per-host store.eterm here, read-only. See
+# docs/store-config.md. Advanced fields (payload indexes, integrity)
+# can ONLY be declared via this file.
+ENV RECKON_GATEWAY_STORE_PATH=/etc/reckon-gateway/store.eterm
 
 # RECKON_DB_CLUSTER_SECRET is intentionally NOT declared here. It's a
 # shared-secret consumed by `reckon_db_discovery` in cluster mode, and

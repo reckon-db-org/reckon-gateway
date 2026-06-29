@@ -1,18 +1,30 @@
 # Architecture
 
-`reckon-gateway` is a gRPC ingress that dispatches every request to a ReckonDB store via Erlang dist (`rpc:call/4`). The store can live anywhere , the same image works as a pure federation gateway, an embedded-store backend, or both at once.
+`reckon-gateway` is a dual-protocol ingress (gRPC + HTTP/JSON) that dispatches every request to a ReckonDB store via Erlang dist (`rpc:call/4`). The store can live anywhere , the same image works as a pure federation gateway, an embedded-store backend, or both at once.
+
+## Two listeners, one dispatch path
+
+The gateway opens two independent listeners at boot, both always on:
+
+| Listener | Port env | Default | Serves |
+|---|---|---|---|
+| gRPC | `RECKON_GATEWAY_PORT` | `50051` | `reckon_gateway_*_service` modules (one per proto Service), started via `grpc:start_server/4` |
+| HTTP/JSON | `RECKON_GATEWAY_HTTP_PORT` | `8080` | REST API, browser admin UI (`/admin`), SSE (`/v1/admin/events`); a Cowboy listener via `reckon_gateway_http_listener` |
+
+Both funnel into the **same** `reckon_gateway_dispatch` -> `rpc:call/4` path below; the HTTP handlers (`reckon_gateway_http_*`) translate JSON to the same `reckon_gater_api` calls the gRPC service modules make. See [http-api.md](http-api.md) for the REST surface.
 
 ![three modes](assets/architecture.svg)
 
 ## Layers
 
 ```
-gRPC client (Go/.NET/Rust/Python)
-    | HTTP/2 (cowboy via emqx/grpc-erl)
-    v
-reckon_gateway_*_service  (one module per proto Service)
-    | proto -> reckon_gater_api function call
-    v
+gRPC client (Go/.NET/Rust/Python)        HTTP/JSON client (curl/browser/script)
+    | HTTP/2 (cowboy via emqx/grpc-erl)       | HTTP/1.1+2 (cowboy)
+    v                                         v
+reckon_gateway_*_service              reckon_gateway_http_* handlers
+    | proto -> reckon_gater_api call          | json -> reckon_gater_api call
+    +-------------------+---------------------+
+                        v
 reckon_gateway_dispatch   (catalogue lookup -> rpc target)
     | rpc:call(TargetNode, reckon_gater_api, F, Args)
     v
@@ -44,8 +56,11 @@ Embedded cluster mode (`STORE_MODE=cluster`) is the exception: gateway container
 ## Boot sequence
 
 ```
+grpc:start_server(reckon_gateway_grpc, RECKON_GATEWAY_PORT, Services, [])  (started by sup init, outside the child tree)
+
 reckon_gateway_sup (one_for_one)
   ├── reckon_gateway_catalogue
+  ├── reckon_gateway_http_listener        (Cowboy on RECKON_GATEWAY_HTTP_PORT: REST + admin UI + SSE)
   ├── reckon_gateway_clusters_sup
   │     └── reckon_gateway_cluster_connector @ ClusterId   (one per clusters.eterm entry)
   └── [if STORE_ENABLED=true]

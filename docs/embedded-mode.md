@@ -19,8 +19,8 @@ The minimal embedded deployment. One container, one Khepri store, no clustering.
 ```yaml
 services:
   reckon-gateway:
-    image: ghcr.io/reckon-db-org/reckon-gateway:0.6.2
-    ports: ["50051:50051"]
+    image: ghcr.io/reckon-db-org/reckon-gateway:0.17.0
+    ports: ["50051:50051", "8080:8080"]
     volumes:
       - reckon-data:/data
     environment:
@@ -35,6 +35,8 @@ volumes:
 ```
 
 The store boots at startup, registers itself with `reckon_db_store_registry`, and the local connector publishes it into the gateway catalogue within 5 seconds. From then on, any gRPC call with `store_id = "my_store"` hits the local store.
+
+> **Tuning the hosted store.** The env vars above cover identity and placement. To set pool sizes, operation timeout, tamper-resistance (HMAC), or **CCC payload indexes** (`{payload,_}` / `{payload_hash,_}`), mount a `store.eterm` at `RECKON_GATEWAY_STORE_PATH` — see [store-config.md](store-config.md). Those advanced fields can only be declared via the file.
 
 ## Cluster (Ra/Raft quorum)
 
