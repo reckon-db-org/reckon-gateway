@@ -36,6 +36,20 @@ could not be declared at all before.**
   UI, SSE, and DCB/CCC surfaces that shipped across 0.8–0.16 and had not
   been documented.
 
+### Fixed — three gRPC service crashes (found via the reckon-dotnet SDK E2E)
+
+- **SnapshotService.RecordSnapshot** crashed (`json:decode(<<>>)` →
+  `unexpected_end`) whenever a client sent empty `metadata`/`data`. Added
+  `reckon_gateway_convert:decode_json/1` (empty-safe) and use it. (#1)
+- **SubscriptionService.GetSubscription** crashed with `function_clause`: the
+  store returns a map-shaped subscription but `subscription_to_proto/1` only
+  matched the `#subscription{}` record. Added a map clause. (#2)
+- **SubscriptionService.RemoveSubscription** crashed with `function_clause`:
+  the dispatch returns `{ok, ok}` but `reply_remove/3` only matched bare `ok`.
+  Added an `{ok, _}` clause. (#3)
+- Requires `reckon_db >= 5.5.2` (dep floor raised to `~> 5.5`), which fixes a
+  related snapshot record/read round-trip that dropped metadata (reckon-db #2).
+
 ## 0.16.1 (2026-06-24)
 
 **Fix: qs_int/qs_binary crashed on atom field names (regression from 0.16.0).**
