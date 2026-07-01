@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.17.1 (2026-07-01)
+
+**Picks up the reckon-db / reckon-gater fixes for the DCB, snapshot,
+subscription and event-type-summary paths surfaced by the reckon-dotnet SDK
+E2E.** No gateway source change beyond the dependency floors.
+
+- Raise the `reckon_gater` floor to `~> 3.7` (needs `3.7.2`: DCB
+  `{context_changed, _}` conflict is no longer retried as a transient error,
+  so `AppendIfNoTagMatches` returns a `Conflict` response instead of timing
+  out the gRPC call).
+- `reckon_db ~> 5.5` now resolves to `5.5.3`: snapshot record/read round-trip
+  (metadata no longer dropped), emitter teardown no longer crashes on
+  `not_joined`, and `GetEventTypeSummary` no longer crashes the worker on a
+  `read_all/4` argument-order bug.
+
 ## 0.17.0 (2026-06-29)
 
 **Full `#store_config{}` configurability for the hosted store, via an
