@@ -26,8 +26,8 @@ record_snapshot(#{store_id := StoreIdBin,
             reckon_gateway_error:wrap(record_snapshot, <<"3">>, invalid_store_id);
         {ok, StoreId} ->
             SnapshotRecord = #{
-                data => json:decode(Data),
-                metadata => json:decode(Metadata),
+                data => reckon_gateway_convert:decode_json(Data),
+                metadata => reckon_gateway_convert:decode_json(Metadata),
                 version => Version
             },
             ok = reckon_gateway_dispatch:call(record_snapshot, [

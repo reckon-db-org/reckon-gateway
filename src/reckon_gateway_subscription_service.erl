@@ -109,6 +109,8 @@ handle_remove({ok, StoreId}, Type, Selector, Name, Md) ->
 
 reply_remove(ok, _Name, Md) ->
     {ok, #{}, Md};
+reply_remove({ok, _}, _Name, Md) ->
+    {ok, #{}, Md};
 reply_remove({error, Reason}, Name, _Md) ->
     reckon_gateway_error:wrap(remove_subscription, <<"3">>, {Name, Reason}).
 

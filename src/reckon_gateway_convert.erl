@@ -19,7 +19,8 @@
     subscription_to_proto/1,
 
     %% Helpers
-    default_content_type/1
+    default_content_type/1,
+    decode_json/1
 ]).
 
 %%====================================================================
@@ -168,8 +169,11 @@ snapshot_to_proto(#snapshot{} = S) ->
 integrity_bytes(undefined) -> <<>>;
 integrity_bytes(Hash) when is_binary(Hash) -> Hash.
 
-%% @doc Convert a gater #subscription{} record to a SubscriptionInfo proto map.
--spec subscription_to_proto(#subscription{}) -> map().
+%% @doc Convert a gater subscription to a SubscriptionInfo proto map.
+%%
+%% Accepts both the `#subscription{}' record and the map shape that
+%% reckon_db's `get_subscription/2' returns (which carries no `id' key).
+-spec subscription_to_proto(#subscription{} | map()) -> map().
 subscription_to_proto(#subscription{} = Sub) ->
     #{
         id => Sub#subscription.id,
@@ -179,6 +183,20 @@ subscription_to_proto(#subscription{} = Sub) ->
         created_at => Sub#subscription.created_at,
         pool_size => Sub#subscription.pool_size,
         checkpoint => case Sub#subscription.checkpoint of
+            undefined -> 0;
+            CP -> CP
+        end
+    };
+subscription_to_proto(#{} = Sub) ->
+    Name = maps:get(subscription_name, Sub, <<>>),
+    #{
+        id => maps:get(id, Sub, Name),
+        type => subscription_type_to_proto(maps:get(type, Sub, stream)),
+        selector => format_selector(maps:get(selector, Sub, <<>>)),
+        subscription_name => Name,
+        created_at => maps:get(created_at, Sub, 0),
+        pool_size => maps:get(pool_size, Sub, 0),
+        checkpoint => case maps:get(checkpoint, Sub, 0) of
             undefined -> 0;
             CP -> CP
         end
@@ -200,6 +218,13 @@ decode_data(Bytes, ?CONTENT_TYPE_JSON) ->
     json:decode(Bytes);
 decode_data(Bytes, _) ->
     Bytes.
+
+%% @doc Empty-safe JSON decode. Proto3 `bytes' defaults to an empty binary,
+%% which `json:decode/1' rejects with `{error, unexpected_end}'; treat empty
+%% as an empty object.
+-spec decode_json(binary()) -> term().
+decode_json(<<>>) -> #{};
+decode_json(Bytes) when is_binary(Bytes) -> json:decode(Bytes).
 
 encode_data(Data, ?CONTENT_TYPE_JSON) when is_map(Data) ->
     json:encode(Data);
