@@ -17,6 +17,8 @@
 -module(reckon_gateway_catalogue).
 -behaviour(gen_server).
 
+-include("reckon_gateway_telemetry.hrl").
+
 -export([start_link/0, child_spec/0,
          publish/2, remove/1, lookup/1, store_mode/1,
          list_all/0, list_entries/0, status/0,
@@ -198,6 +200,8 @@ handle_cast({publish, ClusterId, Info},
     %% Emit live events to subscribers (sub-task 9).
     notify_subscribers(Subs, ClusterId, NewEntries, AcceptedAdds, announced),
     notify_subscribers(Subs, ClusterId, PrevEntries, AcceptedRemoves, retired),
+    emit_store_telemetry(AcceptedAdds, ClusterId, announced),
+    emit_store_telemetry(AcceptedRemoves, ClusterId, retired),
     {noreply, State#state{catalogue = Cat2,
                           clusters  = CMap1,
                           collisions_logged = NewLogged}};
@@ -215,6 +219,7 @@ handle_cast({remove, ClusterId},
     logger:info("[reckon_gateway_catalogue] removed cluster ~p (was ~b store(s))",
                 [ClusterId, length(Entries)]),
     notify_subscribers(Subs, ClusterId, Entries, OwnedIds, retired),
+    emit_store_telemetry(OwnedIds, ClusterId, retired),
     {noreply, State#state{catalogue = Cat1, clusters = CMap1}};
 
 handle_cast({subscribe, Pid},
@@ -279,6 +284,21 @@ notify_subscribers(Subs, ClusterId, Entries, AcceptedIds, Type) ->
 
 notify_one(Id, Pids, Entries, ClusterId, Type) ->
     notify_match([E || E <- Entries, maps:get(store_id, E) =:= Id], Pids, ClusterId, Type).
+
+%% @private Fire an announced/retired telemetry event per store_id that
+%% won this cycle. Runs independently of live subscribers, so metrics
+%% flow even when the admin UI / SSE has no one listening.
+emit_store_telemetry(StoreIds, ClusterId, Type) ->
+    Event = store_event_name(Type),
+    lists:foreach(
+        fun(StoreId) ->
+            telemetry:execute(Event,
+                              #{system_time => erlang:system_time(millisecond)},
+                              #{store_id => StoreId, cluster_id => ClusterId})
+        end, StoreIds).
+
+store_event_name(announced) -> ?GW_STORE_ANNOUNCED;
+store_event_name(retired)   -> ?GW_STORE_RETIRED.
 
 notify_match([Entry | _], Pids, ClusterId, Type) ->
     Annotated = Entry#{cluster_id => ClusterId},

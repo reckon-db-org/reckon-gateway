@@ -35,6 +35,10 @@ Operator + developer reference for the [reckon-gateway](../README.md) gRPC + HTT
 
 1. [Admin UI + SSE](admin-ui.md) , open `http://<host>:8080/admin`
 
+**I want to observe/monitor the gateway:**
+
+1. [Telemetry](telemetry.md) , dispatch + catalogue events and how to attach logger/metrics/tracing handlers
+
 **I want to hack on the gateway itself:**
 
 1. [Building from source](building.md)

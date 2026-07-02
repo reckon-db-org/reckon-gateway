@@ -166,6 +166,8 @@
     .badge-red    { background: rgba(248,81,73,0.15);  color: var(--red); }
     .badge-blue   { background: rgba(88,166,255,0.15); color: var(--blue); }
     .badge-purple { background: rgba(124,58,237,0.15); color: #a78bfa; }
+    .badge-lime   { background: rgba(132,204,22,0.18); color: var(--lime); }
+    .badge-gray   { background: rgba(139,148,158,0.12); color: var(--text-muted); }
 
     /* ── CONTROLS ────────────────────────────────────────────── */
     .controls { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
@@ -794,22 +796,62 @@ async function loadOverview() {
       api('/v1/stores'),
     ]);
     document.getElementById('ov-status-text').textContent = health.status;
-    document.getElementById('ov-stores-count').textContent = (stores.instances||[]).length;
+    const instances = stores.instances || [];
+    document.getElementById('ov-stores-count').textContent = instances.length;
     document.getElementById('ov-node').textContent = (health.node||'').replace(/^.*@/, '');
 
-    const rows = (stores.instances||[]).map(s => `
+    // Cluster-mode stores get a leader/quorum probe; single-mode stores
+    // never touch the BEAM (the endpoint short-circuits them).
+    const clusterIds = [...new Set(instances.filter(s => s.mode === 'cluster').map(s => s.store_id))];
+    const pairs = await Promise.all(clusterIds.map(async id => {
+      try { return [id, await api(`/v1/stores/${id}/cluster`)]; }
+      catch(_) { return [id, null]; }
+    }));
+    const chealth = Object.fromEntries(pairs);
+
+    const rows = instances.map(s => {
+      const ch = chealth[s.store_id];
+      return `
       <tr class="clickable" onclick="selectStoreAndNav('${s.store_id}','streams')">
         <td class="mono">${s.store_id}</td>
         <td class="mono muted">${s.node}</td>
         <td><span class="badge badge-blue">${s.mode}</span></td>
+        <td>${roleBadge(s, ch)}</td>
+        <td>${quorumBadge(s, ch)}</td>
         <td class="mono muted truncate">${s.data_dir||'—'}</td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
     document.getElementById('ov-stores-table').innerHTML = rows
-      ? `<table><thead><tr><th>Store ID</th><th>Node</th><th>Mode</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
+      ? `<table><thead><tr><th>Store ID</th><th>Node</th><th>Mode</th><th>Role</th><th>Cluster</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
       : '<div class="empty">No stores registered</div>';
   } catch(e) {
     document.getElementById('ov-stores-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
   }
+}
+
+// Leader/follower marker for one store instance (one BEAM node).
+// Khepri triggers fire on the Ra leader, so the leader node is where
+// the emitter/write side lives — worth calling out per node.
+function roleBadge(inst, ch) {
+  if (inst.mode !== 'cluster') return '<span class="badge badge-gray">single</span>';
+  if (!ch || ch.leader == null) return '<span class="badge badge-gray">—</span>';
+  return ch.leader === inst.node
+    ? '<span class="badge badge-lime">★ leader</span>'
+    : '<span class="badge badge-gray">follower</span>';
+}
+
+// Per-store quorum + status. Same value repeats across a store's node
+// rows by design — it's a property of the store, not the node.
+function quorumBadge(inst, ch) {
+  if (inst.mode !== 'cluster' || !ch) return '';
+  const cls = ch.status === 'healthy'   ? 'badge-green'
+            : ch.status === 'no_quorum' ? 'badge-red'
+            : ch.status === 'unavailable' ? 'badge-red'
+                                          : 'badge-yellow';
+  const count = ch.has_quorum
+    ? `${ch.available_nodes ?? '?'}/${ch.total_nodes ?? '?'}`
+    : 'no quorum';
+  return `<span class="badge ${cls}">● ${count} · ${esc(ch.status||'')}</span>`;
 }
 
 function selectStoreAndNav(storeId, view) {

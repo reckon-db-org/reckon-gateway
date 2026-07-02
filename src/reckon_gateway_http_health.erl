@@ -3,6 +3,7 @@
 %%% Routes:
 %%%   GET /v1/health                     gateway-level health
 %%%   GET /v1/health/:store_id           per-store health
+%%%   GET /v1/stores/:store_id/cluster   per-store cluster state (leader/quorum)
 %%%   GET /v1/server-info/:store_id      version + integrity config
 %%%   GET /v1/stores                     list all store instances
 %%%   GET /v1/stores/:store_id           store instances for one store
@@ -33,6 +34,10 @@ handle(<<"GET">>, gateway, Req) ->
 %% GET /v1/health/:store_id
 handle(<<"GET">>, store, Req) ->
     with_store(Req, fun handle_store_health/2);
+
+%% GET /v1/stores/:store_id/cluster
+handle(<<"GET">>, cluster, Req) ->
+    with_store(Req, fun handle_store_cluster/2);
 
 %% GET /v1/server-info/:store_id
 handle(<<"GET">>, server_info, Req) ->
@@ -90,6 +95,48 @@ handle_store_health(StoreId, R) ->
 
 health_result({ok, _})         -> {healthy, #{}};
 health_result({error, Reason}) -> {unhealthy, #{<<"reason">> => reason_bin(Reason)}}.
+
+%% Per-store cluster state for the admin UI's leader/follower badges.
+%%
+%% Single-mode stores are short-circuited from the catalogue — there is
+%% no Raft to inspect, and dispatching a consistency RPC to a
+%% single-mode BEAM triggers reckon-gater's retry storm (see the
+%% mirrored guard in reckon_gateway_health_service). Cluster-mode stores
+%% dispatch `verify_cluster_consistency' and we lift the leader node +
+%% quorum out of the reckon_db_cluster result into flat JSON so the UI
+%% never has to parse Erlang terms.
+handle_store_cluster(StoreId, R) ->
+    Json = cluster_json(reckon_gateway_catalogue:store_mode(StoreId), StoreId),
+    reckon_gateway_http:reply_json(200, Json, R).
+
+cluster_json({ok, single}, _StoreId) ->
+    #{<<"mode">>       => <<"single">>,
+      <<"status">>     => <<"healthy">>,
+      <<"leader">>     => null,
+      <<"has_quorum">> => true};
+cluster_json(_ModeResult, StoreId) ->
+    consistency_json(reckon_gateway_dispatch:call(verify_cluster_consistency, [StoreId])).
+
+consistency_json({ok, Info}) ->
+    LeaderMap = maps:get(leader, Info, #{}),
+    QuorumMap = maps:get(quorum, Info, #{}),
+    #{<<"mode">>            => <<"cluster">>,
+      <<"status">>          => atom_to_binary(maps:get(status, Info, degraded), utf8),
+      <<"leader">>          => node_json(maps:get(leader, LeaderMap, undefined)),
+      <<"has_quorum">>      => maps:get(has_quorum, QuorumMap, false),
+      <<"total_nodes">>     => maps:get(total_nodes, QuorumMap, 0),
+      <<"available_nodes">> => maps:get(available_nodes, QuorumMap, 0),
+      <<"can_lose">>        => maps:get(can_lose, QuorumMap, 0)};
+consistency_json({error, Reason}) ->
+    #{<<"mode">>       => <<"cluster">>,
+      <<"status">>     => <<"unavailable">>,
+      <<"leader">>     => null,
+      <<"has_quorum">> => false,
+      <<"error">>      => reason_bin(Reason)}.
+
+node_json(undefined)              -> null;
+node_json(Node) when is_atom(Node) -> atom_to_binary(Node, utf8);
+node_json(Other)                   -> iolist_to_binary(io_lib:format("~p", [Other])).
 
 handle_server_info(StoreId, R) ->
     IntegrityEnabled = integrity_enabled(StoreId),

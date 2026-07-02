@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.18.0 (2026-07-02)
+
+**Cluster leader/follower indicators + gateway telemetry.**
+
+### Added
+
+- Per-store cluster state over HTTP: `GET /v1/stores/:store_id/cluster`
+  returns the leader node, quorum, and status (single-mode stores
+  short-circuit without touching the BEAM). The admin UI Overview now shows
+  **Role** (leader / follower / single) and **Cluster** (quorum + status)
+  columns per store — surfacing the leader/member view that was previously
+  gRPC-only (`verify_cluster_consistency`) over HTTP/JSON so the browser
+  admin UI can render it.
+- Telemetry: new `reckon_gateway_telemetry` facade + documented event
+  catalogue (`include/reckon_gateway_telemetry.hrl`). Dispatch events
+  (`start`/`stop`/`error`, with a low-cardinality `reason`) instrument every
+  store operation at the dispatch choke point; catalogue events
+  (`store announced`/`retired`) track the federated fleet. The default logger
+  handler is attached at boot via the `telemetry_handlers` env
+  (`[logger]` default, `[]` to silence). See `docs/telemetry.md`.
+
+### Changed
+
+- Consume `reckon_gater` and `reckon_db` from hex — dropped the local
+  `_checkouts` dev overrides. Lock updated to `reckon_gater 3.8.0` and
+  `reckon_db 5.5.4`; the latter also pulls in the `5.5.1`–`5.5.3` fixes the
+  previously-locked `5.5.0` was missing.
+
 ## 0.17.1 (2026-07-01)
 
 **Picks up the reckon-db / reckon-gater fixes for the DCB, snapshot,

@@ -18,6 +18,8 @@
 %%% (NotFound / Unavailable / Internal).
 -module(reckon_gateway_dispatch).
 
+-include("reckon_gateway_telemetry.hrl").
+
 -export([call/2, call/3]).
 
 -define(DEFAULT_TIMEOUT_MS, 5000).
@@ -30,7 +32,37 @@ call(Fn, Args) ->
 
 -spec call(atom(), [term()], pos_integer() | infinity) -> term().
 call(Fn, [StoreId | _] = Args, Timeout) when is_atom(StoreId) ->
-    dispatch_lookup(reckon_gateway_catalogue:lookup(StoreId), StoreId, Fn, Args, Timeout).
+    Start = erlang:monotonic_time(microsecond),
+    telemetry:execute(?GW_DISPATCH_START,
+                      #{system_time => erlang:system_time(millisecond)},
+                      #{store_id => StoreId, op => Fn}),
+    Result = dispatch_lookup(reckon_gateway_catalogue:lookup(StoreId), StoreId, Fn, Args, Timeout),
+    emit_dispatch_result(Fn, StoreId, Start, Result),
+    Result.
+
+%% @private Classify the dispatch outcome into a stop (success) or
+%% error telemetry event. `{error, Reason}' — including the internal
+%% store_unknown / cluster_unavailable / {rpc_failed, _, _} shapes — is
+%% a failure; anything else is a success.
+emit_dispatch_result(Fn, StoreId, Start, Result) ->
+    Duration = erlang:monotonic_time(microsecond) - Start,
+    case Result of
+        {error, Reason} ->
+            telemetry:execute(?GW_DISPATCH_ERROR,
+                              #{duration => Duration},
+                              #{store_id => StoreId, op => Fn,
+                                reason => dispatch_reason(Reason)});
+        _ ->
+            telemetry:execute(?GW_DISPATCH_STOP,
+                              #{duration => Duration},
+                              #{store_id => StoreId, op => Fn})
+    end.
+
+%% @private Keep the reason label low-cardinality: collapse the
+%% {rpc_failed, Member, Why} tuple to the atom `rpc_failed'.
+dispatch_reason({rpc_failed, _Member, _Why}) -> rpc_failed;
+dispatch_reason(Reason) when is_atom(Reason) -> Reason;
+dispatch_reason(_Reason)                      -> other.
 
 dispatch_lookup({ok, _ClusterId, Members, ApiModule}, StoreId, Fn, Args, Timeout) ->
     dispatch_member(pick_member(Members), ApiModule, StoreId, Fn, Args, Timeout);

@@ -11,6 +11,10 @@
 -include_lib("eunit/include/eunit.hrl").
 
 setup() ->
+    %% The catalogue emits announced/retired telemetry on publish/remove;
+    %% start telemetry so those emits find a handler table instead of
+    %% logging "telemetry application has been started" warnings.
+    _ = application:ensure_all_started(telemetry),
     %% Each test gets its own catalogue process - cleaner than
     %% sharing state.
     case whereis(reckon_gateway_catalogue) of

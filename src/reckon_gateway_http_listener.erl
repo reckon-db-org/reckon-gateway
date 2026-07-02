@@ -10,6 +10,7 @@
 %%%   GET  /v1/server-info/:store_id         version + integrity info
 %%%   GET  /v1/stores                        list store instances
 %%%   GET  /v1/stores/:store_id              store instances
+%%%   GET  /v1/stores/:store_id/cluster      leader / quorum / status
 %%%   *    /v1/stores/:store_id/streams/*    StreamService (sync)
 %%%   *    /v1/stores/:store_id/events/*     cross-stream indexed reads
 %%%   POST /v1/stores/:store_id/dcb/context      DCB context read
@@ -37,6 +38,8 @@ child_spec() ->
             %% Store discovery
             {"/v1/stores",                   reckon_gateway_http_health, #{op => list_stores}},
             {"/v1/stores/:store_id",         reckon_gateway_http_health, #{op => get_store}},
+            %% Per-store cluster state (leader / quorum / status)
+            {"/v1/stores/:store_id/cluster", reckon_gateway_http_health, #{op => cluster}},
             %% Stream list + delete
             {"/v1/stores/:store_id/streams",
              reckon_gateway_http_streams, #{op => list}},
