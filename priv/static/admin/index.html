@@ -814,30 +814,41 @@ async function loadOverview() {
       return `
       <tr class="clickable" onclick="selectStoreAndNav('${s.store_id}','streams')">
         <td class="mono">${s.store_id}</td>
-        <td class="mono muted">${s.node}</td>
         <td><span class="badge badge-blue">${s.mode}</span></td>
-        <td>${roleBadge(s, ch)}</td>
+        <td>${replicasCell(s, ch)}</td>
         <td>${quorumBadge(s, ch)}</td>
         <td class="mono muted truncate">${s.data_dir||'—'}</td>
       </tr>`;
     }).join('');
     document.getElementById('ov-stores-table').innerHTML = rows
-      ? `<table><thead><tr><th>Store ID</th><th>Node</th><th>Mode</th><th>Role</th><th>Cluster</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
+      ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
       : '<div class="empty">No stores registered</div>';
   } catch(e) {
     document.getElementById('ov-stores-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
   }
 }
 
-// Leader/follower marker for one store instance (one BEAM node).
-// Khepri triggers fire on the Ra leader, so the leader node is where
-// the emitter/write side lives — worth calling out per node.
-function roleBadge(inst, ch) {
-  if (inst.mode !== 'cluster') return '<span class="badge badge-gray">single</span>';
-  if (!ch || ch.leader == null) return '<span class="badge badge-gray">—</span>';
-  return ch.leader === inst.node
-    ? '<span class="badge badge-lime">★ leader</span>'
-    : '<span class="badge badge-gray">follower</span>';
+// Node host (drop the parksim_<tenant>@ prefix — the tenant is already
+// the Store ID; what's distinctive across replicas is the host/IP).
+function shortNode(n) {
+  return (n||'').replace(/^[^@]*@/, '');
+}
+
+// The store's full replica set, one badge per BEAM node, with the Ra
+// leader marked ★ (Khepri triggers fire on the leader, so that's where
+// the emitter/write side lives). A merged store carries every replica
+// in `nodes'; single-mode stores collapse to their one node.
+function replicasCell(inst, ch) {
+  const nodes = (inst.nodes && inst.nodes.length) ? inst.nodes : [inst.node];
+  if (inst.mode !== 'cluster') {
+    return `<span class="badge badge-gray mono">${shortNode(nodes[0])}</span>`;
+  }
+  const leader = ch && ch.leader;
+  return nodes.map(n => {
+    const isLeader = leader && n === leader;
+    const cls = isLeader ? 'badge-lime' : 'badge-gray';
+    return `<span class="badge ${cls} mono">${isLeader ? '★ ' : ''}${shortNode(n)}</span>`;
+  }).join(' ');
 }
 
 // Per-store quorum + status. Same value repeats across a store's node

@@ -109,13 +109,20 @@ Version + integrity advertisement.
 ```
 
 ### `GET /v1/stores`
-List every store instance the catalogue knows.
+List every store the catalogue knows (one entry per store id). For a
+cluster-mode store, `nodes` holds all replica nodes and `replica_count`
+their number; `node` is the first-seen replica, retained for compatibility.
 ```json
 { "instances": [
-  { "store_id": "my_store", "node": "reckon_gateway@...", "mode": "single",
+  { "store_id": "my_store", "node": "parksim_leuven@192.168.1.10",
+    "nodes": ["parksim_leuven@192.168.1.10", "parksim_leuven@192.168.1.11",
+              "parksim_leuven@192.168.1.12"],
+    "replica_count": 3, "mode": "cluster",
     "data_dir": "/data", "timeout_ms": 5000, "registered_at_us": 1782820800000000 }
 ]}
 ```
+Pair with `GET /v1/stores/:store_id/cluster` to learn which replica is the
+Ra leader.
 
 ### `GET /v1/stores/:store_id`
 Same shape, filtered to one store id.

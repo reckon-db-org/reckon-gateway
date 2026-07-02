@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.19.0 (2026-07-03)
+
+**Per-replica federation view: show every replica of a clustered store.**
+
+### Changed
+
+- The cluster connector now **merges** the per-node registry entries of a
+  clustered store (one per replica node) into a single catalogue entry
+  carrying the full replica set — `nodes` (sorted, unique) + `replica_count`
+  — instead of first-seen-wins discarding the other replicas. A single
+  entry per `store_id` is still kept (the catalogue's add/remove diff is
+  keyed by `store_id` occurrence, so duplicates would make a lost replica
+  look like a dropped store), but it no longer loses the replica list.
+- `GET /v1/stores` (and `/v1/stores/:store_id`) now include `nodes` and
+  `replica_count` per store instance (the single `node` field is retained
+  for compatibility, defaulting `nodes` to `[node]` for legacy/local
+  connectors).
+- Admin UI Overview: the **Node** + **Role** columns are replaced by a
+  single **Replicas** column listing every replica node, with the Ra leader
+  marked ★ — so a 3-of-4 clustered fleet (e.g. parksim) shows all three
+  replicas and which one leads, rather than a single arbitrary node.
+
 ## 0.18.0 (2026-07-02)
 
 **Cluster leader/follower indicators + gateway telemetry.**

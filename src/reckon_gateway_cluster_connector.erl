@@ -25,6 +25,10 @@
 -export([init/1, handle_continue/2, handle_call/3, handle_cast/2,
          handle_info/2, terminate/2]).
 
+-ifdef(TEST).
+-export([merge_entries/1]).
+-endif.
+
 -record(state, {
     cluster_id     :: atom(),
     configured     :: [node()],                %% from clusters.eterm
@@ -231,13 +235,15 @@ refresh(#state{cluster_id = Id,
 %%     data_dir := string(), timeout := pos_integer(),
 %%     registered_at := integer()}
 %%
-%% Single-mode reckon-db (as in parksim) keeps a per-node registry
-%% that only reports the stores running on THAT node; cluster-mode
-%% replicates within the cluster but `first-seen wins' dedup on
-%% store_id keeps either case clean.
+%% A cluster-mode store runs on N replica nodes (parksim: 3), so
+%% `list_stores' from each member yields one entry per node for the
+%% same store_id. `merge_entries' collapses those to ONE entry per
+%% store_id (first-seen wins) while folding every replica's node into
+%% a `nodes' list + `replica_count', so the admin UI can show the
+%% replica set while the catalogue keeps a single entry per store_id.
 discover_stores(ClusterId, Members) ->
     All = lists:flatten([discover_one(ClusterId, M) || M <- Members]),
-    dedup_entries(All).
+    merge_entries(All).
 
 discover_one(ClusterId, Member) ->
     case rpc:call(Member, reckon_db_store_registry, list_stores, []) of
@@ -253,17 +259,38 @@ discover_one(ClusterId, Member) ->
             []
     end.
 
-dedup_entries(Entries) ->
-    {_Seen, Out} = lists:foldl(fun dedup_step/2, {sets:new(), []}, Entries),
-    lists:reverse(Out).
+%% @private Collapse per-node registry entries to one entry per
+%% store_id (first-seen wins), enriched with the full replica set:
+%% `nodes' (sorted, unique) + `replica_count'. Keeping a single entry
+%% per store_id is required — the catalogue's add/remove diff is keyed
+%% by store_id occurrence, so duplicates would make a lost replica look
+%% like a dropped store.
+merge_entries(Entries) ->
+    Ids     = ordered_unique_ids(Entries),
+    NodeMap = lists:foldl(fun collect_nodes/2, #{}, Entries),
+    FirstMap = lists:foldl(fun collect_first/2, #{}, Entries),
+    [attach_replicas(maps:get(Id, FirstMap), maps:get(Id, NodeMap)) || Id <- Ids].
 
-dedup_step(#{store_id := Id} = E, {Seen, Acc}) ->
-    dedup_add(sets:is_element(Id, Seen), Id, E, Seen, Acc).
+ordered_unique_ids(Entries) ->
+    lists:reverse(lists:foldl(fun order_step/2, [], Entries)).
 
-dedup_add(true, _Id, _E, Seen, Acc) ->
-    {Seen, Acc};
-dedup_add(false, Id, E, Seen, Acc) ->
-    {sets:add_element(Id, Seen), [E | Acc]}.
+order_step(#{store_id := Id}, Acc) ->
+    prepend_new(lists:member(Id, Acc), Id, Acc).
+
+prepend_new(true, _Id, Acc)  -> Acc;
+prepend_new(false, Id, Acc)  -> [Id | Acc].
+
+collect_nodes(#{store_id := Id, node := Node}, Acc) ->
+    Acc#{Id => lists:usort([Node | maps:get(Id, Acc, [])])}.
+
+collect_first(#{store_id := Id} = E, Acc) ->
+    keep_first(maps:is_key(Id, Acc), Id, E, Acc).
+
+keep_first(true, _Id, _E, Acc) -> Acc;
+keep_first(false, Id, E, Acc)  -> Acc#{Id => E}.
+
+attach_replicas(Entry, Nodes) ->
+    Entry#{nodes => Nodes, replica_count => length(Nodes)}.
 
 publish_catalogue(ClusterId, Members, ApiModule, Stores, Status, Now) ->
     reckon_gateway_catalogue:publish(ClusterId, #{

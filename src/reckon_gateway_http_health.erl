@@ -158,10 +158,16 @@ entry_to_json(#{store_id := StoreId,
                 mode := Mode,
                 data_dir := DataDir,
                 timeout := Timeout,
-                registered_at := RegisteredMs}) ->
+                registered_at := RegisteredMs} = E) ->
+    %% `nodes'/`replica_count' are folded in by the cluster connector
+    %% (one per replica); default to the single `node' for legacy/local
+    %% connectors that don't set them.
+    Nodes = maps:get(nodes, E, [Node]),
     #{
         <<"store_id">>        => atom_to_binary(StoreId, utf8),
         <<"node">>            => atom_to_binary(Node, utf8),
+        <<"nodes">>           => [atom_to_binary(N, utf8) || N <- Nodes],
+        <<"replica_count">>   => maps:get(replica_count, E, length(Nodes)),
         <<"mode">>            => atom_to_binary(Mode, utf8),
         <<"data_dir">>        => unicode:characters_to_binary(DataDir),
         <<"timeout_ms">>      => Timeout,
