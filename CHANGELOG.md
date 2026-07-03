@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.23.0 (2026-07-03)
+
+**Fleet event-ingest rate on the dashboard.**
+
+The dispatch throughput card only sees reads proxied *through* the gateway,
+which is near-zero at rest because the gateway is off the data path. This adds
+the metric that reflects actual fleet activity.
+
+### Added
+
+- `reckon_gateway_fleet_ingest` — a gen_server that polls every catalogue
+  store's `store_stats` (`total_events`) every 5s, diffs against the previous
+  sample and derives events/s per store and fleet-wide, plus a sparkline
+  series. Polling runs in a throwaway worker so a slow/unreachable store never
+  blocks the gen_server; an unreachable store keeps its last count (no flicker)
+  and reports 0/s; scavenge/prune (shrinking count) reports 0, never negative.
+- The SSE `metrics` event now carries a `fleet` object
+  (`total_events`, `events_per_s`, `per_store[]`, `series`).
+
+### Changed
+
+- Admin dashboard gained a **Fleet Event Ingest** card (fleet events/s with
+  sparkline, total events, per-tenant rates) above the dispatch card, which is
+  now labelled "read proxy" to make clear it measures gateway-proxied reads,
+  not fleet write volume.
+
+### Notes
+
+- This adds recurring `store_stats` read load on the store BEAMs, and those
+  dispatches now show up in the dispatch metrics — both intentional.
+
 ## 0.22.0 (2026-07-03)
 
 **Fold Server Info into the header and the store table; drop the page.**

@@ -142,6 +142,13 @@
     .byop { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; margin-left: 0.5rem; }
     .byop .chip { font-size: 0.68rem; background: rgba(139,148,158,0.12); color: var(--text-dim);
       border-radius: 3px; padding: 0.08rem 0.35rem; font-family: ui-monospace, monospace; }
+    .fleet-stores { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.4rem 1rem; }
+    .fleet-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
+      font-size: 0.78rem; }
+    .fleet-row .fs-name { color: var(--text-dim); font-family: ui-monospace, monospace; }
+    .fleet-row .fs-rate { font-weight: 600; font-variant-numeric: tabular-nums;
+      font-family: ui-monospace, monospace; }
+    .fleet-row .fs-total { color: var(--text-muted); font-size: 0.7rem; font-variant-numeric: tabular-nums; }
 
     .card {
       background: var(--card); border: 1px solid var(--border);
@@ -368,7 +375,25 @@
         <div class="card"><div class="stat-big" id="ov-node">—</div><div class="stat-label">BEAM Node</div></div>
       </div>
       <div class="card" style="margin-bottom:1rem">
-        <div class="card-title">Dispatch Throughput <span class="live-pill" id="metrics-live-pill">live</span></div>
+        <div class="card-title">Fleet Event Ingest <span class="live-pill" id="fleet-live-pill">live</span></div>
+        <div class="metrics-grid">
+          <div class="metric-tile">
+            <div class="metric-val" id="f-events-ps">—</div>
+            <div class="metric-lbl">events / s · fleet</div>
+            <span class="spark-wrap" id="spark-fleet"></span>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-val" id="f-total">—</div>
+            <div class="metric-lbl">total events</div>
+          </div>
+          <div class="metric-tile" style="grid-column: span 2;">
+            <div class="metric-lbl" style="margin-bottom:0.4rem">per tenant</div>
+            <div class="fleet-stores" id="f-per-store"><div class="empty">connecting…</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Dispatch Throughput <span class="muted" style="font-weight:400;font-size:0.72rem">read proxy</span> <span class="live-pill" id="metrics-live-pill">live</span></div>
         <div class="metrics-grid">
           <div class="metric-tile">
             <div class="metric-val" id="m-calls-ps">—</div>
@@ -893,6 +918,40 @@ function renderMetrics(m) {
     `<span class="chip">${esc(o.op)} ${o.count}</span>`).join('');
   const byop = document.getElementById('m-byop');
   if (byop) byop.innerHTML = chips;
+
+  if (m.fleet) renderFleet(m.fleet);
+}
+
+// Fleet-wide event ingest — the number that actually reflects the four
+// tenants simulating. Derived server-side by polling each store's
+// total_events and diffing (see reckon_gateway_fleet_ingest).
+function renderFleet(f) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('f-events-ps', fmtNum(f.events_per_s));
+  set('f-total',     fmtInt(f.total_events));
+
+  const sf = document.getElementById('spark-fleet');
+  if (sf) sf.innerHTML = sparkline(f.series || [], 'var(--lime)');
+
+  const stores = f.per_store || [];
+  const rows = stores.map(s => `
+      <div class="fleet-row">
+        <span class="fs-name">${esc(shortStore(s.store_id))}</span>
+        <span><span class="fs-rate">${fmtNum(s.per_s)}</span>/s
+          <span class="fs-total">${fmtInt(s.events)}</span></span>
+      </div>`).join('');
+  const el = document.getElementById('f-per-store');
+  if (el) el.innerHTML = rows || '<div class="empty">no stores</div>';
+}
+
+// parksim_leuven_store → leuven (drop the common prefix/suffix noise).
+function shortStore(id) {
+  return String(id).replace(/^parksim_/, '').replace(/_store$/, '');
+}
+
+function fmtInt(v) {
+  const n = Number(v);
+  return isFinite(n) ? n.toLocaleString() : '—';
 }
 
 // Inline-SVG sparkline over a numeric series; scales to its container
@@ -933,7 +992,7 @@ function tickFreshness() {
   const el = document.getElementById('dash-freshness');
   if (el) el.textContent = age <= 1 ? '· updated just now' : `· updated ${age}s ago`;
   const stale = age > 25;
-  ['stores-live-pill','clusters-live-pill','metrics-live-pill'].forEach(id => {
+  ['stores-live-pill','clusters-live-pill','metrics-live-pill','fleet-live-pill'].forEach(id => {
     const p = document.getElementById(id);
     if (p) { p.classList.toggle('stale', stale); p.textContent = stale ? 'stale' : 'live'; }
   });

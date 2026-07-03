@@ -17,7 +17,9 @@
 %%%
 %%%   event: metrics
 %%%   data: {"calls_total":N,"calls_per_s":F,"errors_per_s":F,
-%%%          "avg_latency_ms":F,"by_op":[...],"calls_series":[...],...}
+%%%          "avg_latency_ms":F,"by_op":[...],"calls_series":[...],
+%%%          "fleet":{"total_events":N,"events_per_s":F,
+%%%                   "per_store":[...],"series":[...]}}
 %%%
 %%% On connect:    subscribe to reckon_gateway_catalogue, push initial status.
 %%% Every 10s:     push a fresh status snapshot (catches cluster health drift).
@@ -96,7 +98,9 @@ push_status(Req) ->
     push_event(<<"status">>, json:encode(status_to_json(Snapshot)), Req).
 
 push_metrics(Req) ->
-    push_event(<<"metrics">>, json:encode(reckon_gateway_metrics:snapshot_json()), Req).
+    Metrics = reckon_gateway_metrics:snapshot_json(),
+    Fleet   = reckon_gateway_fleet_ingest:snapshot_json(),
+    push_event(<<"metrics">>, json:encode(Metrics#{<<"fleet">> => Fleet}), Req).
 
 push_event(Name, JsonData, Req) ->
     cowboy_req:stream_body(

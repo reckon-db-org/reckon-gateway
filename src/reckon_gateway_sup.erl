@@ -72,6 +72,8 @@ init([]) ->
         %% Live throughput/latency accumulator (attaches its own
         %% telemetry handler); up before the HTTP/SSE listener reads it.
         reckon_gateway_metrics:child_spec(),
+        %% Fleet-wide event-ingest poller (store_stats → events/s).
+        reckon_gateway_fleet_ingest:child_spec(),
         %% HTTP/JSON API listener (separate port from gRPC).
         reckon_gateway_http_listener:child_spec(),
         #{id       => clusters_sup,
