@@ -6,15 +6,15 @@
 %%% traffic proxied *through* the gateway, which is near-zero at rest.
 %%%
 %%% To show the fleet's actual activity, this slice polls every catalogue
-%%% store's `store_stats' (cheap aggregate — `total_events') on a timer,
-%%% diffs the count against the previous sample, and derives events/s per
-%%% store and fleet-wide, plus a sparkline series. The polling itself runs
-%%% in a throwaway worker so a slow/unreachable store never blocks the
-%%% gen_server (or `snapshot_json/0', which the SSE loop calls).
+%%% store's `global_event_count' (reckon_db's O(1) counter, maintained on
+%%% append — NOT a scan) on a timer, diffs the count against the previous
+%%% sample, and derives events/s per store and fleet-wide, plus a sparkline
+%%% series. The polling runs in a throwaway worker so a slow/unreachable
+%%% store never blocks the gen_server (or `snapshot_json/0', which the SSE
+%%% loop calls).
 %%%
-%%% Note: this DOES add recurring read load on the store BEAMs, and the
-%%% `store_stats' dispatches show up in the dispatch metrics — both are
-%%% intentional and honest.
+%%% Note: the `global_event_count' dispatches show up in the dispatch
+%%% metrics — intentional and honest.
 -module(reckon_gateway_fleet_ingest).
 
 -behaviour(gen_server).
@@ -31,13 +31,10 @@
 -define(POLL_MS, 5_000).
 -define(WINDOW, 60).   %% samples kept for the fleet sparkline
 
-%% Disabled until reckon_db exposes an O(1) global event counter. The
-%% only fleet-wide count available today (store_stats / read_all_global)
-%% is a full khepri scan AND currently returns 0 in cluster mode, so we
-%% neither poll it (wasteful load on the store BEAMs) nor show its number
-%% (misleading). Flip on when the counter API lands and point read_count
-%% at it.
--define(POLL_ENABLED, false).
+%% Reads reckon_db's O(1) global_event_count (reckon-db 5.6.0+, exposed
+%% via reckon_gater_api). Members that predate it return {error, undef}
+%% → treated as an unreachable read for that tick.
+-define(POLL_ENABLED, true).
 
 -record(state, {
     %% store_id => {count_at_last_sample, ts_ms}
@@ -121,9 +118,9 @@ store_ids() ->
                  || E <- reckon_gateway_catalogue:list_entries()]).
 
 read_count(StoreId) ->
-    try reckon_gateway_dispatch:call(store_stats, [StoreId]) of
-        {ok, Stats} -> {ok, maps:get(total_events, Stats, 0)};
-        _           -> error
+    try reckon_gateway_dispatch:call(global_event_count, [StoreId]) of
+        {ok, N} when is_integer(N) -> {ok, N};
+        _                          -> error
     catch _:_ -> error
     end.
 

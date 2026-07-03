@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.25.0 (2026-07-04)
+
+**Fleet Event Ingest, powered by reckon_db's O(1) event counter.**
+
+Re-enables the Fleet Event Ingest card on the real, cheap source. Replaces the
+0.23.0 `store_stats` approach (full khepri scan, returned 0 in cluster mode).
+
+### Changed
+
+- `reckon_gateway_fleet_ingest` now polls `global_event_count` (reckon-db
+  5.6.0+ via `reckon_gater_api`, an O(1) counter maintained on append) instead
+  of `store_stats`, and is re-enabled (`POLL_ENABLED = true`).
+- Dashboard Fleet card shows a "waiting" state (not a misleading 0) until the
+  store BEAMs report counts — so it's safe to deploy before the stores are on
+  reckon-db 5.6.0.
+
+### Requires
+
+- Store BEAMs on **reckon-db 5.6.0** + **reckon-gater 3.9.0** for the counter to
+  exist and be reachable. Until then the card reads "waiting".
+
 ## 0.24.0 (2026-07-04)
 
 **Honest fleet-ingest placeholder + orphaned-replica flag.**

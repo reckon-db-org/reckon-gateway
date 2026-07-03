@@ -943,6 +943,24 @@ function renderFleet(f) {
     return;
   }
 
+  const pill = document.getElementById('fleet-live-pill');
+
+  // Enabled, but no store has returned a count yet — either the first
+  // poll hasn't landed, or the store BEAMs predate reckon_db's counter
+  // (5.6.0). Show a waiting state rather than a misleading 0.
+  if (!(f.per_store || []).length) {
+    set('f-events-ps', '—');
+    set('f-total',     '—');
+    const sf0 = document.getElementById('spark-fleet');
+    if (sf0) sf0.innerHTML = '';
+    const el0 = document.getElementById('f-per-store');
+    if (el0) el0.innerHTML = '<div class="empty">waiting for store event counts '
+      + '(stores need reckon_db 5.6.0+)</div>';
+    if (pill) { pill.classList.add('stale'); pill.textContent = 'waiting'; }
+    return;
+  }
+
+  if (pill) { pill.classList.remove('stale'); pill.textContent = 'live'; }
   set('f-events-ps', fmtNum(f.events_per_s));
   set('f-total',     fmtInt(f.total_events));
 
