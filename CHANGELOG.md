@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.19.1 (2026-07-03)
+
+**Admin UI affordance polish.**
+
+### Changed
+
+- DCB **Tags** and **Event Types** tables: the dim decorative
+  "click to query context →" cell (which read as dead/disabled text even
+  though the whole row was clickable) is now a real ghost **Query context →**
+  button in its own column, so the call-to-action reads as actionable.
+- Renamed the weak **Classic** sidebar section to **Event Reads** (Streams,
+  Global Log, By Event Type / Tags / Metadata).
+
 ## 0.19.0 (2026-07-03)
 
 **Per-replica federation view: show every replica of a clustered store.**

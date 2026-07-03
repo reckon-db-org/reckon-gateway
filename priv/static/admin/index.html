@@ -280,7 +280,7 @@
     </div>
 
     <div class="nav-section">
-      <div class="nav-label">Classic</div>
+      <div class="nav-label">Event Reads</div>
       <div class="nav-item" data-view="streams" onclick="nav('streams')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v2h6a.5.5 0 0 1 .5.5v1h2V6a.5.5 0 0 1 .5-.5h6v-2A1.5 1.5 0 0 0 14.5 2h-13zm13 5a.5.5 0 0 1 .5.5v1h-4.5V8a.5.5 0 0 0-1 0v.5H5V8a.5.5 0 0 0-1 0v.5H0v4A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5V7.5a.5.5 0 0 1 .5.5z"/></svg>
         Streams
@@ -1140,10 +1140,11 @@ async function loadDcbTags() {
       return;
     }
     const rows = tags.map(t =>
-      `<tr class="clickable" onclick="dcbTagToContextQuery(${JSON.stringify(t.tag)})">
+      `<tr>
         <td class="mono">${esc(t.tag)}</td>
         <td class="mono">${t.count}</td>
-        <td style="font-size:0.72rem;color:var(--text-dim)">click to query context →</td>
+        <td style="text-align:right"><button class="btn btn-ghost btn-sm"
+          onclick="dcbTagToContextQuery(${JSON.stringify(t.tag)})">Query context →</button></td>
       </tr>`
     ).join('');
     document.getElementById('dcb-tags-table').innerHTML =
@@ -1176,10 +1177,11 @@ async function loadDcbEventTypes() {
       return;
     }
     const rows = types.map(t =>
-      `<tr class="clickable" onclick="dcbTypeToContextQuery(${JSON.stringify(t.event_type)})">
+      `<tr>
         <td><span class="badge badge-purple">${esc(t.event_type)}</span></td>
         <td class="mono">${t.count}</td>
-        <td style="font-size:0.72rem;color:var(--text-dim)">click to query context →</td>
+        <td style="text-align:right"><button class="btn btn-ghost btn-sm"
+          onclick="dcbTypeToContextQuery(${JSON.stringify(t.event_type)})">Query context →</button></td>
       </tr>`
     ).join('');
     document.getElementById('dcb-types-table').innerHTML =
