@@ -11,7 +11,23 @@
 
 -behaviour(cowboy_handler).
 
--export([init/2]).
+-export([init/2, live_stores/0]).
+
+%% @doc Enriched per-store snapshot for the live dashboard SSE stream.
+%%
+%% Folds each catalogue entry together with its cluster consistency
+%% (leader / quorum / status) so the browser receives one live object per
+%% store per tick, instead of fanning out an /cluster HTTP probe per store
+%% on every refresh. Single-mode stores short-circuit the consistency RPC
+%% (see handle_store_cluster/2).
+-spec live_stores() -> [map()].
+live_stores() ->
+    [store_with_cluster(E) || E <- reckon_gateway_catalogue:list_entries()].
+
+store_with_cluster(#{store_id := StoreId} = E) ->
+    Base    = entry_to_json(E),
+    Cluster = cluster_json(reckon_gateway_catalogue:store_mode(StoreId), StoreId),
+    Base#{<<"cluster">> => Cluster}.
 
 init(Req0, #{op := Op} = State) ->
     Req = handle(cowboy_req:method(Req0), Op, Req0),

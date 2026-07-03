@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.20.0 (2026-07-03)
+
+**Live technical dashboard — merge Overview + Clusters into one SSE-driven page.**
+
+### Added
+
+- `reckon_gateway_http_health:live_stores/0` — an enriched per-store snapshot
+  that folds each catalogue entry together with its cluster consistency
+  (leader / quorum / status), reusing the same functions behind `/v1/stores`
+  and `/v1/stores/:store_id/cluster`.
+- The `GET /v1/admin/events` SSE `status` payload now carries `node` and an
+  enriched `stores` array (each store includes a `cluster` object with
+  leader/quorum/status), alongside `catalogue_size` and `clusters`. The admin
+  UI renders the whole dashboard from this one live snapshot — no per-store
+  `/cluster` HTTP fan-out on refresh.
+
+### Changed
+
+- Admin UI: "Overview" is now a live **Dashboard**; the standalone Clusters
+  page is merged into it (live clusters table retained). Stat cards (gateway
+  status, stores, quorate N/N, node), the store-replicas table and the clusters
+  panel all update live via SSE, with an "updated Xs ago" freshness indicator
+  and live/stale pills.
+- SSE store-event status pushes are debounced (250 ms) so a burst of store
+  announces/retires triggers a single cluster-consistency probe sweep instead
+  of one per event.
+
 ## 0.19.3 (2026-07-03)
 
 **Align the relx release version with the app version.**

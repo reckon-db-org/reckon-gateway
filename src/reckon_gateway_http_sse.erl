@@ -5,7 +5,9 @@
 %%% Streams named SSE events to the browser admin UI:
 %%%
 %%%   event: status
-%%%   data: {"catalogue_size":N,"clusters":[...],"timestamp_ms":N}
+%%%   data: {"node":"...","catalogue_size":N,"clusters":[...],
+%%%          "stores":[{...,"cluster":{leader,quorum,status}}],
+%%%          "timestamp_ms":N}
 %%%
 %%%   event: store_announced
 %%%   data: {"store_id":"...","cluster_id":"...","node":"...","mode":"..."}
@@ -24,6 +26,7 @@
 -export([init/2, info/3, terminate/3]).
 
 -define(KEEPALIVE_MS, 10_000).
+-define(STATUS_DEBOUNCE_MS, 250).
 
 %%====================================================================
 %% cowboy_loop callbacks
@@ -39,17 +42,22 @@ init(Req0, _Opts) ->
     reckon_gateway_catalogue:subscribe(self()),
     push_status(Req),
     schedule_keepalive(),
-    {cowboy_loop, Req, #{}}.
+    {cowboy_loop, Req, #{status_scheduled => false}}.
 
 info({store_event, announced, Entry}, Req, State) ->
     push_event(<<"store_announced">>, entry_to_json(Entry), Req),
-    push_status(Req),
-    {ok, Req, State};
+    {ok, Req, schedule_status(State)};
 
 info({store_event, retired, Entry}, Req, State) ->
     push_event(<<"store_retired">>, entry_to_json(Entry), Req),
+    {ok, Req, schedule_status(State)};
+
+info(flush_status, Req, State) ->
+    %% Coalesced status push after a burst of store events (see
+    %% schedule_status/1). Each push now probes every cluster store for
+    %% leader/quorum, so we never fire more than one per debounce window.
     push_status(Req),
-    {ok, Req, State};
+    {ok, Req, State#{status_scheduled => false}};
 
 info(keepalive, Req, State) ->
     %% Comment frame keeps the connection alive through proxies.
@@ -81,12 +89,23 @@ push_event(Name, JsonData, Req) ->
 schedule_keepalive() ->
     erlang:send_after(?KEEPALIVE_MS, self(), keepalive).
 
+%% Debounce status pushes triggered by store events: at most one probe
+%% sweep per window, coalescing a burst of announces/retires into a
+%% single enriched snapshot.
+schedule_status(#{status_scheduled := true} = State) ->
+    State;
+schedule_status(State) ->
+    erlang:send_after(?STATUS_DEBOUNCE_MS, self(), flush_status),
+    State#{status_scheduled => true}.
+
 %%--------------------------------------------------------------------
 
 status_to_json(#{catalogue_size := Size, clusters := Clusters}) ->
     #{
+        <<"node">>           => atom_to_binary(node(), utf8),
         <<"catalogue_size">> => Size,
         <<"clusters">>       => [cluster_to_json(C) || C <- Clusters],
+        <<"stores">>         => reckon_gateway_http_health:live_stores(),
         <<"timestamp_ms">>   => erlang:system_time(millisecond)
     }.
 

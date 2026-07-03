@@ -120,7 +120,15 @@
     /* ── CARDS / GRID ─────────────────────────────────────────── */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
-    @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 1100px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 900px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+    .freshness { font-size: 0.72rem; color: var(--text-muted); margin-left: 0.5rem; }
+    .live-pill { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--lime); background: rgba(132,204,22,0.12); border-radius: 3px; padding: 0.1rem 0.35rem;
+      margin-left: 0.4rem; vertical-align: middle; }
+    .live-pill::before { content: "●"; margin-right: 0.25rem; animation: pulse 2s infinite; }
+    .live-pill.stale { color: var(--text-muted); background: rgba(139,148,158,0.12); }
 
     .card {
       background: var(--card); border: 1px solid var(--border);
@@ -267,11 +275,7 @@
       <div class="nav-label">Gateway</div>
       <div class="nav-item active" data-view="overview" onclick="nav('overview')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/></svg>
-        Overview
-      </div>
-      <div class="nav-item" data-view="clusters" onclick="nav('clusters')">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4.5v-3h3v3H14a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L8.354 1.146z"/></svg>
-        Clusters
+        Dashboard
       </div>
       <div class="nav-item" data-view="server-info" onclick="nav('server-info')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h11A1.5 1.5 0 0 1 15 2.5v2.764c0 .695-.301 1.32-.778 1.752A.5.5 0 0 1 14 7.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-7a.5.5 0 0 1-.222-.484A2.49 2.49 0 0 1 1 5.264V2.5zM10 7H6v7h4V7zm1 7h1.5a.5.5 0 0 0 .5-.5v-7h-2v7zm-8-.5a.5.5 0 0 0 .5.5H5V7H3v6.5zM14 6H2a1.5 1.5 0 1 0 0-3h12a1.5 1.5 0 1 0 0 3z"/></svg>
@@ -340,20 +344,27 @@
   <main id="main">
     <div id="no-store-notice">No stores registered on this gateway. Connect a ReckonDB store to explore events.</div>
 
-    <!-- ── VIEW: OVERVIEW ─────────────────────────────────── -->
+    <!-- ── VIEW: DASHBOARD (live) ─────────────────────────── -->
     <div id="view-overview" class="view active">
       <div class="page-header">
-        <h1>Overview</h1>
-        <p>Gateway health and registered stores</p>
+        <h1>Dashboard</h1>
+        <p>Live gateway health, store replicas and clusters
+          <span id="dash-freshness" class="freshness">— waiting for live data</span>
+        </p>
       </div>
-      <div class="grid-3" id="overview-stats">
+      <div class="grid-4" id="overview-stats">
         <div class="card"><div class="stat-big" id="ov-status-text">—</div><div class="stat-label">Gateway Status</div></div>
         <div class="card"><div class="stat-big" id="ov-stores-count">—</div><div class="stat-label">Registered Stores</div></div>
+        <div class="card"><div class="stat-big" id="ov-quorate">—</div><div class="stat-label">Quorate Stores</div></div>
         <div class="card"><div class="stat-big" id="ov-node">—</div><div class="stat-label">BEAM Node</div></div>
       </div>
       <div class="card" style="margin-bottom:1rem">
-        <div class="card-title">Registered Stores</div>
-        <div class="tbl-wrap" id="ov-stores-table"><div class="empty">loading…</div></div>
+        <div class="card-title">Store Replicas <span class="live-pill" id="stores-live-pill">live</span></div>
+        <div class="tbl-wrap" id="ov-stores-table"><div class="empty">connecting…</div></div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Clusters <span class="live-pill" id="clusters-live-pill">live</span></div>
+        <div class="tbl-wrap" id="clusters-table"><div class="empty">connecting…</div></div>
       </div>
     </div>
 
@@ -496,17 +507,6 @@
       </div>
       <div class="card">
         <div class="tbl-wrap" id="bymeta-table"><div class="empty">enter a key and value to search</div></div>
-      </div>
-    </div>
-
-    <!-- ── VIEW: CLUSTERS ────────────────────────────────── -->
-    <div id="view-clusters" class="view">
-      <div class="page-header">
-        <h1>Clusters</h1>
-        <p>ReckonDB clusters connected to this gateway — updated live via SSE</p>
-      </div>
-      <div class="card">
-        <div class="tbl-wrap" id="clusters-table"><div class="empty">connecting…</div></div>
       </div>
     </div>
 
@@ -704,6 +704,7 @@ const S = {
   currentStream: null,
   allStreams: [],
   clustersSnapshot: null,
+  lastSnapshot: null,
 };
 
 // ── API ──────────────────────────────────────────────────────
@@ -723,7 +724,6 @@ function nav(view) {
   if (ni) ni.classList.add('active');
 
   if (view === 'overview')     loadOverview();
-  if (view === 'clusters')     { if (S.clustersSnapshot) updateClusters(S.clustersSnapshot); }
   if (view === 'server-info')  loadServerInfo();
   if (view === 'streams')      loadStreams();
   if (view === 'global')       { /* user clicks Load */ }
@@ -788,44 +788,79 @@ async function initVersion() {
   } catch(_) {}
 }
 
-// ── OVERVIEW ─────────────────────────────────────────────────
-async function loadOverview() {
-  try {
-    const [health, stores] = await Promise.all([
-      api('/v1/health'),
-      api('/v1/stores'),
-    ]);
-    document.getElementById('ov-status-text').textContent = health.status;
-    const instances = stores.instances || [];
-    document.getElementById('ov-stores-count').textContent = instances.length;
-    document.getElementById('ov-node').textContent = (health.node||'').replace(/^.*@/, '');
+// ── DASHBOARD (live) ─────────────────────────────────────────
+// The dashboard is driven entirely by the SSE `status` snapshot, which
+// carries the gateway node, catalogue size, per-store cluster state
+// (leader/quorum folded in server-side) and the cluster list. nav() just
+// repaints from the last snapshot; the live wire is renderDashboard().
+function loadOverview() {
+  if (S.lastSnapshot) renderDashboard(S.lastSnapshot);
+}
 
-    // Cluster-mode stores get a leader/quorum probe; single-mode stores
-    // never touch the BEAM (the endpoint short-circuits them).
-    const clusterIds = [...new Set(instances.filter(s => s.mode === 'cluster').map(s => s.store_id))];
-    const pairs = await Promise.all(clusterIds.map(async id => {
-      try { return [id, await api(`/v1/stores/${id}/cluster`)]; }
-      catch(_) { return [id, null]; }
-    }));
-    const chealth = Object.fromEntries(pairs);
+// Derive a live gateway status from the store snapshot: any cluster-mode
+// store without quorum (or unavailable) degrades the whole gateway.
+function deriveGatewayStatus(stores) {
+  if (!stores.length) return 'no stores';
+  const bad = stores.some(s => s.mode === 'cluster' && s.cluster &&
+    (s.cluster.has_quorum === false || s.cluster.status === 'unavailable'));
+  return bad ? 'degraded' : 'healthy';
+}
 
-    const rows = instances.map(s => {
-      const ch = chealth[s.store_id];
-      return `
+function renderDashboard(snap) {
+  const stores = snap.stores || [];
+
+  // Stat cards.
+  const status = deriveGatewayStatus(stores);
+  const st = document.getElementById('ov-status-text');
+  st.textContent = status;
+  st.style.color = status === 'healthy' ? 'var(--green)'
+                 : status === 'degraded' ? 'var(--red)'
+                 : 'var(--text)';
+  document.getElementById('ov-stores-count').textContent =
+    snap.catalogue_size ?? stores.length;
+  const quorate = stores.filter(s => s.mode !== 'cluster'
+    || (s.cluster && s.cluster.has_quorum)).length;
+  document.getElementById('ov-quorate').textContent = `${quorate}/${stores.length}`;
+  document.getElementById('ov-node').textContent =
+    (snap.node || '').replace(/^.*@/, '') || '—';
+
+  // Store replicas table — the per-store `.cluster` object is a drop-in
+  // for the old on-demand /cluster probe result.
+  const rows = stores.map(s => `
       <tr class="clickable" onclick="selectStoreAndNav('${s.store_id}','streams')">
-        <td class="mono">${s.store_id}</td>
-        <td><span class="badge badge-blue">${s.mode}</span></td>
-        <td>${replicasCell(s, ch)}</td>
-        <td>${quorumBadge(s, ch)}</td>
-        <td class="mono muted truncate">${s.data_dir||'—'}</td>
-      </tr>`;
-    }).join('');
-    document.getElementById('ov-stores-table').innerHTML = rows
-      ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
-      : '<div class="empty">No stores registered</div>';
-  } catch(e) {
-    document.getElementById('ov-stores-table').innerHTML = `<div class="error-msg">${e.message}</div>`;
-  }
+        <td class="mono">${esc(s.store_id)}</td>
+        <td><span class="badge badge-blue">${esc(s.mode)}</span></td>
+        <td>${replicasCell(s, s.cluster)}</td>
+        <td>${quorumBadge(s, s.cluster)}</td>
+        <td class="mono muted truncate">${esc(s.data_dir||'—')}</td>
+      </tr>`).join('');
+  document.getElementById('ov-stores-table').innerHTML = rows
+    ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
+    : '<div class="empty">No stores registered</div>';
+
+  // Clusters panel (merged in from the old standalone view).
+  updateClusters(snap);
+  markFresh(snap.timestamp_ms);
+}
+
+// Live-freshness footer + pill state. Shows how long since the last SSE
+// tick and greys the pills if the stream stalls.
+let _freshTimer = null;
+function markFresh(tsMs) {
+  S.lastFreshMs = tsMs || Date.now();
+  if (!_freshTimer) _freshTimer = setInterval(tickFreshness, 1000);
+  tickFreshness();
+}
+function tickFreshness() {
+  if (!S.lastFreshMs) return;
+  const age = Math.max(0, Math.round((Date.now() - S.lastFreshMs) / 1000));
+  const el = document.getElementById('dash-freshness');
+  if (el) el.textContent = age <= 1 ? '· updated just now' : `· updated ${age}s ago`;
+  const stale = age > 25;
+  ['stores-live-pill','clusters-live-pill'].forEach(id => {
+    const p = document.getElementById(id);
+    if (p) { p.classList.toggle('stale', stale); p.textContent = stale ? 'stale' : 'live'; }
+  });
 }
 
 // Node host (drop the parksim_<tenant>@ prefix — the tenant is already
@@ -1525,25 +1560,25 @@ function initSSE() {
 
   _sse.addEventListener('status', e => {
     const data = JSON.parse(e.data);
+    S.lastSnapshot = data;
     S.clustersSnapshot = data;
     const active = document.querySelector('.view.active');
-    if (active && active.id === 'view-clusters') updateClusters(data);
+    if (active && active.id === 'view-overview') renderDashboard(data);
   });
 
+  // store_announced/retired only drive the toast + store-selector; the
+  // dashboard itself repaints from the `status` snapshot that the server
+  // pushes right after every catalogue change.
   _sse.addEventListener('store_announced', e => {
     const data = JSON.parse(e.data);
     showToast(`Store announced: ${data.store_id}`, 'green');
     initStores();
-    const active = document.querySelector('.view.active');
-    if (active && active.id === 'view-overview') loadOverview();
   });
 
   _sse.addEventListener('store_retired', e => {
     const data = JSON.parse(e.data);
     showToast(`Store retired: ${data.store_id}`, 'red');
     initStores();
-    const active = document.querySelector('.view.active');
-    if (active && active.id === 'view-overview') loadOverview();
   });
 }
 
