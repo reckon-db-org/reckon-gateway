@@ -123,6 +123,7 @@ schedule_status(State) ->
 status_to_json(#{catalogue_size := Size, clusters := Clusters}) ->
     #{
         <<"node">>           => atom_to_binary(node(), utf8),
+        <<"versions">>       => reckon_gateway_http_health:server_versions(),
         <<"catalogue_size">> => Size,
         <<"clusters">>       => [cluster_to_json(C) || C <- Clusters],
         <<"stores">>         => reckon_gateway_http_health:live_stores(),

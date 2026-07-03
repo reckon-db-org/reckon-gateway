@@ -290,10 +290,6 @@
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/></svg>
         Dashboard
       </div>
-      <div class="nav-item" data-view="server-info" onclick="nav('server-info')">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h11A1.5 1.5 0 0 1 15 2.5v2.764c0 .695-.301 1.32-.778 1.752A.5.5 0 0 1 14 7.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-7a.5.5 0 0 1-.222-.484A2.49 2.49 0 0 1 1 5.264V2.5zM10 7H6v7h4V7zm1 7h1.5a.5.5 0 0 0 .5-.5v-7h-2v7zm-8-.5a.5.5 0 0 0 .5.5H5V7H3v6.5zM14 6H2a1.5 1.5 0 1 0 0-3h12a1.5 1.5 0 1 0 0 3z"/></svg>
-        Server Info
-      </div>
     </div>
 
     <div class="nav-section">
@@ -408,24 +404,6 @@
       <div class="card" style="margin-bottom:1rem">
         <div class="card-title">Clusters <span class="live-pill" id="clusters-live-pill">live</span></div>
         <div class="tbl-wrap" id="clusters-table"><div class="empty">connecting…</div></div>
-      </div>
-    </div>
-
-    <!-- ── VIEW: SERVER INFO ──────────────────────────────── -->
-    <div id="view-server-info" class="view">
-      <div class="page-header">
-        <h1>Server Info</h1>
-        <p>Version and configuration for the selected store</p>
-      </div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">Versions</div>
-          <div class="kv" id="si-versions"><div class="empty">select a store</div></div>
-        </div>
-        <div class="card">
-          <div class="card-title">Integrity</div>
-          <div class="kv" id="si-integrity"><div class="empty">select a store</div></div>
-        </div>
       </div>
     </div>
 
@@ -768,7 +746,6 @@ function nav(view) {
   if (ni) ni.classList.add('active');
 
   if (view === 'overview')     loadOverview();
-  if (view === 'server-info')  loadServerInfo();
   if (view === 'streams')      loadStreams();
   if (view === 'global')       { /* user clicks Load */ }
   if (view === 'by-type')      { /* user types + searches */ }
@@ -823,13 +800,12 @@ async function pollHealth() {
   }
 }
 
-async function initVersion() {
-  if (!S.currentStore) return;
-  try {
-    const d = await api(`/v1/server-info/${S.currentStore}`);
-    document.getElementById('header-version').textContent =
-      `gw ${d.reckon_gateway_version} · db ${d.reckon_db_version}`;
-  } catch(_) {}
+// Gateway-global versions live in the header, fed from the SSE status
+// snapshot (they don't vary per store).
+function renderHeaderVersions(v) {
+  if (!v) return;
+  document.getElementById('header-version').textContent =
+    `gw ${v.gateway} · db ${v.reckon_db} · ${v.api_compatibility}`;
 }
 
 // ── DASHBOARD (live) ─────────────────────────────────────────
@@ -853,6 +829,7 @@ function deriveGatewayStatus(stores) {
 
 function renderDashboard(snap) {
   const stores = snap.stores || [];
+  renderHeaderVersions(snap.versions);
 
   // Stat cards.
   const status = deriveGatewayStatus(stores);
@@ -877,10 +854,11 @@ function renderDashboard(snap) {
         <td><span class="badge badge-blue">${esc(s.mode)}</span></td>
         <td>${replicasCell(s, s.cluster)}</td>
         <td>${quorumBadge(s, s.cluster)}</td>
+        <td>${integrityBadge(s.integrity)}</td>
         <td class="mono muted truncate">${esc(s.data_dir||'—')}</td>
       </tr>`).join('');
   document.getElementById('ov-stores-table').innerHTML = rows
-    ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
+    ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Integrity</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
     : '<div class="empty">No stores registered</div>';
 
   // Clusters panel (merged in from the old standalone view).
@@ -998,40 +976,20 @@ function quorumBadge(inst, ch) {
   return `<span class="badge ${cls}">● ${count} · ${esc(ch.status||'')}</span>`;
 }
 
+// Per-store event-integrity badge (HMAC on + key id, or off). Absorbs
+// what the old Server Info page showed, but where it belongs — with the
+// store. `integrity` is folded into the live snapshot server-side.
+function integrityBadge(integ) {
+  if (!integ) return '<span class="badge badge-gray">—</span>';
+  if (!integ.enabled) return '<span class="badge badge-gray">off</span>';
+  const key = integ.key_id ? ` · key ${esc(String(integ.key_id))}` : '';
+  return `<span class="badge badge-green" title="${esc(integ.algo||'')}">🔒 on${key}</span>`;
+}
+
 function selectStoreAndNav(storeId, view) {
   S.currentStore = storeId;
   document.getElementById('store-selector').value = storeId;
   nav(view);
-}
-
-// ── SERVER INFO ───────────────────────────────────────────────
-async function loadServerInfo() {
-  if (!S.currentStore) {
-    ['si-versions','si-integrity'].forEach(id =>
-      document.getElementById(id).innerHTML = '<div class="empty">select a store first</div>');
-    return;
-  }
-  try {
-    const d = await api(`/v1/server-info/${S.currentStore}`);
-    document.getElementById('si-versions').innerHTML = kv([
-      ['API',             d.api_compatibility_version],
-      ['Gateway',         d.reckon_gateway_version],
-      ['ReckonDB',        d.reckon_db_version],
-    ]);
-    document.getElementById('si-integrity').innerHTML = kv([
-      ['Enabled',  d.integrity_enabled ? '✓ yes' : 'no'],
-      ['Algorithm', d.integrity_algo || '—'],
-      ['Key ID',    d.hmac_key_id || '—'],
-    ]);
-  } catch(e) {
-    document.getElementById('si-versions').innerHTML = `<div class="error-msg">${e.message}</div>`;
-  }
-}
-
-function kv(pairs) {
-  return '<div class="kv">' + pairs.map(([k,v]) =>
-    `<div class="kv-row"><span class="kv-key">${k}</span><span class="kv-val">${esc(String(v))}</span></div>`
-  ).join('') + '</div>';
 }
 
 // ── STREAMS ───────────────────────────────────────────────────
@@ -1727,9 +1685,9 @@ function showToast(msg, color) {
 // ── BOOT ─────────────────────────────────────────────────────
 (async () => {
   await initStores();
-  await Promise.all([pollHealth(), initVersion()]);
+  await pollHealth();
   loadOverview();
-  initSSE();
+  initSSE();          // header versions + dashboard arrive on the first status frame
   setInterval(pollHealth, 30_000);
 })();
 </script>

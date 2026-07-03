@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.22.0 (2026-07-03)
+
+**Fold Server Info into the header and the store table; drop the page.**
+
+The Server Info page conflated two different things: gateway-global versions
+(which ignore `store_id`) and a genuinely per-store security property. Split
+them to where each belongs and remove the standalone page.
+
+### Added
+
+- `reckon_gateway_http_health:server_versions/0` — gateway / reckon_db / API
+  compatibility versions, now included in the SSE `status` snapshot so the admin
+  header shows them live with no store dependency.
+- Per-store `integrity` (HMAC enabled + algorithm + key id) is folded into the
+  live per-store snapshot (`live_stores/0`).
+
+### Changed
+
+- Admin UI: removed the "Server Info" nav page. Versions render in the header
+  (`gw X · db Y · reckon.gateway.v1`); per-store integrity is a new **Integrity**
+  column (🔒 on · key N / off) in the dashboard's Store Replicas table.
+
+### Notes
+
+- `GET /v1/server-info/:store_id` is unchanged and still available for
+  programmatic use.
+
 ## 0.21.0 (2026-07-03)
 
 **Live throughput/latency metrics on the dashboard.**

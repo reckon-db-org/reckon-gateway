@@ -11,7 +11,18 @@
 
 -behaviour(cowboy_handler).
 
--export([init/2, live_stores/0]).
+-export([init/2, live_stores/0, server_versions/0]).
+
+%% @doc Gateway-global versions (gateway / reckon_db / API compat). These
+%% are the gateway's own bundled versions and do not vary per store, so
+%% the dashboard surfaces them in the header via the SSE status snapshot.
+-spec server_versions() -> map().
+server_versions() ->
+    #{
+        <<"gateway">>            => app_vsn(reckon_gateway),
+        <<"reckon_db">>          => app_vsn(reckon_db),
+        <<"api_compatibility">>  => <<"reckon.gateway.v1">>
+    }.
 
 %% @doc Enriched per-store snapshot for the live dashboard SSE stream.
 %%
@@ -27,7 +38,17 @@ live_stores() ->
 store_with_cluster(#{store_id := StoreId} = E) ->
     Base    = entry_to_json(E),
     Cluster = cluster_json(reckon_gateway_catalogue:store_mode(StoreId), StoreId),
-    Base#{<<"cluster">> => Cluster}.
+    Base#{<<"cluster">>   => Cluster,
+          <<"integrity">> => integrity_json(StoreId)}.
+
+%% Per-store event-integrity advertisement (HMAC on/off + key id), folded
+%% into the live snapshot so the dashboard can badge each store.
+integrity_json(StoreId) ->
+    Enabled = integrity_enabled(StoreId),
+    {Algo, KeyId} = integrity_advert(Enabled),
+    #{<<"enabled">> => Enabled,
+      <<"algo">>    => Algo,
+      <<"key_id">>  => KeyId}.
 
 init(Req0, #{op := Op} = State) ->
     Req = handle(cowboy_req:method(Req0), Op, Req0),
