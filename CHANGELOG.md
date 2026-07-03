@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.19.2 (2026-07-03)
+
+**Fix the Docker image build (broken since 0.18.0).**
+
+### Fixed
+
+- The Dockerfile copied `config/ priv/ src/` but not `include/`, so from
+  0.18.0 onward (when `include/reckon_gateway_telemetry.hrl` was added) every
+  CI image build failed at `rebar3 as prod release` with
+  `undefined macro 'GW_DISPATCH_START'` / `'GW_STORE_ANNOUNCED'` — the
+  telemetry macros live in that header. `:latest` on ghcr was stuck at 0.17.1
+  and 0.18.0–0.19.1 never produced an image. Added `COPY include/ include/`.
+  (Local `rebar3 compile`/`release` never caught it — the header is present
+  on the working tree; only the Docker build context omitted it.)
+
 ## 0.19.1 (2026-07-03)
 
 **Admin UI affordance polish.**
