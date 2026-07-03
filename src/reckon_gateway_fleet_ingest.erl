@@ -31,6 +31,14 @@
 -define(POLL_MS, 5_000).
 -define(WINDOW, 60).   %% samples kept for the fleet sparkline
 
+%% Disabled until reckon_db exposes an O(1) global event counter. The
+%% only fleet-wide count available today (store_stats / read_all_global)
+%% is a full khepri scan AND currently returns 0 in cluster mode, so we
+%% neither poll it (wasteful load on the store BEAMs) nor show its number
+%% (misleading). Flip on when the counter API lands and point read_count
+%% at it.
+-define(POLL_ENABLED, false).
+
 -record(state, {
     %% store_id => {count_at_last_sample, ts_ms}
     prev   = #{} :: #{atom() => {non_neg_integer(), integer()}},
@@ -70,8 +78,11 @@ snapshot_json() ->
 %%====================================================================
 
 init([]) ->
-    erlang:send_after(?POLL_MS, self(), poll),
+    maybe_schedule_poll(?POLL_ENABLED),
     {ok, #state{}}.
+
+maybe_schedule_poll(true)  -> erlang:send_after(?POLL_MS, self(), poll);
+maybe_schedule_poll(false) -> ok.
 
 handle_call(snapshot_json, _From, State) ->
     {reply, build_snapshot(State), State};
@@ -163,6 +174,7 @@ build_snapshot(#state{counts = Counts, rates = Rates, series = Series}) ->
                   <<"per_s">>     => maps:get(Id, Rates, 0.0)}
                 || {Id, Count} <- lists:sort(maps:to_list(Counts))],
     #{
+        <<"available">>    => ?POLL_ENABLED,
         <<"total_events">> => lists:sum(maps:values(Counts)),
         <<"events_per_s">> => round1(lists:sum(maps:values(Rates))),
         <<"per_store">>    => PerStore,

@@ -927,6 +927,22 @@ function renderMetrics(m) {
 // total_events and diffing (see reckon_gateway_fleet_ingest).
 function renderFleet(f) {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  // Disabled until reckon_db exposes an O(1) event counter — show an
+  // honest placeholder rather than a misleading 0 (see fleet_ingest).
+  if (f && f.available === false) {
+    set('f-events-ps', 'n/a');
+    set('f-total',     'n/a');
+    const sf = document.getElementById('spark-fleet');
+    if (sf) sf.innerHTML = '';
+    const el = document.getElementById('f-per-store');
+    if (el) el.innerHTML = '<div class="empty">pending a reckon_db event counter — '
+      + 'a fleet-wide ingest rate needs an O(1) count the store maintains on append</div>';
+    const pill = document.getElementById('fleet-live-pill');
+    if (pill) { pill.classList.add('stale'); pill.textContent = 'pending'; }
+    return;
+  }
+
   set('f-events-ps', fmtNum(f.events_per_s));
   set('f-total',     fmtInt(f.total_events));
 
@@ -992,7 +1008,7 @@ function tickFreshness() {
   const el = document.getElementById('dash-freshness');
   if (el) el.textContent = age <= 1 ? '· updated just now' : `· updated ${age}s ago`;
   const stale = age > 25;
-  ['stores-live-pill','clusters-live-pill','metrics-live-pill','fleet-live-pill'].forEach(id => {
+  ['stores-live-pill','clusters-live-pill','metrics-live-pill'].forEach(id => {
     const p = document.getElementById(id);
     if (p) { p.classList.toggle('stale', stale); p.textContent = stale ? 'stale' : 'live'; }
   });
@@ -1032,7 +1048,19 @@ function quorumBadge(inst, ch) {
   const count = ch.has_quorum
     ? `${ch.available_nodes ?? '?'}/${ch.total_nodes ?? '?'}`
     : 'no quorum';
-  return `<span class="badge ${cls}">● ${count} · ${esc(ch.status||'')}</span>`;
+  return `<span class="badge ${cls}">● ${count} · ${esc(ch.status||'')}</span>${orphanFlag(inst, ch)}`;
+}
+
+// A store that announced more replicas to the catalogue than its Ra
+// cluster actually has as members has an orphaned replica — running and
+// federated, but outside quorum (the convergence/split-brain case).
+// "3 replicas + 2/2 healthy" reads as fine without this, so flag it.
+function orphanFlag(inst, ch) {
+  const declared = (inst.nodes && inst.nodes.length) || 1;
+  const total = ch.total_nodes;
+  if (!total || declared <= total) return '';
+  const n = declared - total;
+  return ` <span class="badge badge-yellow" title="${declared} replicas announced to the catalogue but only ${total} in the Ra cluster — run converge-parksim.sh or redeploy">⚠ ${n} orphan${n>1?'s':''}</span>`;
 }
 
 // Per-store event-integrity badge (HMAC on + key id, or off). Absorbs

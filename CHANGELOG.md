@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.24.0 (2026-07-04)
+
+**Honest fleet-ingest placeholder + orphaned-replica flag.**
+
+The 0.23.0 fleet card derived its number from `store_stats`, which does a full
+khepri scan *and* returns 0 in cluster mode — so the card showed a misleading 0
+while adding wasteful poll load on the store BEAMs. Disable it until reckon_db
+exposes an O(1) event counter (the correct, cheap source).
+
+### Changed
+
+- `reckon_gateway_fleet_ingest`: polling is gated off (`POLL_ENABLED = false`)
+  until the reckon_db event-counter API lands; the snapshot now carries
+  `available: false`. No more `store_stats` polling on the store BEAMs.
+- Admin dashboard: the Fleet Event Ingest card shows an honest "pending a
+  reckon_db event counter" placeholder (pill reads "pending") instead of 0s.
+- Store Replicas table: a store that announced more replicas to the catalogue
+  than its Ra cluster actually has as members is flagged "⚠ N orphan" — the
+  convergence/split-brain case that otherwise reads as "3 replicas + 2/2
+  healthy" and looks fine when it isn't.
+
 ## 0.23.0 (2026-07-03)
 
 **Fleet event-ingest rate on the dashboard.**
