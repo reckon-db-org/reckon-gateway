@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.21.0 (2026-07-03)
+
+**Live throughput/latency metrics on the dashboard.**
+
+### Added
+
+- `reckon_gateway_metrics` — an always-on accumulator that attaches a
+  telemetry handler to the dispatch + catalogue events and keeps cumulative
+  counters (calls, errors, per-op and per-error-reason breakdowns) plus a ring
+  of the last 60 one-second buckets for per-second rates and sparklines. The
+  inline handler only does atomic `ets:update_counter` bumps; a 1s gen_server
+  timer rolls the buckets. Started under the top supervisor.
+- `GET /v1/admin/metrics` — on-demand JSON snapshot (calls/errors totals and
+  per-second rates, average latency in ms, error rate, per-op and per-reason
+  breakdowns, 60-point call/error sparkline series).
+- The `/v1/admin/events` SSE stream now also emits a `metrics` event every 2s
+  (cheap ETS read, independent of the 10s topology `status` tick) so the
+  dashboard's throughput numbers and sparklines update live.
+
+### Changed
+
+- Admin dashboard gained a **Dispatch Throughput** card: dispatch/s and
+  errors/s (with inline SVG sparklines), average latency, error rate, cumulative
+  totals and a busiest-ops breakdown — all live from the `metrics` SSE event.
+
 ## 0.20.0 (2026-07-03)
 
 **Live technical dashboard — merge Overview + Clusters into one SSE-driven page.**

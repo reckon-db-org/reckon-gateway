@@ -63,6 +63,9 @@ child_spec() ->
             %% Admin SSE stream (live cluster/store events)
             {"/v1/admin/events",
              reckon_gateway_http_sse, #{}},
+
+            {"/v1/admin/metrics",
+             reckon_gateway_http_health, #{op => metrics}},
             %% DCB
             {"/v1/stores/:store_id/dcb/context",
              reckon_gateway_http_dcb, #{op => context}},

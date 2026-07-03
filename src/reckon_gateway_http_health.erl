@@ -59,6 +59,10 @@ handle(<<"GET">>, cluster, Req) ->
 handle(<<"GET">>, server_info, Req) ->
     with_store(Req, fun handle_server_info/2);
 
+%% GET /v1/admin/metrics — live throughput/latency snapshot
+handle(<<"GET">>, metrics, Req) ->
+    reckon_gateway_http:reply_json(200, reckon_gateway_metrics:snapshot_json(), Req);
+
 %% GET /v1/stores
 handle(<<"GET">>, list_stores, Req) ->
     Entries = reckon_gateway_catalogue:list_entries(),

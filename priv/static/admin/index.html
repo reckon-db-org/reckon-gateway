@@ -129,6 +129,19 @@
       margin-left: 0.4rem; vertical-align: middle; }
     .live-pill::before { content: "●"; margin-right: 0.25rem; animation: pulse 2s infinite; }
     .live-pill.stale { color: var(--text-muted); background: rgba(139,148,158,0.12); }
+    .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    @media (max-width: 900px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+    .metric-tile { display: flex; flex-direction: column; gap: 0.15rem; }
+    .metric-val { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1; }
+    .metric-lbl { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .spark-wrap { display: block; height: 22px; margin-top: 0.35rem; }
+    .spark-wrap svg { display: block; width: 100%; height: 22px; }
+    .metrics-foot { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--border);
+      font-size: 0.78rem; color: var(--text-dim); }
+    .byop { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; margin-left: 0.5rem; }
+    .byop .chip { font-size: 0.68rem; background: rgba(139,148,158,0.12); color: var(--text-dim);
+      border-radius: 3px; padding: 0.08rem 0.35rem; font-family: ui-monospace, monospace; }
 
     .card {
       background: var(--card); border: 1px solid var(--border);
@@ -357,6 +370,36 @@
         <div class="card"><div class="stat-big" id="ov-stores-count">—</div><div class="stat-label">Registered Stores</div></div>
         <div class="card"><div class="stat-big" id="ov-quorate">—</div><div class="stat-label">Quorate Stores</div></div>
         <div class="card"><div class="stat-big" id="ov-node">—</div><div class="stat-label">BEAM Node</div></div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Dispatch Throughput <span class="live-pill" id="metrics-live-pill">live</span></div>
+        <div class="metrics-grid">
+          <div class="metric-tile">
+            <div class="metric-val" id="m-calls-ps">—</div>
+            <div class="metric-lbl">dispatch / s</div>
+            <span class="spark-wrap" id="spark-calls"></span>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-val" id="m-errors-ps">—</div>
+            <div class="metric-lbl">errors / s</div>
+            <span class="spark-wrap" id="spark-errors"></span>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-val" id="m-latency">—</div>
+            <div class="metric-lbl">avg latency (ms)</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-val" id="m-errrate">—</div>
+            <div class="metric-lbl">error rate</div>
+          </div>
+        </div>
+        <div class="metrics-foot">
+          <span class="muted">totals:</span>
+          <span class="mono" id="m-calls-total">0</span> calls ·
+          <span class="mono" id="m-errors-total">0</span> errors ·
+          <span class="mono" id="m-store-events">0</span> store events
+          <span class="byop" id="m-byop"></span>
+        </div>
       </div>
       <div class="card" style="margin-bottom:1rem">
         <div class="card-title">Store Replicas <span class="live-pill" id="stores-live-pill">live</span></div>
@@ -705,6 +748,7 @@ const S = {
   allStreams: [],
   clustersSnapshot: null,
   lastSnapshot: null,
+  lastMetrics: null,
 };
 
 // ── API ──────────────────────────────────────────────────────
@@ -795,6 +839,7 @@ async function initVersion() {
 // repaints from the last snapshot; the live wire is renderDashboard().
 function loadOverview() {
   if (S.lastSnapshot) renderDashboard(S.lastSnapshot);
+  if (S.lastMetrics)  renderMetrics(S.lastMetrics);
 }
 
 // Derive a live gateway status from the store snapshot: any cluster-mode
@@ -843,6 +888,59 @@ function renderDashboard(snap) {
   markFresh(snap.timestamp_ms);
 }
 
+// ── THROUGHPUT METRICS (live via the `metrics` SSE event) ────
+function renderMetrics(m) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('m-calls-ps',   fmtNum(m.calls_per_s));
+  set('m-errors-ps',  fmtNum(m.errors_per_s));
+  set('m-latency',    fmtNum(m.avg_latency_ms));
+  set('m-errrate',    `${fmtNum(m.error_rate_pct)}%`);
+  set('m-calls-total',  m.calls_total ?? 0);
+  set('m-errors-total', m.errors_total ?? 0);
+  set('m-store-events', (m.store_announced ?? 0) + (m.store_retired ?? 0));
+
+  // Colour the error figures when anything is failing.
+  const errCol = (m.errors_total > 0) ? 'var(--red)' : 'var(--text)';
+  ['m-errors-ps','m-errrate'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.color = errCol;
+  });
+
+  const sc = document.getElementById('spark-calls');
+  if (sc) sc.innerHTML = sparkline(m.calls_series || [], 'var(--lime)');
+  const se = document.getElementById('spark-errors');
+  if (se) se.innerHTML = sparkline(m.errors_series || [], 'var(--red)');
+
+  // Per-op breakdown chips (busiest first).
+  const chips = (m.by_op || []).map(o =>
+    `<span class="chip">${esc(o.op)} ${o.count}</span>`).join('');
+  const byop = document.getElementById('m-byop');
+  if (byop) byop.innerHTML = chips;
+}
+
+// Inline-SVG sparkline over a numeric series; scales to its container
+// width, so no fixed pixel assumptions.
+function sparkline(series, color) {
+  const w = 100, h = 22, n = series.length;
+  if (!n) return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"></svg>`;
+  const max = Math.max(1, ...series);
+  const step = n > 1 ? w / (n - 1) : 0;
+  const pts = series.map((v, i) =>
+    `${(i*step).toFixed(1)},${(h - (v/max)*(h-3) - 1.5).toFixed(1)}`).join(' ');
+  const last = series[n-1], lx = (n-1)*step,
+        ly = h - (last/max)*(h-3) - 1.5;
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline fill="none" stroke="${color}" stroke-width="1.5"
+      stroke-linejoin="round" points="${pts}"/>
+    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="1.6" fill="${color}"/>
+  </svg>`;
+}
+
+function fmtNum(v) {
+  const n = Number(v);
+  if (!isFinite(n)) return '—';
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
 // Live-freshness footer + pill state. Shows how long since the last SSE
 // tick and greys the pills if the stream stalls.
 let _freshTimer = null;
@@ -857,7 +955,7 @@ function tickFreshness() {
   const el = document.getElementById('dash-freshness');
   if (el) el.textContent = age <= 1 ? '· updated just now' : `· updated ${age}s ago`;
   const stale = age > 25;
-  ['stores-live-pill','clusters-live-pill'].forEach(id => {
+  ['stores-live-pill','clusters-live-pill','metrics-live-pill'].forEach(id => {
     const p = document.getElementById(id);
     if (p) { p.classList.toggle('stale', stale); p.textContent = stale ? 'stale' : 'live'; }
   });
@@ -1564,6 +1662,13 @@ function initSSE() {
     S.clustersSnapshot = data;
     const active = document.querySelector('.view.active');
     if (active && active.id === 'view-overview') renderDashboard(data);
+  });
+
+  _sse.addEventListener('metrics', e => {
+    const data = JSON.parse(e.data);
+    S.lastMetrics = data;
+    const active = document.querySelector('.view.active');
+    if (active && active.id === 'view-overview') renderMetrics(data);
   });
 
   // store_announced/retired only drive the toast + store-selector; the

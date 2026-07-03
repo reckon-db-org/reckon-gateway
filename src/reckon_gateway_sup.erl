@@ -69,6 +69,9 @@ init([]) ->
     Children = [
         %% Catalogue first — every connector publishes into it.
         reckon_gateway_catalogue:child_spec(),
+        %% Live throughput/latency accumulator (attaches its own
+        %% telemetry handler); up before the HTTP/SSE listener reads it.
+        reckon_gateway_metrics:child_spec(),
         %% HTTP/JSON API listener (separate port from gRPC).
         reckon_gateway_http_listener:child_spec(),
         #{id       => clusters_sup,

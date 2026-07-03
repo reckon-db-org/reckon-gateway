@@ -15,6 +15,10 @@
 %%%   event: store_retired
 %%%   data: {"store_id":"...","cluster_id":"..."}
 %%%
+%%%   event: metrics
+%%%   data: {"calls_total":N,"calls_per_s":F,"errors_per_s":F,
+%%%          "avg_latency_ms":F,"by_op":[...],"calls_series":[...],...}
+%%%
 %%% On connect:    subscribe to reckon_gateway_catalogue, push initial status.
 %%% Every 10s:     push a fresh status snapshot (catches cluster health drift).
 %%% On catalogue event: push the named event then a fresh status snapshot.
@@ -27,6 +31,7 @@
 
 -define(KEEPALIVE_MS, 10_000).
 -define(STATUS_DEBOUNCE_MS, 250).
+-define(METRICS_MS, 2_000).
 
 %%====================================================================
 %% cowboy_loop callbacks
@@ -41,7 +46,9 @@ init(Req0, _Opts) ->
     }, Req0),
     reckon_gateway_catalogue:subscribe(self()),
     push_status(Req),
+    push_metrics(Req),
     schedule_keepalive(),
+    schedule_metrics(),
     {cowboy_loop, Req, #{status_scheduled => false}}.
 
 info({store_event, announced, Entry}, Req, State) ->
@@ -66,6 +73,13 @@ info(keepalive, Req, State) ->
     schedule_keepalive(),
     {ok, Req, State};
 
+info(metrics, Req, State) ->
+    %% Throughput/latency ticks faster than status (cheap ETS read, no
+    %% cluster probes) so the dashboard numbers/sparklines feel live.
+    push_metrics(Req),
+    schedule_metrics(),
+    {ok, Req, State};
+
 info(_Msg, Req, State) ->
     {ok, Req, State}.
 
@@ -81,6 +95,9 @@ push_status(Req) ->
     Snapshot = reckon_gateway_catalogue:status(),
     push_event(<<"status">>, json:encode(status_to_json(Snapshot)), Req).
 
+push_metrics(Req) ->
+    push_event(<<"metrics">>, json:encode(reckon_gateway_metrics:snapshot_json()), Req).
+
 push_event(Name, JsonData, Req) ->
     cowboy_req:stream_body(
         [<<"event: ">>, Name, <<"\ndata: ">>, JsonData, <<"\n\n">>],
@@ -88,6 +105,9 @@ push_event(Name, JsonData, Req) ->
 
 schedule_keepalive() ->
     erlang:send_after(?KEEPALIVE_MS, self(), keepalive).
+
+schedule_metrics() ->
+    erlang:send_after(?METRICS_MS, self(), metrics).
 
 %% Debounce status pushes triggered by store events: at most one probe
 %% sweep per window, coalescing a burst of announces/retires into a
