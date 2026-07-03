@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.19.3 (2026-07-03)
+
+**Align the relx release version with the app version.**
+
+### Fixed
+
+- Both relx `release` versions were pinned to `0.10.0`, so the running
+  release reported `releases/0.10.0/` in its boot path regardless of the
+  actual `.app.src` version. Set both (base + `prod` profile) to `0.19.3` and
+  added a keep-in-sync note. Cosmetic only — `bin/reckon_gateway` auto-detects
+  the version, so nothing was functionally broken; the boot path now reads the
+  real version.
+
 ## 0.19.2 (2026-07-03)
 
 **Fix the Docker image build (broken since 0.18.0).**
