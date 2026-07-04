@@ -393,12 +393,30 @@
         </div>
       </div>
       <div class="card" style="margin-bottom:1rem">
-        <div class="card-title">Dispatch Throughput <span class="muted" style="font-weight:400;font-size:0.72rem">read proxy</span> <span class="live-pill" id="metrics-live-pill">live</span></div>
+        <div class="card-title">Store Replicas <span class="live-pill" id="stores-live-pill">live</span></div>
+        <div class="tbl-wrap" id="ov-stores-table"><div class="empty">connecting…</div></div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Clusters <span class="live-pill" id="clusters-live-pill">live</span></div>
+        <div class="tbl-wrap" id="clusters-table"><div class="empty">connecting…</div></div>
+      </div>
+
+      <!-- Diagnostics: the gateway's OWN read path to the stores (health
+           probes, the fleet-count poll, and any client reads it proxies).
+           Not fleet workload — its value is the error rate + latency, which
+           surface a store that's slow or unreachable. Demoted accordingly. -->
+      <div class="card" style="margin-bottom:1rem; opacity:0.92">
+        <div class="card-title" style="font-size:0.82rem">Gateway Read Path
+          <span class="muted" style="font-weight:400;font-size:0.68rem">diagnostics · gateway → store reads (health checks, fleet poll, client queries)</span>
+          <span class="live-pill" id="metrics-live-pill">live</span></div>
         <div class="metrics-grid">
           <div class="metric-tile">
-            <div class="metric-val" id="m-calls-ps">—</div>
-            <div class="metric-lbl">dispatch / s</div>
-            <span class="spark-wrap" id="spark-calls"></span>
+            <div class="metric-val" id="m-errrate">—</div>
+            <div class="metric-lbl">error rate</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-val" id="m-latency">—</div>
+            <div class="metric-lbl">avg latency (ms)</div>
           </div>
           <div class="metric-tile">
             <div class="metric-val" id="m-errors-ps">—</div>
@@ -406,29 +424,18 @@
             <span class="spark-wrap" id="spark-errors"></span>
           </div>
           <div class="metric-tile">
-            <div class="metric-val" id="m-latency">—</div>
-            <div class="metric-lbl">avg latency (ms)</div>
-          </div>
-          <div class="metric-tile">
-            <div class="metric-val" id="m-errrate">—</div>
-            <div class="metric-lbl">error rate</div>
+            <div class="metric-val" id="m-calls-ps">—</div>
+            <div class="metric-lbl">reads / s</div>
+            <span class="spark-wrap" id="spark-calls"></span>
           </div>
         </div>
         <div class="metrics-foot">
           <span class="muted">totals:</span>
-          <span class="mono" id="m-calls-total">0</span> calls ·
+          <span class="mono" id="m-calls-total">0</span> reads ·
           <span class="mono" id="m-errors-total">0</span> errors ·
           <span class="mono" id="m-store-events">0</span> store events
           <span class="byop" id="m-byop"></span>
         </div>
-      </div>
-      <div class="card" style="margin-bottom:1rem">
-        <div class="card-title">Store Replicas <span class="live-pill" id="stores-live-pill">live</span></div>
-        <div class="tbl-wrap" id="ov-stores-table"><div class="empty">connecting…</div></div>
-      </div>
-      <div class="card" style="margin-bottom:1rem">
-        <div class="card-title">Clusters <span class="live-pill" id="clusters-live-pill">live</span></div>
-        <div class="tbl-wrap" id="clusters-table"><div class="empty">connecting…</div></div>
       </div>
     </div>
 
@@ -880,10 +887,9 @@ function renderDashboard(snap) {
         <td>${replicasCell(s, s.cluster)}</td>
         <td>${quorumBadge(s, s.cluster)}</td>
         <td>${integrityBadge(s.integrity)}</td>
-        <td class="mono muted truncate">${esc(s.data_dir||'—')}</td>
       </tr>`).join('');
   document.getElementById('ov-stores-table').innerHTML = rows
-    ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Integrity</th><th>Data Dir</th></tr></thead><tbody>${rows}</tbody></table>`
+    ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Integrity</th></tr></thead><tbody>${rows}</tbody></table>`
     : '<div class="empty">No stores registered</div>';
 
   // Clusters panel (merged in from the old standalone view).

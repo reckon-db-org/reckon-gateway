@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.26.0 (2026-07-04)
+
+**Dashboard trim: drop Data Dir, demote the gateway read-path diagnostics.**
+
+### Changed
+
+- Store Replicas table: removed the **Data Dir** column — an internal container
+  filesystem path, not operationally meaningful at a glance (still available via
+  `GET /v1/stores` for tooling).
+- The old prominent "Dispatch Throughput (read proxy)" card is reframed as
+  **Gateway Read Path** and moved to the bottom of the dashboard. It measures
+  the gateway's *own* reads to the stores (health probes, the fleet-count poll,
+  proxied client queries) — not fleet workload — so its real value is the error
+  rate + latency (which surface a slow/unreachable store), now led with; the
+  throughput volume is de-emphasized. Same live `metrics` SSE source.
+
 ## 0.25.0 (2026-07-04)
 
 **Fleet Event Ingest, powered by reckon_db's O(1) event counter.**
