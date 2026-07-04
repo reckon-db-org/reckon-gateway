@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.27.0 (2026-07-04)
+
+**Report per-store integrity from the store, not local state.**
+
+### Fixed
+
+- The dashboard (and both server-info handlers) reported event integrity as
+  OFF for every catalogue-federated store, even when it was on. The gateway
+  read `reckon_db_integrity_key:is_enabled/1` from its OWN node, which in
+  catalogue mode hosts none of the stores, so it always saw `false`. Now the
+  gateway **dispatches** `integrity_status` to the store (like it does cluster
+  consistency) via `reckon_gateway_http_health:integrity_status/1`, shared by
+  the SSE dashboard snapshot, the HTTP server-info, and the gRPC GetServerInfo.
+  Degrades to disabled if the store is unreachable. The gateway no longer holds
+  the algorithm id / key id (reckon-db owns them now) and never receives key
+  bytes.
+
+### Requires
+
+- Store BEAMs on **reckon-db 5.7.0** + **reckon-gater 3.10.0** for the
+  `integrity_status` op; until then a store reads as OFF (graceful).
+
 ## 0.26.0 (2026-07-04)
 
 **Dashboard trim: drop Data Dir, demote the gateway read-path diagnostics.**

@@ -181,30 +181,19 @@ get_server_info(#{store_id := StoreIdBin}, Md) ->
     with_store_id(StoreIdBin, get_server_info, fun(StoreId) -> server_info_reply(StoreId, Md) end).
 
 server_info_reply(StoreId, Md) ->
-    IntegrityEnabled = integrity_enabled_for_store(StoreId),
-    {AlgoBin, KeyId} = integrity_advert(IntegrityEnabled),
+    %% Integrity is a per-store property living on the store's node; the
+    %% gateway is off the data path, so it dispatches for it (shared with
+    %% the HTTP handler) rather than reading its own empty local state.
+    #{enabled := Enabled, algo := AlgoBin, key_id := KeyId} =
+        reckon_gateway_http_health:integrity_status(StoreId),
     {ok, #{
         reckon_db_version => reckon_db_version(),
         reckon_gateway_version => reckon_gateway_version(),
         integrity_algo => AlgoBin,
-        integrity_enabled => IntegrityEnabled,
+        integrity_enabled => Enabled,
         hmac_key_id => KeyId,
         api_compatibility_version => ?API_COMPAT_VERSION
     }, Md}.
-
-%% @private Key ID is fixed at 1 in reckon-db 2.1.0; rotation
-%% machinery (2.2+) will introduce variable IDs.
-integrity_advert(true)  -> {?INTEGRITY_ALGO, 1};
-integrity_advert(false) -> {<<>>, 0}.
-
-%% @private Whether the addressed store has integrity enabled.
-%% Wraps the local reckon_db check; falls back to `false` on errors
-%% so a misconfigured gateway never advertises integrity that isn't
-%% actually there.
-integrity_enabled_for_store(StoreId) ->
-    try reckon_db_integrity_key:is_enabled(StoreId)
-    catch _:_ -> false
-    end.
 
 reckon_db_version() ->
     app_version(reckon_db).

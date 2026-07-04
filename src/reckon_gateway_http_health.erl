@@ -11,7 +11,21 @@
 
 -behaviour(cowboy_handler).
 
--export([init/2, live_stores/0, server_versions/0]).
+-export([init/2, live_stores/0, server_versions/0, integrity_status/1]).
+
+%% @doc Dispatched per-store event-integrity status. The gateway runs in
+%% catalogue mode off the data path, so integrity — a per-store property
+%% that lives on the store's node — must be fetched FROM the store, not read
+%% from the gateway's own (always-empty) local persistent_term. Degrades to
+%% disabled when the store can't be reached. Shared by the SSE dashboard
+%% snapshot and both server-info handlers.
+-spec integrity_status(atom()) ->
+    #{enabled := boolean(), algo := binary(), key_id := non_neg_integer()}.
+integrity_status(StoreId) ->
+    case reckon_gateway_dispatch:call(integrity_status, [StoreId]) of
+        {ok, #{enabled := _, algo := _, key_id := _} = S} -> S;
+        _ -> #{enabled => false, algo => <<>>, key_id => 0}
+    end.
 
 %% @doc Gateway-global versions (gateway / reckon_db / API compat). These
 %% are the gateway's own bundled versions and do not vary per store, so
@@ -42,10 +56,10 @@ store_with_cluster(#{store_id := StoreId} = E) ->
           <<"integrity">> => integrity_json(StoreId)}.
 
 %% Per-store event-integrity advertisement (HMAC on/off + key id), folded
-%% into the live snapshot so the dashboard can badge each store.
+%% into the live snapshot so the dashboard can badge each store. Fetched
+%% from the store (see integrity_status/1) — not the gateway's local state.
 integrity_json(StoreId) ->
-    Enabled = integrity_enabled(StoreId),
-    {Algo, KeyId} = integrity_advert(Enabled),
+    #{enabled := Enabled, algo := Algo, key_id := KeyId} = integrity_status(StoreId),
     #{<<"enabled">> => Enabled,
       <<"algo">>    => Algo,
       <<"key_id">>  => KeyId}.
@@ -180,19 +194,15 @@ node_json(Node) when is_atom(Node) -> atom_to_binary(Node, utf8);
 node_json(Other)                   -> iolist_to_binary(io_lib:format("~p", [Other])).
 
 handle_server_info(StoreId, R) ->
-    IntegrityEnabled = integrity_enabled(StoreId),
-    {Algo, KeyId} = integrity_advert(IntegrityEnabled),
+    #{enabled := Enabled, algo := Algo, key_id := KeyId} = integrity_status(StoreId),
     reckon_gateway_http:reply_json(200, #{
         <<"reckon_db_version">>         => app_vsn(reckon_db),
         <<"reckon_gateway_version">>    => app_vsn(reckon_gateway),
         <<"api_compatibility_version">> => <<"reckon.gateway.v1">>,
         <<"integrity_algo">>            => Algo,
-        <<"integrity_enabled">>         => IntegrityEnabled,
+        <<"integrity_enabled">>         => Enabled,
         <<"hmac_key_id">>               => KeyId
     }, R).
-
-integrity_advert(true)  -> {<<"sha256-deterministic-etf-v1">>, 1};
-integrity_advert(false) -> {<<>>, 0}.
 
 entry_to_json(#{store_id := StoreId,
                 node := Node,
@@ -214,11 +224,6 @@ entry_to_json(#{store_id := StoreId,
         <<"timeout_ms">>      => Timeout,
         <<"registered_at_us">> => RegisteredMs * 1000
     }.
-
-integrity_enabled(StoreId) ->
-    try reckon_db_integrity_key:is_enabled(StoreId)
-    catch _:_ -> false
-    end.
 
 app_vsn(App) ->
     case application:get_key(App, vsn) of
