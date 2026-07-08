@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.30.0 (2026-07-08)
+
+**Decentralization Scorecard — the reframed dashboard hero.**
+
+A decentralized event store has no central cluster, so throughput is the wrong
+yardstick. The admin overview now leads with a scorecard scoring what actually
+matters, built purely from the existing SSE `status` snapshot (no new endpoint,
+no reckon-db bump):
+
+### Added
+
+- **Decentralization Scorecard** card (`renderScorecard`) with four tiles, each
+  carrying a "vs central" structural contrast:
+  - **sovereign stores** — count of independent Raft clusters (`stores[].mode`).
+  - **quorate / fault tolerance** — quorate store count + the fleet's weakest
+    `can_lose` (survives losing any N nodes per store), from `stores[].cluster`.
+  - **edge footprint** — total event data on disk across nodes + mean node CPU,
+    from `nodes[]` — proves the fleet runs on mini-PCs, not a datacenter.
+  - **facts-only egress** — the sovereignty boundary (domain events stay local).
+
+### Changed
+
+- **Fleet Event Ingest** demoted from hero to a footnoted meter: throughput is
+  the *centralized* metric; here it is only each node's modest local load.
+
+See `hecate-parksim/plans/PLAN_DECENTRALIZED_NFR_DEMO.md` and
+`RUNBOOK_DECENTRALIZED_NFR_DEMO.md` for the demo this scorecard drives.
+
 ## 0.29.0 (2026-07-08)
 
 **Cluster Nodes panel — per-host CPU + disk.**

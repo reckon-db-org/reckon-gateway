@@ -375,7 +375,17 @@
         <div class="card"><div class="stat-big" id="ov-node">—</div><div class="stat-label">BEAM Node</div></div>
       </div>
       <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Decentralization Scorecard <span class="live-pill">live</span></div>
+        <p style="font-size:.75rem;color:var(--text-muted);margin:-.2rem 0 .6rem">
+          What a <em>decentralized</em> event store optimizes. There is no central cluster,
+          so throughput is not the yardstick — autonomy, sovereignty, resilience and footprint are.</p>
+        <div id="ov-scorecard"><div class="empty">connecting…</div></div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
         <div class="card-title">Fleet Event Ingest <span class="live-pill" id="fleet-live-pill">live</span></div>
+        <p style="font-size:.72rem;color:var(--text-dim);margin:-.2rem 0 .6rem">
+          Throughput is the <em>centralized</em> metric. Here it is only each node's modest local
+          load (a facility does a few events/s by design) — not a ceiling being pushed.</p>
         <div class="metrics-grid">
           <div class="metric-tile">
             <div class="metric-val" id="f-events-ps">—</div>
@@ -896,12 +906,81 @@ function renderDashboard(snap) {
     ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Integrity</th></tr></thead><tbody>${rows}</tbody></table>`
     : '<div class="empty">No stores registered</div>';
 
+  // Decentralization Scorecard — the reframed hero (see renderScorecard).
+  renderScorecard(snap);
+
   // Cluster Nodes panel — per-host CPU + disk (see renderNodes).
   renderNodes(snap.nodes || []);
 
   // Clusters panel (merged in from the old standalone view).
   updateClusters(snap);
   markFresh(snap.timestamp_ms);
+}
+
+// ── DECENTRALIZATION SCORECARD ───────────────────────────────────────
+// The reframe: a decentralized store has no central cluster, so throughput is
+// not the yardstick. This scores what actually matters — autonomy, sovereignty,
+// resilience, footprint — from the SAME SSE snapshot the rest of the dashboard
+// uses (stores[].cluster + nodes[]). No extra endpoint. Each tile ends with the
+// structural contrast: what a centralized store does with the same concern.
+function renderScorecard(snap) {
+  const el = document.getElementById('ov-scorecard');
+  if (!el) return;
+  const stores = snap.stores || [];
+  const nodes  = snap.nodes  || [];
+  const clustered = stores.filter(s => s.mode === 'cluster');
+  const sovereign = clustered.length || stores.length;
+
+  // Resilience: quorate count + the weakest store's fault tolerance. can_lose =
+  // how many replicas a store can lose and still commit. The fleet as a whole is
+  // only as resilient as its weakest quorum, so we report the MIN.
+  const quorate = clustered.filter(s => s.cluster && s.cluster.has_quorum).length;
+  const canLose = clustered
+    .map(s => (s.cluster && typeof s.cluster.can_lose === 'number') ? s.cluster.can_lose : null)
+    .filter(v => v != null);
+  const minCanLose = canLose.length ? Math.min(...canLose) : 0;
+
+  // Footprint: total event data actually on disk at the edge + mean node CPU.
+  // Proves the whole federation runs on mini-PCs, not a datacenter.
+  let cpuSum = 0, cpuN = 0, usedKb = 0, haveDisk = false;
+  nodes.forEach(n => {
+    if (n.cpu && typeof n.cpu.busy_percent === 'number') { cpuSum += n.cpu.busy_percent; cpuN++; }
+    const disks = n.disk || [];
+    const dd = disks.find(d => d.data_dir_mount) || disks[0];
+    if (dd && typeof dd.total_kb === 'number') {
+      usedKb += dd.total_kb - (dd.available_kb || 0);
+      haveDisk = true;
+    }
+  });
+  const avgCpu = cpuN ? cpuSum / cpuN : null;
+  const footprint = haveDisk ? fmtKb(usedKb) : '—';
+
+  const tile = (val, valColor, lbl, contrast) => `
+    <div class="metric-tile">
+      <div class="metric-val" style="color:${valColor}">${val}</div>
+      <div class="metric-lbl">${lbl}</div>
+      <div class="metric-lbl" style="color:var(--text-dim);font-size:.66rem;margin-top:.25rem">
+        vs central: ${contrast}</div>
+    </div>`;
+
+  const quorColor = (quorate === clustered.length && clustered.length)
+    ? 'var(--green)' : 'var(--yellow)';
+
+  el.innerHTML = `<div class="metrics-grid">
+    ${tile(sovereign, 'var(--lime)',
+        'sovereign stores · each its own Raft cluster',
+        'one shared log, one owner')}
+    ${tile(`${quorate}/${clustered.length || 0}`, quorColor,
+        `quorate · survives losing any ${minCanLose} node${minCanLose === 1 ? '' : 's'} per store`,
+        'central cluster is a single failure domain')}
+    ${tile(footprint, 'var(--text)',
+        `event data at the edge · ${nodes.length} node${nodes.length === 1 ? '' : 's'}`
+          + (avgCpu != null ? ` · avg CPU ${avgCpu.toFixed(0)}%` : ''),
+        'a datacenter tier holds it all')}
+    ${tile('facts only', 'var(--blue)',
+        'domain events stay local; only integration facts leave the node',
+        '100% of events funnel to the middle')}
+  </div>`;
 }
 
 // ── HOST RESOURCE BADGES (CPU + disk, from reckon_db_resource_monitor) ──
