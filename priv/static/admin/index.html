@@ -887,14 +887,45 @@ function renderDashboard(snap) {
         <td>${replicasCell(s, s.cluster)}</td>
         <td>${quorumBadge(s, s.cluster)}</td>
         <td>${integrityBadge(s.integrity)}</td>
+        <td>${cpuBadge(s.resources)}</td>
+        <td>${diskBadge(s.resources)}</td>
       </tr>`).join('');
   document.getElementById('ov-stores-table').innerHTML = rows
-    ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Integrity</th></tr></thead><tbody>${rows}</tbody></table>`
+    ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Integrity</th><th>CPU</th><th>Disk</th></tr></thead><tbody>${rows}</tbody></table>`
     : '<div class="empty">No stores registered</div>';
 
   // Clusters panel (merged in from the old standalone view).
   updateClusters(snap);
   markFresh(snap.timestamp_ms);
+}
+
+// ── HOST RESOURCE BADGES (CPU + disk, from reckon_db_resource_monitor) ──
+// Node-wide gauges for the node hosting a store. `—` when os_mon/disk is
+// unavailable (store node on reckon_db < 5.10, or os_mon not running).
+function pctBar(pct, label) {
+  if (pct == null || isNaN(pct)) return '<span class="badge">—</span>';
+  const p = Math.min(100, Math.max(0, pct));
+  const c = p >= 85 ? 'var(--red)' : p >= 60 ? 'var(--yellow)' : 'var(--lime)';
+  return `<div title="${esc(label)}" style="display:flex;align-items:center;gap:6px;min-width:78px">`
+       + `<div style="flex:1;height:6px;background:rgba(148,163,184,.2);border-radius:3px;overflow:hidden">`
+       + `<div style="width:${p}%;height:100%;background:${c}"></div></div>`
+       + `<span class="mono" style="font-size:.7rem;color:var(--text-muted)">${p.toFixed(0)}%</span></div>`;
+}
+function cpuBadge(r) {
+  if (!r || !r.os_mon || !r.cpu) return '<span class="badge">—</span>';
+  const load = r.cpu.load1 != null ? `load ${r.cpu.load1}` : '';
+  return pctBar(r.cpu.busy_percent, `CPU · ${load} · ${r.cpu.cores} cores`);
+}
+function diskBadge(r) {
+  if (!r || !r.disk || !r.disk.length) return '<span class="badge">—</span>';
+  const d = r.disk.find(x => x.data_dir_mount) || r.disk[0];
+  return pctBar(d.used_percent, `${d.mount} · ${fmtKb(d.available_kb)} free of ${fmtKb(d.total_kb)}`);
+}
+function fmtKb(kb) {
+  if (kb == null) return '?';
+  const u = ['KB', 'MB', 'GB', 'TB']; let v = kb, i = 0;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return (v < 10 ? v.toFixed(1) : v.toFixed(0)) + u[i];
 }
 
 // ── THROUGHPUT METRICS (live via the `metrics` SSE event) ────

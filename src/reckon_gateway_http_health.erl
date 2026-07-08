@@ -53,7 +53,37 @@ store_with_cluster(#{store_id := StoreId} = E) ->
     Base    = entry_to_json(E),
     Cluster = cluster_json(reckon_gateway_catalogue:store_mode(StoreId), StoreId),
     Base#{<<"cluster">>   => Cluster,
-          <<"integrity">> => integrity_json(StoreId)}.
+          <<"integrity">> => integrity_json(StoreId),
+          <<"resources">> => resource_json(StoreId)}.
+
+%% Per-store host resources (CPU + disk of the node hosting this store),
+%% fetched from the store via reckon_gater_api:get_resource_stats/1 (reckon_db
+%% >= 5.10). Node-wide — co-located stores report the same host. Degrades to
+%% os_mon => false / empty when the store or os_mon is unavailable.
+resource_json(StoreId) ->
+    case reckon_gateway_dispatch:call(get_resource_stats, [StoreId]) of
+        {ok, #{os_mon := OsMon} = R} ->
+            #{<<"os_mon">> => OsMon,
+              <<"cpu">>    => cpu_json(maps:get(cpu, R, undefined)),
+              <<"disk">>   => [disk_json(D) || D <- maps:get(disk, R, [])]};
+        _ ->
+            #{<<"os_mon">> => false, <<"cpu">> => null, <<"disk">> => []}
+    end.
+
+cpu_json(undefined) -> null;
+cpu_json(#{busy_percent := B, load1 := L1, load5 := L5,
+           load15 := L15, cores := C}) ->
+    #{<<"busy_percent">> => jnum(B), <<"load1">> => jnum(L1),
+      <<"load5">> => jnum(L5), <<"load15">> => jnum(L15), <<"cores">> => C};
+cpu_json(_) -> null.
+
+disk_json(#{mount := M, total_kb := T, used_percent := U,
+            available_kb := A, data_dir_mount := DDM}) ->
+    #{<<"mount">> => M, <<"total_kb">> => T, <<"used_percent">> => U,
+      <<"available_kb">> => A, <<"data_dir_mount">> => DDM}.
+
+jnum(undefined) -> null;
+jnum(N) -> N.
 
 %% Per-store event-integrity advertisement (HMAC on/off + key id), folded
 %% into the live snapshot so the dashboard can badge each store. Fetched

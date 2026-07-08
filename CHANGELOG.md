@@ -1,6 +1,27 @@
 # Changelog
 
-## 0.27.0 (2026-07-04)
+## 0.28.0 (2026-07-08)
+
+**Host resources (CPU + disk) in the admin dashboard.**
+
+### Added
+
+- The SSE `status` snapshot now carries a `resources` object per store,
+  fetched from the store node via `reckon_gater_api:get_resource_stats/1`
+  (reckon-gater >= 3.11 / reckon-db >= 5.10): `os_mon` (boolean), `cpu`
+  (`busy_percent`, `load1/5/15`, `cores`), and `disk` (per mount:
+  `used_percent`, `total_kb`, `available_kb`, `data_dir_mount`). Node-wide —
+  co-located stores report the same host.
+- Store Replicas table gains **CPU** and **Disk** columns — compact usage bars
+  (green/amber/red at 60/85%), the disk bar tracking the store's data-dir
+  mount. Degrades to `—` when the store node predates reckon-db 5.10 or os_mon
+  isn't running (the probe returns `os_mon => false` and the UI stays quiet).
+
+### Requires
+
+- To populate the columns, store BEAMs on **reckon-db 5.10.0** +
+  **reckon-gater 3.11.0** (the resource monitor + facade). Older stores show
+  `—` — no error.
 
 **Report per-store integrity from the store, not local state.**
 
