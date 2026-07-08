@@ -11,7 +11,7 @@
 
 -behaviour(cowboy_handler).
 
--export([init/2, live_stores/0, server_versions/0, integrity_status/1]).
+-export([init/2, live_stores/0, node_resources/0, server_versions/0, integrity_status/1]).
 
 %% @doc Dispatched per-store event-integrity status. The gateway runs in
 %% catalogue mode off the data path, so integrity — a per-store property
@@ -53,22 +53,48 @@ store_with_cluster(#{store_id := StoreId} = E) ->
     Base    = entry_to_json(E),
     Cluster = cluster_json(reckon_gateway_catalogue:store_mode(StoreId), StoreId),
     Base#{<<"cluster">>   => Cluster,
-          <<"integrity">> => integrity_json(StoreId),
-          <<"resources">> => resource_json(StoreId)}.
+          <<"integrity">> => integrity_json(StoreId)}.
 
-%% Per-store host resources (CPU + disk of the node hosting this store),
-%% fetched from the store via reckon_gater_api:get_resource_stats/1 (reckon_db
-%% >= 5.10). Node-wide — co-located stores report the same host. Degrades to
-%% os_mon => false / empty when the store or os_mon is unavailable.
-resource_json(StoreId) ->
-    case reckon_gateway_dispatch:call(get_resource_stats, [StoreId]) of
-        {ok, #{os_mon := OsMon} = R} ->
-            #{<<"os_mon">> => OsMon,
-              <<"cpu">>    => cpu_json(maps:get(cpu, R, undefined)),
-              <<"disk">>   => [disk_json(D) || D <- maps:get(disk, R, [])]};
-        _ ->
-            #{<<"os_mon">> => false, <<"cpu">> => null, <<"disk">> => []}
+%% @doc Per-node host resources (CPU + disk) for every distinct cluster host.
+%% Resources are node-wide, so we query ONE representative BEAM node per physical
+%% host (dedup by the IP after `@') rather than per store — this is the view for
+%% inspecting the cluster's nodes. Read directly from each node's
+%% reckon_db_resource_monitor (reckon_db >= 5.10); a node that predates it or
+%% can't be reached degrades to os_mon => false / empty.
+-spec node_resources() -> [map()].
+node_resources() ->
+    [node_resource_json(Host, Node) || {Host, Node} <- hosts_repr()].
+
+%% One representative member node per host (first seen wins).
+hosts_repr() ->
+    Snapshot = reckon_gateway_catalogue:status(),
+    Members  = lists:flatten([maps:get(members, C, [])
+                              || C <- maps:get(clusters, Snapshot, [])]),
+    Fold = fun(Node, Acc) ->
+               Host = host_of(Node),
+               case maps:is_key(Host, Acc) of
+                   true  -> Acc;
+                   false -> Acc#{Host => Node}
+               end
+           end,
+    lists:keysort(1, maps:to_list(lists:foldl(Fold, #{}, lists:usort(Members)))).
+
+host_of(Node) ->
+    case string:split(atom_to_list(Node), "@") of
+        [_, Host] -> Host;
+        _         -> atom_to_list(Node)
     end.
+
+node_resource_json(Host, Node) ->
+    R = case rpc:call(Node, reckon_db_resource_monitor, get_stats, [], 2500) of
+            #{os_mon := _} = M -> M;
+            _ -> #{os_mon => false, cpu => undefined, disk => []}
+        end,
+    #{<<"host">>   => list_to_binary(Host),
+      <<"node">>   => atom_to_binary(Node, utf8),
+      <<"os_mon">> => maps:get(os_mon, R, false),
+      <<"cpu">>    => cpu_json(maps:get(cpu, R, undefined)),
+      <<"disk">>   => [disk_json(D) || D <- maps:get(disk, R, [])]}.
 
 cpu_json(undefined) -> null;
 cpu_json(#{busy_percent := B, load1 := L1, load5 := L5,

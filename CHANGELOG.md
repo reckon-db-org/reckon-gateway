@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.29.0 (2026-07-08)
+
+**Cluster Nodes panel — per-host CPU + disk.**
+
+Replaces the per-store CPU/Disk columns from 0.28.0 (which, via first-healthy-
+member dispatch, only ever showed a subset of hosts) with a proper node view.
+
+### Added
+
+- SSE `status` snapshot carries a `nodes` array — one entry per **distinct
+  cluster host** (dedup by the IP after `@`, since resources are node-wide),
+  read directly from each host's `reckon_db_resource_monitor:get_stats/0`
+  (reckon-db >= 5.10): `host`, `node`, `os_mon`, `cpu`, `disk`.
+- Dashboard **Cluster Nodes** card: per host, a CPU usage bar + load/cores, a
+  disk usage bar (tracking the store data-dir mount) and the mount path. Hosts
+  on reckon-db < 5.10 or without os_mon render `—`.
+
+### Changed
+
+- Removed the per-store CPU/Disk columns added in 0.28.0 — node inspection
+  belongs in the Cluster Nodes panel, not repeated per co-located store.
+
+### Requires
+
+- Populated when cluster hosts run **reckon-db >= 5.10.1** (5.10.1 fixes disk
+  sampling in containers; 5.10.0 shows CPU but empty disk).
+
 ## 0.28.0 (2026-07-08)
 
 **Host resources (CPU + disk) in the admin dashboard.**

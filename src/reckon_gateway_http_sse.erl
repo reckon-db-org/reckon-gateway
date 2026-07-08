@@ -131,6 +131,7 @@ status_to_json(#{catalogue_size := Size, clusters := Clusters}) ->
         <<"catalogue_size">> => Size,
         <<"clusters">>       => [cluster_to_json(C) || C <- Clusters],
         <<"stores">>         => reckon_gateway_http_health:live_stores(),
+        <<"nodes">>          => reckon_gateway_http_health:node_resources(),
         <<"timestamp_ms">>   => erlang:system_time(millisecond)
     }.
 

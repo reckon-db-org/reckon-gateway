@@ -397,6 +397,10 @@
         <div class="tbl-wrap" id="ov-stores-table"><div class="empty">connecting…</div></div>
       </div>
       <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Cluster Nodes <span class="live-pill" id="nodes-live-pill">live</span></div>
+        <div class="tbl-wrap" id="ov-nodes"><div class="empty">connecting…</div></div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
         <div class="card-title">Clusters <span class="live-pill" id="clusters-live-pill">live</span></div>
         <div class="tbl-wrap" id="clusters-table"><div class="empty">connecting…</div></div>
       </div>
@@ -887,12 +891,13 @@ function renderDashboard(snap) {
         <td>${replicasCell(s, s.cluster)}</td>
         <td>${quorumBadge(s, s.cluster)}</td>
         <td>${integrityBadge(s.integrity)}</td>
-        <td>${cpuBadge(s.resources)}</td>
-        <td>${diskBadge(s.resources)}</td>
       </tr>`).join('');
   document.getElementById('ov-stores-table').innerHTML = rows
-    ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Integrity</th><th>CPU</th><th>Disk</th></tr></thead><tbody>${rows}</tbody></table>`
+    ? `<table><thead><tr><th>Store ID</th><th>Mode</th><th>Replicas</th><th>Cluster</th><th>Integrity</th></tr></thead><tbody>${rows}</tbody></table>`
     : '<div class="empty">No stores registered</div>';
+
+  // Cluster Nodes panel — per-host CPU + disk (see renderNodes).
+  renderNodes(snap.nodes || []);
 
   // Clusters panel (merged in from the old standalone view).
   updateClusters(snap);
@@ -926,6 +931,27 @@ function fmtKb(kb) {
   const u = ['KB', 'MB', 'GB', 'TB']; let v = kb, i = 0;
   while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
   return (v < 10 ? v.toFixed(1) : v.toFixed(0)) + u[i];
+}
+
+// Cluster Nodes panel: one row per distinct host, CPU + disk from that host's
+// reckon_db_resource_monitor. `—` for hosts on reckon_db < 5.10 / os_mon off.
+function renderNodes(nodes) {
+  const el = document.getElementById('ov-nodes');
+  if (!el) return;
+  if (!nodes.length) { el.innerHTML = '<div class="empty">No cluster nodes</div>'; return; }
+  const rows = nodes.map(n => {
+    const load = (n.cpu && n.cpu.load1 != null) ? `${n.cpu.load1} · ${n.cpu.cores}c` : '—';
+    const disks = (n.disk || []);
+    const dd = disks.find(d => d.data_dir_mount) || disks[0];
+    return `<tr>
+        <td class="mono">${esc(n.host)}</td>
+        <td>${cpuBadge(n)}</td>
+        <td class="mono" style="font-size:.72rem;color:var(--text-muted)">${load}</td>
+        <td>${diskBadge(n)}</td>
+        <td class="mono" style="font-size:.72rem;color:var(--text-muted)">${dd ? esc(dd.mount) : '—'}</td>
+      </tr>`;
+  }).join('');
+  el.innerHTML = `<table><thead><tr><th>Host</th><th>CPU</th><th>Load</th><th>Disk</th><th>Data mount</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ── THROUGHPUT METRICS (live via the `metrics` SSE event) ────
