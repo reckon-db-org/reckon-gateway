@@ -5,7 +5,7 @@ The gateway exposes two related advanced read/write surfaces over both gRPC (`Dc
 - **DCB** — Dynamic Consistency Boundary: conditional append + context read over a *tag/event-type filter* instead of a single stream. Lets you enforce an invariant that spans many streams without a lock.
 - **CCC** — compound payload-indexed reads: look events up by a declared *payload field* (or a hash of several fields) rather than by stream or tag.
 
-Both require a reckon-db 5.4+ backing store. The conceptual model for DCB lives in the upstream [reckon-db DCB guide](https://codeberg.org/reckon-db-org/reckon-db/src/branch/main/guides/dcb.md); this page documents only what the gateway adds on top.
+Both require a reckon-db 5.4+ backing store. The conceptual model for DCB lives in the upstream [reckon-db DCB guide](https://github.com/reckon-db-org/reckon-db/blob/main/guides/dcb.md); this page documents only what the gateway adds on top.
 
 > History: DCB context/append landed early; the DCB introspection (log/tags/event-types) and CCC reads were added across gateway 0.10–0.16, with gRPC `CccReadByPayload`/`CccReadByPayloadHash` handlers in 0.14.0 and CCC index discovery in 0.16.0.
 

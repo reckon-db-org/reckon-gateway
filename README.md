@@ -5,12 +5,12 @@
 <h1 align="center">reckon-gateway</h1>
 
 <p align="center">
-  <strong>gRPC ingress for <a href="https://codeberg.org/reckon-db-org/reckon-db">ReckonDB</a>.</strong><br/>
+  <strong>gRPC ingress for <a href="https://github.com/reckon-db-org/reckon-db">ReckonDB</a>.</strong><br/>
   Federate N remote Erlang clusters over one endpoint, or boot a local store in the same image.
 </p>
 
 <p align="center">
-  <a href="https://codeberg.org/reckon-db-org/reckon-gateway/releases"><img src="https://img.shields.io/badge/release-v0.18.0-1e40af" alt="release"/></a>
+  <a href="https://github.com/reckon-db-org/reckon-gateway/releases"><img src="https://img.shields.io/badge/release-v0.18.0-1e40af" alt="release"/></a>
   <a href="https://github.com/reckon-db-org/reckon-gateway/pkgs/container/reckon-gateway"><img src="https://img.shields.io/badge/ghcr.io-image-0c4a6e" alt="image"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-475569" alt="license"/></a>
   <img src="https://img.shields.io/badge/erlang-OTP%2027%2B-92400e" alt="erlang"/>
@@ -21,7 +21,7 @@
 
 ## What it is
 
-`reckon-gateway` is a single OCI image that exposes the [ReckonDB](https://codeberg.org/reckon-db-org/reckon-db) event-store API over **two protocols at once**: gRPC (port `50051`) and an HTTP/JSON REST API (port `8080`). Polyglot clients (Go, .NET, Rust, Python) get the full feature surface without speaking Erlang dist; the HTTP port also serves a browser **admin UI** at `/admin` and a live event stream over SSE. Pick gRPC for typed high-throughput clients, REST for curl/browser/scripting.
+`reckon-gateway` is a single OCI image that exposes the [ReckonDB](https://github.com/reckon-db-org/reckon-db) event-store API over **two protocols at once**: gRPC (port `50051`) and an HTTP/JSON REST API (port `8080`). Polyglot clients (Go, .NET, Rust, Python) get the full feature surface without speaking Erlang dist; the HTTP port also serves a browser **admin UI** at `/admin` and a live event stream over SSE. Pick gRPC for typed high-throughput clients, REST for curl/browser/scripting.
 
 Three operational modes, selected by environment at boot:
 
@@ -116,9 +116,9 @@ Full HTTP reference: [docs/http-api.md](docs/http-api.md). Browser admin UI: [do
 | `AdminService` | Store inspection, scavenging, stream links |
 | `StoresService` | Store enumeration via the catalogue |
 | `HealthService` | Health checks, cluster diagnostics, memory pressure |
-| `DcbService` | Dynamic Consistency Boundary: tag-filter conditional append + context read, DCB log/tag/event-type introspection, and CCC payload-index reads *(gRPC handlers since 0.14.0; requires reckon-db 5.4+ backing)* — see [docs/dcb-ccc.md](docs/dcb-ccc.md) and [the DCB guide](https://codeberg.org/reckon-db-org/reckon-db/src/branch/main/guides/dcb.md) |
+| `DcbService` | Dynamic Consistency Boundary: tag-filter conditional append + context read, DCB log/tag/event-type introspection, and CCC payload-index reads *(gRPC handlers since 0.14.0; requires reckon-db 5.4+ backing)* — see [docs/dcb-ccc.md](docs/dcb-ccc.md) and [the DCB guide](https://github.com/reckon-db-org/reckon-db/blob/main/guides/dcb.md) |
 
-Proto definitions are the source of truth and live in [reckon-proto](https://codeberg.org/reckon-db-org/reckon-proto). The gateway fetches them as a rebar3 dep at build time.
+Proto definitions are the source of truth and live in [reckon-proto](https://github.com/reckon-db-org/reckon-proto). The gateway fetches them as a rebar3 dep at build time.
 
 ## HTTP/JSON API + admin UI
 

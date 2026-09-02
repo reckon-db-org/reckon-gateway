@@ -10,10 +10,10 @@ Connect to a running `reckon-gateway` and round-trip an event in under 5 minutes
 
 ## Get the protos
 
-Proto definitions live in [reckon-proto](https://codeberg.org/reckon-db-org/reckon-proto). Generate Go stubs:
+Proto definitions live in [reckon-proto](https://github.com/reckon-db-org/reckon-proto). Generate Go stubs:
 
 ```bash
-git clone https://codeberg.org/reckon-db-org/reckon-proto.git
+git clone https://github.com/reckon-db-org/reckon-proto.git
 cd reckon-proto
 
 mkdir -p ../gen/go
@@ -23,7 +23,7 @@ protoc \
   -I proto proto/*.proto
 ```
 
-If you'd rather not run `protoc` yourself, use the prebuilt Go client at [reckon-go](https://codeberg.org/reckon-db-org/reckon-go).
+If you'd rather not run `protoc` yourself, use the prebuilt Go client at [reckon-go](https://github.com/reckon-db-org/reckon-go).
 
 ## Minimal example
 
@@ -128,4 +128,4 @@ for {
 }
 ```
 
-For a full client with subscription lifecycle, snapshots, and reconnection, see [reckon-go](https://codeberg.org/reckon-db-org/reckon-go).
+For a full client with subscription lifecycle, snapshots, and reconnection, see [reckon-go](https://github.com/reckon-db-org/reckon-go).

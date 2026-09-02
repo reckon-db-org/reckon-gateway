@@ -28,7 +28,7 @@ Operator + developer reference for the [reckon-gateway](../README.md) gRPC + HTT
 **I want to build a client against it:**
 
 1. Over HTTP/JSON (curl, browser, scripts): [HTTP/JSON API reference](http-api.md) , the full REST surface
-2. Over gRPC: [Go quick start](examples/go-quickstart.md) , then [proto definitions in reckon-proto](https://codeberg.org/reckon-db-org/reckon-proto)
+2. Over gRPC: [Go quick start](examples/go-quickstart.md) , then [proto definitions in reckon-proto](https://github.com/reckon-db-org/reckon-proto)
 3. Advanced reads/writes: [DCB + CCC queries](dcb-ccc.md)
 
 **I want to poke at a running gateway in a browser:**

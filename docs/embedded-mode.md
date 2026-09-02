@@ -70,7 +70,7 @@ volumes: { data-1: {}, data-2: {}, data-3: {} }
 
 ### Discovery (Kubernetes)
 
-`reckon_db_discovery` falls back to DNS-based peer resolution when multicast isn't viable. Run as a headless `StatefulSet`; pods discover each other via the cluster's DNS records. See [reckon-db's discovery guide](https://codeberg.org/reckon-db-org/reckon-db) for the DNS query shape; the gateway only needs to pass `STORE_MODE=cluster` through to it.
+`reckon_db_discovery` falls back to DNS-based peer resolution when multicast isn't viable. Run as a headless `StatefulSet`; pods discover each other via the cluster's DNS records. See [reckon-db's discovery guide](https://github.com/reckon-db-org/reckon-db) for the DNS query shape; the gateway only needs to pass `STORE_MODE=cluster` through to it.
 
 ## Persistence
 

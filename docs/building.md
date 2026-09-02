@@ -13,7 +13,7 @@ You only need this if you're hacking on the gateway or building a custom image. 
 ## Build
 
 ```bash
-git clone https://codeberg.org/reckon-db-org/reckon-gateway.git
+git clone https://github.com/reckon-db-org/reckon-gateway.git
 cd reckon-gateway
 
 rebar3 grpc gen          # generate gRPC stubs from reckon-proto
