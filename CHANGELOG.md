@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.30.1 (2026-09-05)
+
+### Fixed
+
+- Removed `erl_opts` (`no_debug_info`, `deterministic`) from the `prod`
+  profile in `rebar.config`. rebar3 merges a fetched dependency's
+  `erl_opts` across *every* profile that dependency defines, not just
+  whichever one the consuming project actually activated — so this
+  repo's `prod` profile (a local-dev-only convenience, not used anywhere
+  in this repo's own CI) was silently stripping `debug_info` from every
+  consumer's copy of reckon_gateway, whether or not they ever selected
+  `prod` themselves, breaking `rebar3 dialyzer` with reckon_gateway in
+  `plt_extra_apps` for anyone depending on this repo directly. Same
+  defect, same fix, as macula-io/macula 10.19.2 and reckon-db 5.11.4,
+  found during the same org-wide sweep. The `prod` profile's `relx`
+  release settings are untouched.
+
+  **Verification note**: this repo's local build is currently broken by
+  a pre-existing, unrelated issue (a `grpc_plugin` fetch failure from
+  its GitHub host cascades into an `Uncaught error in rebar_core`,
+  confirmed present on the baseline before this change too, via `git
+  stash`) — full `eunit`/`dialyzer` could not be run locally. The change
+  itself is a one-line-class deletion identical in shape to the
+  already-verified macula/reckon-db fixes; `rebar.config` was confirmed
+  to still parse as valid Erlang terms. Worth a real CI/dialyzer run
+  once the `grpc_plugin` issue is separately resolved.
+
 ## 0.30.0 (2026-07-08)
 
 **Decentralization Scorecard — the reframed dashboard hero.**
