@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **The release's version is the app's version again (reckon-gateway#2).**
+  `rebar.config` named the relx release `{reckon_gateway, "0.27.0"}` while
+  `src/reckon_gateway.app.src` and every git tag said 0.30.1, so every release
+  since 0.27.0 booted as `releases/0.27.0/` and `start_erl.data` — what an
+  operator reads to see which version a box runs — named a version that was
+  never shipped. Both release tuples now say 0.30.1.
+  `reckon_gateway_release_version_tests` pins every relx release version in
+  `rebar.config`, in the top level and in each profile, to the app's `{vsn}`,
+  so a forgotten bump fails the suite instead of shipping. The version stays a
+  literal rather than being derived: the release guard (macula-ci-images#6)
+  reads that tuple as text from `rebar.config` and refuses a tag when it
+  cannot, and `semver` would resolve to 0.0.0 in the image build, which does
+  not copy `.git`. Seen red first on the old 0.27.0 literal. No version bump of
+  its own; it ships with the next release.
+
 ## 0.30.1 (2026-09-05)
 
 ### Fixed
