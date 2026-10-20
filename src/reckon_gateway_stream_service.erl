@@ -77,7 +77,7 @@ read_stream_backward(#{store_id := StoreIdBin,
 %% and ends its side of the stream. Pinning `more' here crashed the
 %% handler on every such call, before a single reply was written; the
 %% other two streaming handlers in the gateway already match either.
-%% See reckon-gateway#8.
+%% See reckon-gateway#7.
 stream_events_forward(Stream, _Md) ->
     {_, [Request], Stream1} = grpc_stream:recv(Stream),
     #{store_id := StoreIdBin,

@@ -42,10 +42,15 @@ RUN rebar3 deps
 # from the reckon-proto git dep during `rebar3 deps' above, ending up
 # at _build/default/lib/reckon_proto/proto/ where grpc_plugin reads
 # them).
+#
+# vendor/ is source, not a fetched dependency: the gRPC runtime is built
+# from it as a project app, so without this line the release step cannot
+# find grpc/include/grpc.hrl and the image build fails.
 COPY config/ config/
 COPY include/ include/
 COPY priv/ priv/
 COPY src/ src/
+COPY vendor/ vendor/
 
 # Generate gRPC stubs and build release. The `rebar3 compile` step
 # (invoked by `release`) runs reckon-db's pre_hook which builds the
