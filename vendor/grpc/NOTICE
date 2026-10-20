@@ -1,0 +1,14 @@
+This directory contains a vendored copy of emqx/grpc-erl.
+
+  Upstream: https://github.com/emqx/grpc-erl
+  Commit:   acaa5321bd3994ae51d6457c351552c30f6c6173
+  License:  Apache License 2.0, see LICENSE in this directory
+  Changes:  none to the Erlang sources. The generated protocol modules in
+            src/ (grpc_*_pb.erl, *_client.erl and *_bhvr.erl) were produced by
+            upstream's own build from priv/*.proto and are committed here,
+            because a dependency's project plugins do not run. rebar.config is
+            this repository's own, so the app resolves against registry
+            releases.
+
+The in-tree copy exists so the gRPC runtime the gateway serves with is a commit
+of this repository rather than a moving upstream branch (reckon-gateway#5).
