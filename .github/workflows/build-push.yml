@@ -6,7 +6,23 @@ on:
     tags:     ['v*']
 
 jobs:
+  # NO IMAGE WHILE THE TESTS ARE RED (mcl-om#34). Nothing ran the eunit suite
+  # before. It runs in the Dockerfile's own builder stage, so it sees exactly
+  # the toolchain (OTP, Rust for reckon-db's NIFs, rebar3) the image builds
+  # with, and the build waits on it.
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the builder stage
+        run: docker build --target builder -t reckon-gateway-builder .
+      - name: rebar3 eunit
+        run: docker run --rm -v "$PWD:/src" -w /src reckon-gateway-builder bash -c 'rebar3 grpc gen && rebar3 eunit'
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
