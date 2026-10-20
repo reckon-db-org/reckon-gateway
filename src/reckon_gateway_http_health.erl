@@ -70,13 +70,11 @@ hosts_repr() ->
     Snapshot = reckon_gateway_catalogue:status(),
     Members  = lists:flatten([maps:get(members, C, [])
                               || C <- maps:get(clusters, Snapshot, [])]),
-    Fold = fun(Node, Acc) ->
-               Host = host_of(Node),
-               case maps:is_key(Host, Acc) of
-                   true  -> Acc;
-                   false -> Acc#{Host => Node}
-               end
-           end,
+    %% `maps:merge/2' keeps the SECOND map's value for a shared key, so the
+    %% accumulator on the right is what makes the first node seen for a host
+    %% the one kept -- the same answer the case in the fold used to give, in
+    %% the shape elvis's no_deep_nesting asks for (reckon-gateway#3).
+    Fold = fun(Node, Acc) -> maps:merge(#{host_of(Node) => Node}, Acc) end,
     lists:keysort(1, maps:to_list(lists:foldl(Fold, #{}, lists:usort(Members)))).
 
 host_of(Node) ->
