@@ -21,8 +21,17 @@ jobs:
       - name: rebar3 eunit
         run: docker run --rm -v "$PWD:/src" -w /src reckon-gateway-builder bash -c 'rebar3 grpc gen && rebar3 eunit'
 
+  # The release guard, ahead of the build: a v* tag builds and pushes nothing
+  # unless it is on main (or its release branch) and is the relx release
+  # version. Any other ref passes, so main keeps building.
+  release-guard:
+    name: The release guard
+    permissions:
+      contents: read
+    uses: macula-io/macula-ci-images/.github/workflows/release-guard.yml@b4c41abb404c32215a2823b7f19ac65b732e1dfe
+
   build-and-push:
-    needs: test
+    needs: [test, release-guard]
     runs-on: ubuntu-latest
     permissions:
       contents: read
