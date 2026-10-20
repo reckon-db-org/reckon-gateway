@@ -19,7 +19,7 @@ The minimal embedded deployment. One container, one Khepri store, no clustering.
 ```yaml
 services:
   reckon-gateway:
-    image: ghcr.io/reckon-db-org/reckon-gateway:0.17.0
+    image: ghcr.io/reckon-db-org/reckon-gateway:0.30.1
     ports: ["50051:50051", "8080:8080"]
     volumes:
       - reckon-data:/data
@@ -51,7 +51,7 @@ Multiple containers form a Khepri/Ra cluster. **One store per container** , N te
 ```yaml
 services:
   gw-1:
-    image: ghcr.io/reckon-db-org/reckon-gateway:0.6.2
+    image: ghcr.io/reckon-db-org/reckon-gateway:0.30.1
     network_mode: host                                # multicast needs host net
     volumes: ["data-1:/data"]
     environment:

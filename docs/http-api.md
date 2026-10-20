@@ -100,7 +100,7 @@ Version + integrity advertisement.
 ```json
 {
   "reckon_db_version": "5.4.0",
-  "reckon_gateway_version": "0.16.1",
+  "reckon_gateway_version": "0.30.1",
   "api_compatibility_version": "reckon.gateway.v1",
   "integrity_algo": "sha256-deterministic-etf-v1",
   "integrity_enabled": true,

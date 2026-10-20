@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **The docs name the current release.** README badge, Versioning table and image examples, and the embedded-mode, store-config and HTTP API examples said 0.6.2 to 0.18.0; they now say 0.30.1, and the table names the requirements rebar.config declares (reckon_gater ~> 3.7, reckon_db ~> 5.5) instead of ~> 3.6 / ~> 5.4.
 - **The release's version is the app's version again (reckon-gateway#2).**
   `rebar.config` named the relx release `{reckon_gateway, "0.27.0"}` while
   `src/reckon_gateway.app.src` and every git tag said 0.30.1, so every release
