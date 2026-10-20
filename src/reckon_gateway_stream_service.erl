@@ -71,8 +71,15 @@ read_stream_backward(#{store_id := StoreIdBin,
 %% Server-streaming: emqx/grpc-erl calls Fun(Stream, Metadata).
 %% Error path is 3-tuple `{Code, Message, Stream}'; the message
 %% actually reaches the client over grpc-message.
+%%
+%% `recv/1' answers `eos' when the client half-closed with the request,
+%% which is what a server-streaming client does: it sends its one request
+%% and ends its side of the stream. Pinning `more' here crashed the
+%% handler on every such call, before a single reply was written; the
+%% other two streaming handlers in the gateway already match either.
+%% See reckon-gateway#8.
 stream_events_forward(Stream, _Md) ->
-    {more, [Request], Stream1} = grpc_stream:recv(Stream),
+    {_, [Request], Stream1} = grpc_stream:recv(Stream),
     #{store_id := StoreIdBin,
       stream_id := StreamId,
       start_version := StartVersion,
