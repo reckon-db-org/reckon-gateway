@@ -18,8 +18,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the builder stage
         run: docker build --target builder -t reckon-gateway-builder .
-      - name: rebar3 eunit
-        run: docker run --rm -v "$PWD:/src" -w /src reckon-gateway-builder bash -c 'rebar3 grpc gen && rebar3 eunit'
+      # The structural lint floor (macula-codebase-checks#9) runs in the same
+      # builder, on the OTP the image builds with: grpc_plugin's erlware_commons
+      # does not compile on OTP 29, so a host rebar3 cannot load the plugins.
+      - name: rebar3 lint, then eunit
+        run: docker run --rm -v "$PWD:/src" -w /src reckon-gateway-builder bash -c 'rebar3 grpc gen && rebar3 lint && rebar3 eunit'
 
   # The release guard, ahead of the build: a v* tag builds and pushes nothing
   # unless it is on main (or its release branch) and is the relx release

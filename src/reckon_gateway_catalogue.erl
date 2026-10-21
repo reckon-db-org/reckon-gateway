@@ -172,55 +172,11 @@ handle_call(status, _From,
 handle_call(_Msg, _From, State) ->
     {reply, {error, not_implemented}, State}.
 
-handle_cast({publish, ClusterId, Info},
-            #state{catalogue = Cat,
-                   clusters  = CMap,
-                   collisions_logged = LoggedCollisions,
-                   subscribers = Subs} = State) ->
-    PrevEntries = prev_stores(ClusterId, CMap),
-    NewEntries  = maps:get(stores, Info, []),
-    PrevIds = entry_ids(PrevEntries),
-    NewIds  = entry_ids(NewEntries),
-    AddedIds   = NewIds -- PrevIds,
-    RemovedIds = PrevIds -- NewIds,
-    %% Apply per-store_id add/remove against the denorm catalogue.
-    {Cat1, NewLogged, AcceptedAdds} = lists:foldl(
-        fun(StoreId, Acc) -> publish_add_step(StoreId, ClusterId, Acc) end,
-        {Cat, LoggedCollisions, []}, AddedIds),
-    {Cat2, AcceptedRemoves} = lists:foldl(
-        fun(StoreId, Acc) -> publish_remove_step(StoreId, ClusterId, Acc) end,
-        {Cat1, []}, RemovedIds),
-    CMap1 = CMap#{ClusterId => Info},
-    case {AddedIds, RemovedIds} of
-        {[], []} -> ok;
-        _ ->
-            logger:info("[reckon_gateway_catalogue ~p] +~p -~p (catalogue size ~b)",
-                        [ClusterId, AddedIds, RemovedIds, maps:size(Cat2)])
-    end,
-    %% Emit live events to subscribers (sub-task 9).
-    notify_subscribers(Subs, ClusterId, NewEntries, AcceptedAdds, announced),
-    notify_subscribers(Subs, ClusterId, PrevEntries, AcceptedRemoves, retired),
-    emit_store_telemetry(AcceptedAdds, ClusterId, announced),
-    emit_store_telemetry(AcceptedRemoves, ClusterId, retired),
-    {noreply, State#state{catalogue = Cat2,
-                          clusters  = CMap1,
-                          collisions_logged = NewLogged}};
+handle_cast({publish, ClusterId, Info}, State) ->
+    {noreply, apply_publish(ClusterId, Info, State)};
 
-handle_cast({remove, ClusterId},
-            #state{catalogue = Cat, clusters = CMap,
-                   subscribers = Subs} = State) ->
-    Entries = case maps:get(ClusterId, CMap, undefined) of
-        undefined      -> [];
-        #{stores := S} -> S
-    end,
-    OwnedIds = [Id || {Id, C} <- maps:to_list(Cat), C =:= ClusterId],
-    Cat1 = maps:filter(fun(_, C) -> C =/= ClusterId end, Cat),
-    CMap1 = maps:remove(ClusterId, CMap),
-    logger:info("[reckon_gateway_catalogue] removed cluster ~p (was ~b store(s))",
-                [ClusterId, length(Entries)]),
-    notify_subscribers(Subs, ClusterId, Entries, OwnedIds, retired),
-    emit_store_telemetry(OwnedIds, ClusterId, retired),
-    {noreply, State#state{catalogue = Cat1, clusters = CMap1}};
+handle_cast({remove, ClusterId}, State) ->
+    {noreply, apply_remove(ClusterId, State)};
 
 handle_cast({subscribe, Pid},
             #state{subscribers = Subs} = State) ->
@@ -248,6 +204,57 @@ handle_info(_Msg, State) -> {noreply, State}.
 %%====================================================================
 %% Internals
 %%====================================================================
+
+%% A cluster published its store list: apply the per-store_id adds and
+%% removes to the denorm catalogue, then tell subscribers and telemetry.
+apply_publish(ClusterId, Info,
+              #state{catalogue = Cat,
+                     clusters  = CMap,
+                     collisions_logged = LoggedCollisions,
+                     subscribers = Subs} = State) ->
+    PrevEntries = prev_stores(ClusterId, CMap),
+    NewEntries  = maps:get(stores, Info, []),
+    PrevIds = entry_ids(PrevEntries),
+    NewIds  = entry_ids(NewEntries),
+    AddedIds   = NewIds -- PrevIds,
+    RemovedIds = PrevIds -- NewIds,
+    {Cat1, NewLogged, AcceptedAdds} = lists:foldl(
+        fun(StoreId, Acc) -> publish_add_step(StoreId, ClusterId, Acc) end,
+        {Cat, LoggedCollisions, []}, AddedIds),
+    {Cat2, AcceptedRemoves} = lists:foldl(
+        fun(StoreId, Acc) -> publish_remove_step(StoreId, ClusterId, Acc) end,
+        {Cat1, []}, RemovedIds),
+    log_publish(ClusterId, AddedIds, RemovedIds, Cat2),
+    %% Emit live events to subscribers (sub-task 9).
+    notify_subscribers(Subs, ClusterId, NewEntries, AcceptedAdds, announced),
+    notify_subscribers(Subs, ClusterId, PrevEntries, AcceptedRemoves, retired),
+    emit_store_telemetry(AcceptedAdds, ClusterId, announced),
+    emit_store_telemetry(AcceptedRemoves, ClusterId, retired),
+    State#state{catalogue = Cat2,
+                clusters  = CMap#{ClusterId => Info},
+                collisions_logged = NewLogged}.
+
+log_publish(_ClusterId, [], [], _Cat) ->
+    ok;
+log_publish(ClusterId, AddedIds, RemovedIds, Cat) ->
+    logger:info("[reckon_gateway_catalogue ~p] +~p -~p (catalogue size ~b)",
+                [ClusterId, AddedIds, RemovedIds, maps:size(Cat)]).
+
+%% A cluster went away: drop every store it owned and retire them.
+apply_remove(ClusterId,
+             #state{catalogue = Cat, clusters = CMap,
+                    subscribers = Subs} = State) ->
+    Entries = case maps:get(ClusterId, CMap, undefined) of
+        undefined      -> [];
+        #{stores := S} -> S
+    end,
+    OwnedIds = [Id || {Id, C} <- maps:to_list(Cat), C =:= ClusterId],
+    Cat1 = maps:filter(fun(_, C) -> C =/= ClusterId end, Cat),
+    logger:info("[reckon_gateway_catalogue] removed cluster ~p (was ~b store(s))",
+                [ClusterId, length(Entries)]),
+    notify_subscribers(Subs, ClusterId, Entries, OwnedIds, retired),
+    emit_store_telemetry(OwnedIds, ClusterId, retired),
+    State#state{catalogue = Cat1, clusters = maps:remove(ClusterId, CMap)}.
 
 cluster_status(ClusterId, CMap) ->
     case maps:get(ClusterId, CMap, undefined) of
