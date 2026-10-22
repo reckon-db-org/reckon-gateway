@@ -188,11 +188,17 @@ start_http_server(Name, {Ip, Port}, Options, UserOptions) ->
     },
 
     Ssloptions = proplists:get_value(ssl_options, Options, []),
+    RanchOpts = proplists:get_value(ranch_opts, Options, #{}),
+    %% Socket options named through ranch_opts are appended, not dropped.
+    %% Without this they were overwritten by TransOpts0 below and the option
+    %% type advertised ranch_opts while socket_opts set there did nothing; a
+    %% dual-stack bind needs them (reckon-gateway#11).
+    ExtraSocketOpts = maps:get(socket_opts, RanchOpts, []),
     TransOpts0 = #{
         max_connections => 1024000,
-        socket_opts => [{ip, Ip}, {port, Port} | Ssloptions]
+        socket_opts => [{ip, Ip}, {port, Port} | Ssloptions] ++ ExtraSocketOpts
     },
-    TransOpts = maps:merge(proplists:get_value(ranch_opts, Options, #{}), TransOpts0),
+    TransOpts = maps:merge(RanchOpts, TransOpts0),
     ProtoOpts = maps:merge(proplists:get_value(cowboy_opts, Options, #{}), ProtoOpts0),
     StartFun =
         case Ssloptions of

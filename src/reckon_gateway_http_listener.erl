@@ -95,7 +95,7 @@ child_spec() ->
     ranch:child_spec(
         reckon_gateway_http,
         ranch_tcp,
-        [{port, Port}],
+        reckon_gateway_listen_opts:ranch_opts(Port),
         cowboy_clear,
         #{env => #{dispatch => Routes}}
     ).

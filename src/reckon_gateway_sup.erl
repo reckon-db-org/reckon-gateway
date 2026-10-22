@@ -48,7 +48,7 @@ init([]) ->
         }
     },
 
-    {ok, _} = grpc:start_server(reckon_gateway_grpc, Port, Services, []),
+    {ok, _} = reckon_gateway_grpc_listener:start_server(reckon_gateway_grpc, Port, Services),
 
     SupFlags = #{
         strategy => one_for_one,
