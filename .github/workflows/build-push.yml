@@ -2,7 +2,10 @@ name: build-and-push
 
 on:
   push:
-    branches: [main]
+    # Every branch runs the test job, so a reviewer can point at a green run on
+    # the exact tip under review (reckon-gateway#12). The image jobs below are
+    # guarded by ref, so a branch push can never build or push an image.
+    branches: ['**']
     tags:     ['v*']
     # A diagram or a README cannot change what the image contains, so it does not
     # rebuild :latest and restart whatever follows it (macula-codebase-checks#10).
@@ -10,6 +13,8 @@ on:
     paths-ignore:
       - 'assets/**'
       - '**.md'
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   # NO IMAGE WHILE THE TESTS ARE RED (mcl-om#34). Nothing ran the eunit suite
@@ -33,14 +38,22 @@ jobs:
   # The release guard, ahead of the build: a v* tag builds and pushes nothing
   # unless it is on main (or its release branch) and is the relx release
   # version. Any other ref passes, so main keeps building.
+  #
+  # Main and v* tags only: it guards releases, and a branch or pull request
+  # ships nothing (reckon-gateway#12).
   release-guard:
     name: The release guard
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
       contents: read
     uses: macula-io/macula-ci-images/.github/workflows/release-guard.yml@b4c41abb404c32215a2823b7f19ac65b732e1dfe
 
+  # NOTHING BUILDS FROM A BRANCH OR A PULL REQUEST (reckon-gateway#12): the
+  # test job above runs there, and this job — the only one that pushes an
+  # image — keeps to main and v* tags.
   build-and-push:
     needs: [test, release-guard]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -4,6 +4,14 @@
 
 ### Fixed
 
+- **A branch or a pull request runs the test gate (reckon-gateway#12).**
+  `build-push.yml` triggered on `main` and `v*` tags only, so the test job —
+  `rebar3 grpc gen && rebar3 lint && rebar3 eunit` in the builder image, and
+  the condition the image build waits on — first ran after a `main` push. A
+  reviewer was asked to accept a local run as evidence instead. The test job
+  now runs on every branch push, on a pull request and on `workflow_dispatch`;
+  the release guard and the image build keep to `main` and `v*` tags, so a
+  branch can never build or push an image.
 - **Both listeners answer on IPv6 and IPv4 (reckon-gateway#11).** The HTTP
   listener gave ranch only `[{port, Port}]` and the gRPC server got an empty
   option list, so both took gen_tcp's IPv4 default: a client that resolved
