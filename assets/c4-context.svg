@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" role="img" aria-label="reckon-gateway system context">
+<title>reckon-gateway system context</title>
+<style>
+.t-name { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 700; }
+.t-desc { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; }
+.t-rel { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 11.5px; paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; }
+.t-rel-s { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 10px; paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; }
+.t-code { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; }
+.t-type { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; }
+.t-bound { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
+.t-leg { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; }
+.edge { fill: none; stroke-width: 1.25; }
+.edge-later { fill: none; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bg { fill: #FFFFFF; }
+.b-sys { fill: #F5E9CC; stroke: #A56F0A; stroke-width: 2; }
+.b-per { fill: #E3EBF2; stroke: #3B5B7A; stroke-width: 1.25; }
+.b-mac { fill: #E6E4EE; stroke: #5E5A78; stroke-width: 1.25; }
+.b-ext { fill: #ECEFED; stroke: #8A9791; stroke-width: 1.25; }
+.b-cmp { fill: #FFFFFF; stroke: #8A9791; stroke-width: 1.25; }
+.b-later { fill: none; stroke: #8A9791; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bound { fill: none; stroke: #B3BDB8; stroke-width: 1; }
+.head { fill: #3B5B7A; }
+.t-name, .t-code { fill: #16201D; }
+.t-type, .t-bound, .t-leg { fill: #66736E; }
+.t-desc { fill: #34413C; }
+.t-rel, .t-rel-s { fill: #66736E; stroke: #FFFFFF; }
+.edge, .edge-later { stroke: #8A9791; }
+.arrowhead { fill: #8A9791; }
+@media (prefers-color-scheme: dark) {
+.bg { fill: #171F1C; }
+.b-sys { fill: #3A2E13; stroke: #E3AA3C; }
+.b-per { fill: #1D2A36; stroke: #8EB4D8; }
+.b-mac { fill: #26243A; stroke: #A9A4C8; }
+.b-ext { fill: #1C2421; stroke: #7D8B85; }
+.b-cmp { fill: #171F1C; stroke: #7D8B85; }
+.b-later { stroke: #7D8B85; }
+.bound { stroke: #4A5752; }
+.head { fill: #8EB4D8; }
+.t-name, .t-code { fill: #E6ECE9; }
+.t-type, .t-bound, .t-leg { fill: #93A09A; }
+.t-desc { fill: #C3CDC8; }
+.t-rel, .t-rel-s { fill: #93A09A; stroke: #171F1C; }
+.edge, .edge-later { stroke: #7D8B85; }
+.arrowhead { fill: #7D8B85; }
+}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="bg" x="0" y="0" width="1000" height="800"/>
+<rect class="b-per" x="30" y="30" width="250" height="122" rx="10"/>
+<circle class="head" cx="56" cy="54" r="9"/>
+<text class="t-name" x="74" y="58">Application developer</text>
+<text class="t-type" x="74" y="76">[Person]</text>
+<text class="t-desc" x="46" y="100">Writes a polyglot client against</text>
+<text class="t-desc" x="46" y="116">reckon.gateway.v1, from the stubs</text>
+<text class="t-desc" x="46" y="132">reckon-proto generates</text>
+<rect class="b-per" x="375" y="30" width="250" height="122" rx="10"/>
+<circle class="head" cx="401" cy="54" r="9"/>
+<text class="t-name" x="419" y="58">Operator</text>
+<text class="t-type" x="419" y="76">[Person]</text>
+<text class="t-desc" x="391" y="100">Pulls the image, writes</text>
+<text class="t-desc" x="391" y="116">clusters.eterm or store.eterm,</text>
+<text class="t-desc" x="391" y="132">watches the admin UI</text>
+<rect class="b-per" x="720" y="30" width="250" height="122" rx="10"/>
+<circle class="head" cx="746" cy="54" r="9"/>
+<text class="t-name" x="764" y="58">Cluster owner</text>
+<text class="t-type" x="764" y="76">[Person]</text>
+<text class="t-desc" x="736" y="100">Runs the ReckonDB clusters the</text>
+<text class="t-desc" x="736" y="116">catalogue federates, and supplies</text>
+<text class="t-desc" x="736" y="132">their Erlang cookies</text>
+<rect class="b-ext" x="30" y="210" width="250" height="154" rx="10"/>
+<text class="t-name" x="46" y="238">gRPC client</text>
+<text class="t-type" x="46" y="256">[External: any language, 50051]</text>
+<text class="t-desc" x="46" y="280">reckon-go and the generated</text>
+<text class="t-desc" x="46" y="296">stubs, over HTTP/2 in the clear.</text>
+<text class="t-desc" x="46" y="312">Stream, Subscription, Snapshot,</text>
+<text class="t-desc" x="46" y="328">Health, Temporal, Schema,</text>
+<text class="t-desc" x="46" y="344">Admin, Stores and DCB services</text>
+<rect class="b-sys" x="375" y="210" width="250" height="154" rx="10"/>
+<text class="t-name" x="391" y="238">reckon-gateway</text>
+<text class="t-type" x="391" y="256">[In scope: OTP release 0.30.1, OCI image]</text>
+<text class="t-desc" x="391" y="280">One release serving the ReckonDB</text>
+<text class="t-desc" x="391" y="296">API over gRPC and HTTP/JSON at</text>
+<text class="t-desc" x="391" y="312">once. In catalogue mode it holds</text>
+<text class="t-desc" x="391" y="328">no data: each call is dispatched</text>
+<text class="t-desc" x="391" y="344">to the cluster owning the store</text>
+<rect class="b-ext" x="720" y="210" width="250" height="154" rx="10"/>
+<text class="t-name" x="736" y="238">ReckonDB clusters</text>
+<text class="t-type" x="736" y="256">[External: N remote BEAM clusters]</text>
+<text class="t-desc" x="736" y="280">Each runs reckon_gater and</text>
+<text class="t-desc" x="736" y="296">reckon_db over Khepri and Ra.</text>
+<text class="t-desc" x="736" y="312">The gateway reaches them over</text>
+<text class="t-desc" x="736" y="328">Erlang distribution and calls</text>
+<text class="t-desc" x="736" y="344">reckon_gater_api there (EPMD)</text>
+<rect class="b-ext" x="30" y="420" width="250" height="122" rx="10"/>
+<text class="t-name" x="46" y="448">Log handler</text>
+<text class="t-type" x="46" y="466">[External: what the operator attaches]</text>
+<text class="t-desc" x="46" y="490">logger is the default handler.</text>
+<text class="t-desc" x="46" y="506">Prometheus or OTLP is attached by</text>
+<text class="t-desc" x="46" y="522">the operator; none is bundled</text>
+<rect class="b-mac" x="375" y="420" width="250" height="154" rx="10"/>
+<text class="t-name" x="391" y="448">Embedded ReckonDB</text>
+<text class="t-type" x="391" y="466">[Platform: in this VM when embedded]</text>
+<text class="t-desc" x="391" y="490">In embedded mode</text>
+<text class="t-desc" x="391" y="506">(STORE_ENABLED=true): Khepri and</text>
+<text class="t-desc" x="391" y="522">Ra on /data, Ra ports 5000-5100,</text>
+<text class="t-desc" x="391" y="538">peers found by multicast and a</text>
+<text class="t-desc" x="391" y="554">shared cluster secret</text>
+<rect class="b-ext" x="720" y="420" width="250" height="138" rx="10"/>
+<text class="t-name" x="736" y="448">HTTP/JSON client, browser</text>
+<text class="t-type" x="736" y="466">[External: port 8080]</text>
+<text class="t-desc" x="736" y="490">curl, scripts and the admin UI</text>
+<text class="t-desc" x="736" y="506">at /admin, plus the live event</text>
+<text class="t-desc" x="736" y="522">stream at /v1/admin/events over</text>
+<text class="t-desc" x="736" y="538">SSE. No authentication</text>
+<path class="edge" d="M155 157V210" marker-end="url(#a)"/>
+<text class="t-rel" x="163" y="188">writes a client against the proto</text>
+<path class="edge" d="M500 157V210" marker-end="url(#a)"/>
+<text class="t-rel" x="508" y="188">runs, configures, upgrades</text>
+<path class="edge" d="M845 157V210" marker-end="url(#a)"/>
+<text class="t-rel" x="853" y="170">operates the clusters</text>
+<path class="edge" d="M280 285H375" marker-end="url(#a)"/>
+<text class="t-rel" x="327" y="268" text-anchor="middle">gRPC, HTTP/2</text>
+<text class="t-rel" x="327" y="305" text-anchor="middle">port 50051</text>
+<path class="edge" d="M625 285H720" marker-end="url(#a)"/>
+<text class="t-rel" x="672" y="268" text-anchor="middle">rpc:call</text>
+<text class="t-rel-s" x="672" y="305" text-anchor="middle">reckon_gater_api</text>
+<path class="edge" d="M625 350H672V490H720" marker-end="url(#a)"/>
+<text class="t-rel" x="664" y="420" text-anchor="middle" transform="rotate(90 664 420)">HTTP/JSON, SSE</text>
+<path class="edge" d="M500 370V420" marker-end="url(#a)"/>
+<text class="t-rel" x="508" y="400">boots it in-process</text>
+<path class="edge" d="M420 380V395H155V420" marker-end="url(#a)"/>
+<text class="t-rel" x="163" y="412">telemetry events</text>
+<text class="t-desc" x="30" y="580">The three modes are three env settings, not three programs: catalogue (STORE_ENABLED=false,</text>
+<text class="t-desc" x="30" y="596">CLUSTERS_PATH set), embedded (STORE_ENABLED=true, no clusters path), and hybrid, which runs both.</text>
+<text class="t-desc" x="30" y="616">Nothing here terminates TLS: the gRPC options are empty and the HTTP listener is cowboy_clear, so a</text>
+<text class="t-desc" x="30" y="632">reverse proxy in front of it is the operator's own system, not part of this one.</text>
+<rect class="b-sys" x="24" y="760" width="22" height="14" rx="3"/>
+<text class="t-leg" x="54" y="772">In scope</text>
+<rect class="b-per" x="119.2" y="760" width="22" height="14" rx="3"/>
+<text class="t-leg" x="149.2" y="772">Person</text>
+<rect class="b-mac" x="200.60000000000002" y="760" width="22" height="14" rx="3"/>
+<text class="t-leg" x="230.60000000000002" y="772">Platform it runs on</text>
+<rect class="b-ext" x="371.70000000000005" y="760" width="22" height="14" rx="3"/>
+<text class="t-leg" x="401.70000000000005" y="772">External system</text>
+<rect class="b-cmp" x="515.2" y="760" width="22" height="14" rx="3"/>
+<text class="t-leg" x="545.2" y="772">Component</text>
+</svg>

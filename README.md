@@ -143,6 +143,7 @@ Full index: **[docs/README.md](docs/README.md)** , audience-grouped, with sugges
 Quick jumps:
 
 - [Architecture](docs/architecture.md)
+- [C4 model](architecture/README.md): the system context and the components, drawn from the code
 - [Environment contract](docs/env-contract.md) (incl. `RECKON_GATEWAY_HTTP_PORT`, `RECKON_GATEWAY_DIST_HIDDEN_FLAG`)
 - [HTTP/JSON API reference](docs/http-api.md)
 - [Admin UI + SSE](docs/admin-ui.md)

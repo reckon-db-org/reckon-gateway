@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1200" role="img" aria-label="reckon-gateway components">
+<title>reckon-gateway components</title>
+<style>
+.t-name { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 700; }
+.t-desc { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; }
+.t-rel { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 11.5px; paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; }
+.t-rel-s { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 10px; paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; }
+.t-code { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; }
+.t-type { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; }
+.t-bound { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
+.t-leg { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 12px; }
+.edge { fill: none; stroke-width: 1.25; }
+.edge-later { fill: none; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bg { fill: #FFFFFF; }
+.b-sys { fill: #F5E9CC; stroke: #A56F0A; stroke-width: 2; }
+.b-per { fill: #E3EBF2; stroke: #3B5B7A; stroke-width: 1.25; }
+.b-mac { fill: #E6E4EE; stroke: #5E5A78; stroke-width: 1.25; }
+.b-ext { fill: #ECEFED; stroke: #8A9791; stroke-width: 1.25; }
+.b-cmp { fill: #FFFFFF; stroke: #8A9791; stroke-width: 1.25; }
+.b-later { fill: none; stroke: #8A9791; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bound { fill: none; stroke: #B3BDB8; stroke-width: 1; }
+.head { fill: #3B5B7A; }
+.t-name, .t-code { fill: #16201D; }
+.t-type, .t-bound, .t-leg { fill: #66736E; }
+.t-desc { fill: #34413C; }
+.t-rel, .t-rel-s { fill: #66736E; stroke: #FFFFFF; }
+.edge, .edge-later { stroke: #8A9791; }
+.arrowhead { fill: #8A9791; }
+@media (prefers-color-scheme: dark) {
+.bg { fill: #171F1C; }
+.b-sys { fill: #3A2E13; stroke: #E3AA3C; }
+.b-per { fill: #1D2A36; stroke: #8EB4D8; }
+.b-mac { fill: #26243A; stroke: #A9A4C8; }
+.b-ext { fill: #1C2421; stroke: #7D8B85; }
+.b-cmp { fill: #171F1C; stroke: #7D8B85; }
+.b-later { stroke: #7D8B85; }
+.bound { stroke: #4A5752; }
+.head { fill: #8EB4D8; }
+.t-name, .t-code { fill: #E6ECE9; }
+.t-type, .t-bound, .t-leg { fill: #93A09A; }
+.t-desc { fill: #C3CDC8; }
+.t-rel, .t-rel-s { fill: #93A09A; stroke: #171F1C; }
+.edge, .edge-later { stroke: #7D8B85; }
+.arrowhead { fill: #7D8B85; }
+}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="bg" x="0" y="0" width="1000" height="1200"/>
+<rect class="bound" x="16" y="40" width="968" height="948" rx="12"/>
+<text class="t-bound" x="32" y="62">reckon_gateway release [Container: OTP 27 relx release 0.30.1, ports 50051 and 8080]</text>
+<rect class="b-cmp" x="32" y="70" width="624" height="122" rx="10"/>
+<text class="t-code" x="48" y="98">reckon_gateway_app, reckon_gateway_sup</text>
+<text class="t-type" x="48" y="116">[application and top supervisor]</text>
+<text class="t-desc" x="48" y="140">Attaches the telemetry handlers, starts the gRPC server inline in init/1, then its children:</text>
+<text class="t-desc" x="48" y="156">catalogue, metrics, fleet ingest, HTTP listener and cluster supervisor. The embedded store</text>
+<text class="t-desc" x="48" y="172">starter and the local connector are started only when RECKON_GATEWAY_STORE_ENABLED is true.</text>
+<rect class="b-cmp" x="664" y="70" width="304" height="122" rx="10"/>
+<text class="t-code" x="680" y="98">reckon_gateway_config</text>
+<text class="t-type" x="680" y="116">[app env, then OS env, then default]</text>
+<text class="t-desc" x="680" y="140">Validates clusters.eterm, resolves the</text>
+<text class="t-desc" x="680" y="156">embedded store spec, and keeps per-peer</text>
+<text class="t-desc" x="680" y="172">cookies out of the catalogue.</text>
+<rect class="b-sys" x="32" y="266" width="624" height="122" rx="10"/>
+<text class="t-code" x="48" y="294">gRPC service layer</text>
+<text class="t-type" x="48" y="312">[nine *_service modules, grpc-erl and cowboy HTTP/2, port 50051]</text>
+<text class="t-desc" x="48" y="336">StreamService, SubscriptionService (server-streaming with acks), SnapshotService,</text>
+<text class="t-desc" x="48" y="352">HealthService, TemporalService, SchemaService, AdminService (reload the catalogue and</text>
+<text class="t-desc" x="48" y="368">report its status), StoresService and DcbService.</text>
+<rect class="b-cmp" x="664" y="266" width="304" height="138" rx="10"/>
+<text class="t-code" x="680" y="294">Generated behaviours and codecs</text>
+<text class="t-type" x="680" y="312">[grpc_plugin, reckon-proto v0.8.0]</text>
+<text class="t-desc" x="680" y="336">reckon_gateway_v_1_*_service_bhvr and</text>
+<text class="t-desc" x="680" y="352">_client per service, and the protobuf</text>
+<text class="t-desc" x="680" y="368">codecs reckon_*_pb.erl. Generated at</text>
+<text class="t-desc" x="680" y="384">build time by rebar3 grpc gen, into src/.</text>
+<rect class="b-cmp" x="32" y="462" width="296" height="154" rx="10"/>
+<text class="t-code" x="48" y="490">reckon_gateway_dispatch</text>
+<text class="t-type" x="48" y="508">[dispatch]</text>
+<text class="t-desc" x="48" y="532">Finds the store id in the catalogue,</text>
+<text class="t-desc" x="48" y="548">picks a member of its cluster and</text>
+<text class="t-desc" x="48" y="564">rpc:call/4s reckon_gater_api there</text>
+<text class="t-desc" x="48" y="580">with a 5 s timeout. store_unknown and</text>
+<text class="t-desc" x="48" y="596">cluster_unavailable become statuses.</text>
+<rect class="b-cmp" x="348" y="462" width="296" height="154" rx="10"/>
+<text class="t-code" x="364" y="490">reckon_gateway_catalogue</text>
+<text class="t-type" x="364" y="508">[gen_server]</text>
+<text class="t-desc" x="364" y="532">The merged store id to cluster view,</text>
+<text class="t-desc" x="364" y="548">with cluster info and the announce and</text>
+<text class="t-desc" x="364" y="564">retire events, fanned out to SSE</text>
+<text class="t-desc" x="364" y="580">subscribers. It never holds a cookie:</text>
+<text class="t-desc" x="364" y="596">the connector keeps that itself.</text>
+<rect class="b-cmp" x="664" y="462" width="304" height="154" rx="10"/>
+<text class="t-code" x="680" y="490">Connectors and federation</text>
+<text class="t-type" x="680" y="508">[clusters_sup, cluster_connector]</text>
+<text class="t-desc" x="680" y="532">One connector per clusters.eterm entry:</text>
+<text class="t-desc" x="680" y="548">dist connect, per-peer cookie, then</text>
+<text class="t-desc" x="680" y="564">rpc:call of reckon_db_store_registry:</text>
+<text class="t-desc" x="680" y="580">list_stores/0 each refresh tick.</text>
+<text class="t-desc" x="680" y="596">A reload diffs, adds and removes.</text>
+<rect class="b-cmp" x="32" y="658" width="296" height="138" rx="10"/>
+<text class="t-code" x="48" y="686">reckon_gateway_local_connector</text>
+<text class="t-type" x="48" y="704">[gen_server]</text>
+<text class="t-desc" x="48" y="728">In embedded mode, polls the local</text>
+<text class="t-desc" x="48" y="744">reckon_db_store_registry and publishes</text>
+<text class="t-desc" x="48" y="760">those stores into the catalogue, so</text>
+<text class="t-desc" x="48" y="776">dispatch answers on this node.</text>
+<rect class="b-cmp" x="348" y="658" width="296" height="138" rx="10"/>
+<text class="t-code" x="364" y="686">reckon_gateway_store_starter</text>
+<text class="t-type" x="364" y="704">[transient worker]</text>
+<text class="t-desc" x="364" y="728">Builds the store_config from the env</text>
+<text class="t-desc" x="364" y="744">(pools, timeout, indexes, integrity)</text>
+<text class="t-desc" x="364" y="760">and calls reckon_db_sup:start_store/1,</text>
+<text class="t-desc" x="364" y="776">then returns ignore.</text>
+<rect class="b-cmp" x="664" y="658" width="304" height="138" rx="10"/>
+<text class="t-code" x="680" y="686">HTTP/JSON, admin UI, SSE</text>
+<text class="t-type" x="680" y="704">[cowboy_clear, port 8080]</text>
+<text class="t-desc" x="680" y="728">reckon_gateway_http_listener mounts the</text>
+<text class="t-desc" x="680" y="744">routes that _http_streams, _http_dcb,</text>
+<text class="t-desc" x="680" y="760">_http_health and _http_sse answer;</text>
+<text class="t-desc" x="680" y="776">priv/static/admin is the admin UI.</text>
+<rect class="b-cmp" x="32" y="838" width="624" height="122" rx="10"/>
+<text class="t-code" x="48" y="866">Observability</text>
+<text class="t-type" x="48" y="884">[metrics, fleet ingest, telemetry]</text>
+<text class="t-desc" x="48" y="908">reckon_gateway_metrics keeps ETS counters and one-second ring buckets, and sizes snapshot_json/0 for</text>
+<text class="t-desc" x="48" y="924">/v1/admin/metrics; fleet_ingest polls each store's global_event_count every 5 s for events per second.</text>
+<text class="t-desc" x="48" y="940">reckon_gateway_telemetry is the attach, detach and emit facade.</text>
+<rect class="b-cmp" x="664" y="838" width="304" height="138" rx="10"/>
+<text class="t-code" x="680" y="866">Translation and errors</text>
+<text class="t-type" x="680" y="884">[convert, error]</text>
+<text class="t-desc" x="680" y="908">reckon_gateway_convert maps proto to</text>
+<text class="t-desc" x="680" y="924">gater types, parses store ids and builds</text>
+<text class="t-desc" x="680" y="940">subscription types; reckon_gateway_error</text>
+<text class="t-desc" x="680" y="956">wraps a failure as a gRPC status.</text>
+<rect class="b-ext" x="32" y="1010" width="296" height="106" rx="10"/>
+<text class="t-name" x="48" y="1038">gRPC and HTTP clients</text>
+<text class="t-type" x="48" y="1056">[External]</text>
+<text class="t-desc" x="48" y="1080">The generated stubs in any language,</text>
+<text class="t-desc" x="48" y="1096">curl, and the browser at /admin</text>
+<rect class="b-ext" x="348" y="1010" width="296" height="106" rx="10"/>
+<text class="t-name" x="364" y="1038">ReckonDB clusters</text>
+<text class="t-type" x="364" y="1056">[External: over Erlang distribution]</text>
+<text class="t-desc" x="364" y="1080">reckon_gater_api, called by dispatch</text>
+<text class="t-desc" x="364" y="1096">with rpc:call/4</text>
+<rect class="b-mac" x="664" y="1010" width="304" height="106" rx="10"/>
+<text class="t-name" x="680" y="1038">reckon_db, Khepri, Ra</text>
+<text class="t-type" x="680" y="1056">[Platform: in this VM when embedded]</text>
+<text class="t-desc" x="680" y="1080">The store, its Raft log and /data</text>
+<text class="t-desc" x="680" y="1096">when STORE_ENABLED is true</text>
+<path class="edge" d="M240 192V266" marker-end="url(#a)"/>
+<text class="t-rel" x="248" y="236">starts</text>
+<path class="edge" d="M816 192V266" marker-end="url(#a)"/>
+<text class="t-rel" x="824" y="236">resolves</text>
+<path class="edge" d="M180 388V462" marker-end="url(#a)"/>
+<text class="t-rel" x="188" y="436">looks up</text>
+<path class="edge" d="M498 388V462" marker-end="url(#a)"/>
+<text class="t-rel" x="506" y="436">publishes</text>
+<path class="edge" d="M816 388V462" marker-end="url(#a)"/>
+<text class="t-rel" x="824" y="436">reloads</text>
+<path class="edge" d="M664 527H644" marker-end="url(#a)"/>
+<text class="t-rel" x="654" y="500" text-anchor="middle">announces</text>
+<path class="edge" d="M180 658V636H498V616" marker-end="url(#a)"/>
+<text class="t-rel" x="340" y="630" text-anchor="middle">publishes</text>
+<path class="edge" d="M758 658V636H180V616" marker-end="url(#a)"/>
+<text class="t-rel" x="640" y="630" text-anchor="middle">REST and SSE calls</text>
+<path class="edge" d="M180 1010V988" marker-end="url(#a)"/>
+<text class="t-rel" x="188" y="1002">in on gRPC 50051 and HTTP 8080</text>
+<path class="edge" d="M498 988V1010" marker-end="url(#a)"/>
+<text class="t-rel" x="506" y="1002">rpc:call reckon_gater_api</text>
+<path class="edge" d="M816 988V1010" marker-end="url(#a)"/>
+<text class="t-rel" x="824" y="1002">start_store</text>
+<rect class="b-sys" x="24" y="1150" width="22" height="14" rx="3"/>
+<text class="t-leg" x="54" y="1162">In scope</text>
+<rect class="b-per" x="119.2" y="1150" width="22" height="14" rx="3"/>
+<text class="t-leg" x="149.2" y="1162">Person</text>
+<rect class="b-mac" x="200.60000000000002" y="1150" width="22" height="14" rx="3"/>
+<text class="t-leg" x="230.60000000000002" y="1162">Platform it runs on</text>
+<rect class="b-ext" x="371.70000000000005" y="1150" width="22" height="14" rx="3"/>
+<text class="t-leg" x="401.70000000000005" y="1162">External system</text>
+<rect class="b-cmp" x="515.2" y="1150" width="22" height="14" rx="3"/>
+<text class="t-leg" x="545.2" y="1162">Component</text>
+<rect class="bound" x="617.3000000000001" y="1150" width="22" height="14" rx="3"/>
+<text class="t-leg" x="647.3000000000001" y="1162">Boundary</text>
+</svg>

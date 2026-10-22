@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
     tags:     ['v*']
+    # A diagram or a README cannot change what the image contains, so it does not
+    # rebuild :latest and restart whatever follows it (macula-codebase-checks#10).
+    # A tag push ignores path filters, so a release still builds.
+    paths-ignore:
+      - 'assets/**'
+      - '**.md'
 
 jobs:
   # NO IMAGE WHILE THE TESTS ARE RED (mcl-om#34). Nothing ran the eunit suite
