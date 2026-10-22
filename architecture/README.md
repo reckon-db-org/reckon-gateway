@@ -50,14 +50,14 @@ The three modes are three environment settings, not three programs:
 |---|---|---|
 | Application and supervisor | `reckon_gateway_app`, `reckon_gateway_sup` | Attaches the telemetry handlers, starts the gRPC server inline in `init/1`, then the children |
 | Configuration | `reckon_gateway_config` | App env, then OS env, then default; validates `clusters.eterm`, resolves the embedded store spec, keeps cookies out of the catalogue |
-| gRPC service layer | `reckon_gateway_{stream,subscription,snapshot,health,temporal,schema,admin,stores,dcb}_service` | The nine `reckon.gateway.v1` services; subscription is server-streaming with acks |
+| gRPC service layer | `reckon_gateway_{stream,subscription,snapshot,health,temporal,schema,admin,stores,dcb}_service` | The nine `reckon.gateway.v1` services; subscription is server-streaming with acks, and the AdminService also answers store stats, stream info and event-type summary, scavenge (dry run and matching), the seven stream-link calls, and a catalogue reload with its status |
 | Generated behaviours and codecs | `reckon_gateway_v_1_*_service_bhvr`, `_client`, `reckon_*_pb` | Produced by `rebar3 grpc gen` from `reckon-proto` v0.8.0, into `src/` |
 | Dispatch | `reckon_gateway_dispatch` | Finds the store id in the catalogue, picks a member, `rpc:call/4`s `reckon_gater_api` there with a 5 s timeout |
 | Catalogue | `reckon_gateway_catalogue` | The merged store id to cluster view, the announce and retire events, and the SSE fan-out; never holds a cookie |
 | Connectors and federation | `reckon_gateway_clusters_sup`, `reckon_gateway_cluster_connector` | One connector per `clusters.eterm` entry: dist connect, per-peer cookie, `rpc:call` of `reckon_db_store_registry:list_stores/0` each refresh tick |
 | Local connector | `reckon_gateway_local_connector` | In embedded mode, publishes the local registry's stores into the catalogue |
 | Store starter | `reckon_gateway_store_starter` | Builds the `store_config` from the env and calls `reckon_db_sup:start_store/1` |
-| HTTP, admin UI, SSE | `reckon_gateway_http_listener`, `reckon_gateway_http_*` | The cowboy routes on 8080 and the static admin UI in `priv/static/admin` |
+| HTTP, admin UI, SSE | `reckon_gateway_http_listener`, `reckon_gateway_http_streams`, `reckon_gateway_http_dcb`, `reckon_gateway_http_health`, `reckon_gateway_http_sse`, `reckon_gateway_http` | The cowboy routes on 8080, answered through the shared JSON, params and filter helpers in `reckon_gateway_http`, and the static admin UI in `priv/static/admin` |
 | Observability | `reckon_gateway_metrics`, `reckon_gateway_fleet_ingest`, `reckon_gateway_telemetry` | ETS counters and one-second ring buckets for `/v1/admin/metrics`; the fleet events-per-second figure |
 | Translation and errors | `reckon_gateway_convert`, `reckon_gateway_error` | Proto to gater types, store id parsing, and a failure wrapped as a gRPC status |
 

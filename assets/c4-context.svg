@@ -130,10 +130,10 @@
 <text class="t-rel" x="508" y="400">boots it in-process</text>
 <path class="edge" d="M420 380V395H155V420" marker-end="url(#a)"/>
 <text class="t-rel" x="163" y="412">telemetry events</text>
-<text class="t-desc" x="30" y="580">The three modes are three env settings, not three programs: catalogue (STORE_ENABLED=false,</text>
-<text class="t-desc" x="30" y="596">CLUSTERS_PATH set), embedded (STORE_ENABLED=true, no clusters path), and hybrid, which runs both.</text>
-<text class="t-desc" x="30" y="616">Nothing here terminates TLS: the gRPC options are empty and the HTTP listener is cowboy_clear, so a</text>
-<text class="t-desc" x="30" y="632">reverse proxy in front of it is the operator's own system, not part of this one.</text>
+<text class="t-desc" x="30" y="596">The three modes are three env settings, not three programs: catalogue (STORE_ENABLED=false,</text>
+<text class="t-desc" x="30" y="612">CLUSTERS_PATH set), embedded (STORE_ENABLED=true, no clusters path), and hybrid, which runs both.</text>
+<text class="t-desc" x="30" y="632">Nothing here terminates TLS: the gRPC options are empty and the HTTP listener is cowboy_clear, so a</text>
+<text class="t-desc" x="30" y="648">reverse proxy in front of it is the operator's own system, not part of this one.</text>
 <rect class="b-sys" x="24" y="760" width="22" height="14" rx="3"/>
 <text class="t-leg" x="54" y="772">In scope</text>
 <rect class="b-per" x="119.2" y="760" width="22" height="14" rx="3"/>

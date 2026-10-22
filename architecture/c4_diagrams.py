@@ -187,8 +187,9 @@ def components():
            "cookies out of the catalogue."], code=True)
     d.box("b-sys", 32, 266, 624, "gRPC service layer", "[nine *_service modules, grpc-erl and cowboy HTTP/2, port 50051]",
           ["StreamService, SubscriptionService (server-streaming with acks), SnapshotService,",
-           "HealthService, TemporalService, SchemaService, AdminService (reload the catalogue and",
-           "report its status), StoresService and DcbService."], code=True)
+           "HealthService, TemporalService, SchemaService, StoresService and DcbService; the AdminService",
+           "answers store stats, stream info and event-type summary, scavenge (dry run and matching), the",
+           "seven stream-link calls, and a catalogue reload with its status."], code=True)
     d.box("b-cmp", 664, 266, 304, "Generated behaviours and codecs", "[grpc_plugin, reckon-proto v0.8.0]",
           ["reckon_gateway_v_1_*_service_bhvr and", "_client per service, and the protobuf",
            "codecs reckon_*_pb.erl. Generated at", "build time by rebar3 grpc gen, into src/."], code=True)
@@ -211,8 +212,9 @@ def components():
           ["Builds the store_config from the env", "(pools, timeout, indexes, integrity)",
            "and calls reckon_db_sup:start_store/1,", "then returns ignore."], code=True)
     d.box("b-cmp", 664, 658, 304, "HTTP/JSON, admin UI, SSE", "[cowboy_clear, port 8080]",
-          ["reckon_gateway_http_listener mounts the", "routes that _http_streams, _http_dcb,",
-           "_http_health and _http_sse answer;", "priv/static/admin is the admin UI."], code=True)
+          ["reckon_gateway_http_listener mounts the", "routes; _http_streams, _http_dcb,",
+           "_http_health and _http_sse answer them", "through the JSON, params and filter",
+           "helpers in reckon_gateway_http; the admin", "UI is priv/static/admin."], code=True)
     d.box("b-cmp", 32, 838, 624, "Observability", "[metrics, fleet ingest, telemetry]",
           ["reckon_gateway_metrics keeps ETS counters and one-second ring buckets, and sizes snapshot_json/0 for",
            "/v1/admin/metrics; fleet_ingest polls each store's global_event_count every 5 s for events per second.",
