@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **A refused stream id tells the client the rule it broke.** Over gRPC a bad
+  id came back with an empty message, and on GetStreamVersion as NOT_FOUND;
+  over HTTP as a 500 carrying an Erlang term. Every operation now answers
+  INVALID_ARGUMENT (HTTP 400) with the rule as the gRPC message (the JSON
+  `error`): what a valid id looks like, how to make one, and the Stream Ids
+  guide's link. reckon-db 5.11.14 sends the rule; for an older store the
+  gateway takes it from `reckon_gater_stream_id:explain/1`, so catalogue-mode
+  clusters on any version give the same answer. No other reason goes on the
+  wire. reckon_gater floor `~> 3.14` (reckon-gater#5).
+- **The dispatch-error log and metric name the reason.** A tagged-tuple reason
+  was labelled `other`; it is now labelled by its tag (`invalid_stream_id`,
+  `context_changed` for a DCB conflict, `rpc_failed`, ...).
+
 ## 0.30.2 - 2026-10-23
 
 ### Changed

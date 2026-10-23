@@ -58,10 +58,13 @@ emit_dispatch_result(Fn, StoreId, Start, Result) ->
                               #{store_id => StoreId, op => Fn})
     end.
 
-%% @private Keep the reason label low-cardinality: collapse the
-%% {rpc_failed, Member, Why} tuple to the atom `rpc_failed'.
-dispatch_reason({rpc_failed, _Member, _Why}) -> rpc_failed;
+%% @private Keep the reason label low-cardinality: a tagged tuple is
+%% labelled by its tag (`{rpc_failed, Member, Why}' is `rpc_failed', a
+%% refused stream id is `invalid_stream_id', a DCB conflict is its own
+%% tag), so the log and the metric say what happened instead of `other'.
 dispatch_reason(Reason) when is_atom(Reason) -> Reason;
+dispatch_reason(Reason) when is_tuple(Reason), tuple_size(Reason) > 0,
+                             is_atom(element(1, Reason)) -> element(1, Reason);
 dispatch_reason(_Reason)                      -> other.
 
 dispatch_lookup({ok, _ClusterId, Members, ApiModule}, StoreId, Fn, Args, Timeout) ->

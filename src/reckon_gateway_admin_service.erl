@@ -127,14 +127,12 @@ scavenge_reply({error, Reason}, Op, _Md) ->
     scavenge_error(Op, Reason).
 
 %% @private Map worker-side errors to the right gRPC status code.
-%% Caller-side errors (no_snapshot, stream_not_found, invalid_stream_id)
-%% are 3 (InvalidArgument). Anything else stays 13 (Internal). Routed
+%% Caller-side errors (no_snapshot, stream_not_found) are 3
+%% (InvalidArgument); wrap/3 makes a refused stream id 3 by itself. Anything else stays 13 (Internal). Routed
 %% through wrap so the reason hits the gateway log either way.
 scavenge_error(Op, {no_snapshot, _} = R) ->
     reckon_gateway_error:wrap(Op, <<"3">>, R);
 scavenge_error(Op, {stream_not_found, _} = R) ->
-    reckon_gateway_error:wrap(Op, <<"3">>, R);
-scavenge_error(Op, {invalid_stream_id, _, _} = R) ->
     reckon_gateway_error:wrap(Op, <<"3">>, R);
 scavenge_error(Op, R) ->
     reckon_gateway_error:wrap(Op, <<"13">>, R).

@@ -202,6 +202,10 @@ dispatch_error(malformed_tag_filter, Req) -> reply_error(400, malformed_tag_filt
 dispatch_error(version_conflict, Req)     -> reply_error(409, version_conflict, Req);
 dispatch_error({version_conflict, _}, Req)-> reply_error(409, version_conflict, Req);
 dispatch_error({rpc_failed, _, _}, Req)   -> reply_error(502, rpc_failed, Req);
+dispatch_error({invalid_stream_id, _, _} = R, Req) ->
+    reply_error(400, reckon_gateway_error:format_reason(R), Req);
+dispatch_error({invalid_stream_id, _, _, _} = R, Req) ->
+    reply_error(400, reckon_gateway_error:format_reason(R), Req);
 dispatch_error(Reason, Req)               -> reply_error(500, Reason, Req).
 
 %%====================================================================
