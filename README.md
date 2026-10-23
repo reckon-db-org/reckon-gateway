@@ -169,7 +169,24 @@ Quick jumps:
 | `reckon_proto` (deps) | v0.8.0 |
 | Erlang/OTP | 28 |
 
-Pin to the semver tag (`:0.30.2`) for reproducible deploys; `:latest` tracks `main`.
+Pin to `<semver>@sha256:<digest>`: every image this repository publishes is
+signed by CI, and that is the only name whose bytes cannot change under you. A
+`v*` tag publishes `:<semver>`, `main` publishes `:main` and `:<sha>`, and
+nothing publishes `:latest`.
+
+Check a digest before you pin it:
+
+```
+cosign verify \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/macula-io/macula-ci-images/\.github/workflows/attest-image\.yml@' \
+  --certificate-github-workflow-repository reckon-db-org/reckon-gateway \
+  ghcr.io/reckon-db-org/reckon-gateway@sha256:<digest>
+```
+
+`cosign verify-attestation --type spdxjson` and `--type slsaprovenance1` read
+the SBOM and the provenance that name the repository, the commit and the run
+that built it.
 
 ## License
 

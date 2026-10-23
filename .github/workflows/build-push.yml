@@ -1,5 +1,16 @@
 name: build-and-push
 
+# WHAT PUBLISHES, AND WHAT SIGNS IT
+#
+#   push of v*   : :<semver>   then attest signs that digest   <- what a box pins
+#   push to main : :main and :<sha>   then attest signs it     <- the tip, for trying
+#   any branch   : the test job only (reckon-gateway#12)       <- a push pushes nothing
+#   dispatch     : on a branch, a tag named after it, signed   <- proving the signing path
+#
+# :latest IS GONE (reckon-gateway#13). A moving tag cannot be signed once and stay
+# signed: whatever pushed last is what it points at. macula-fleet pins
+# <semver>@sha256:<digest> from a commit, so no box reads a tag at all.
+
 on:
   push:
     # Every branch runs the test job, so a reviewer can point at a green run on
@@ -8,13 +19,19 @@ on:
     branches: ['**']
     tags:     ['v*']
     # A diagram or a README cannot change what the image contains, so it does not
-    # rebuild :latest and restart whatever follows it (macula-codebase-checks#10).
+    # rebuild an image (macula-codebase-checks#10).
     # A tag push ignores path filters, so a release still builds.
     paths-ignore:
       - 'assets/**'
       - '**.md'
   pull_request:
   workflow_dispatch:
+
+# ONE IMAGE BUILD IN FLIGHT PER REF: two builds that finish out of order would leave
+# :main pointing at whichever finished LAST, not whichever was pushed last.
+concurrency:
+  group: build-and-push-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   # NO IMAGE WHILE THE TESTS ARE RED (mcl-om#34). Nothing ran the eunit suite
@@ -53,11 +70,26 @@ jobs:
   # image — keeps to main and v* tags.
   build-and-push:
     needs: [test, release-guard]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    # A push builds on main and on a v* tag only, so a branch can never publish an
+    # image (reckon-gateway#12). A dispatch is the one exception, and it is a person
+    # asking: it publishes a tag named after the branch, so the signing path can be
+    # proven on a branch before a release depends on it. A dispatch never builds a
+    # tag ref — a tag is guarded by the release guard, and that guard reads pushes
+    # only — and it never builds a branch the tests did not pass on.
+    if: |
+      always()
+      && needs.test.result == 'success'
+      && (needs['release-guard'].result == 'success' || needs['release-guard'].result == 'skipped')
+      && ((github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+          || (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/')))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    # The digest the push produced: the one the attest job signs. A digest, never a
+    # tag — a tag can be moved after it is signed, a digest cannot.
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
 
     steps:
       - uses: actions/checkout@v4
@@ -69,21 +101,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set tag
+      # Emits the COMPLETE tag list. A v* tag publishes its version; main publishes
+      # :main and :<sha>; a dispatch on a branch publishes a tag named after the
+      # branch, so it can neither overwrite :main nor reach a box. Nothing
+      # publishes :latest.
+      - name: Set tags
         id: tag
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=latest" >> "$GITHUB_OUTPUT"
-          fi
+          img=ghcr.io/reckon-db-org/reckon-gateway
+          case "${GITHUB_REF}" in
+            refs/tags/v*)    echo "tags=$img:${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT" ;;
+            refs/heads/main) echo "tags=$img:main,$img:${GITHUB_SHA}" >> "$GITHUB_OUTPUT" ;;
+            refs/heads/*)    echo "tags=$img:$(printf '%s' "${GITHUB_REF#refs/heads/}" | tr '/' '-')" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::a v* tag or a branch publishes an image here; refusing ${GITHUB_REF}"; exit 1 ;;
+          esac
 
       - name: Build and push
+        id: push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           push: true
-          tags: |
-            ghcr.io/reckon-db-org/reckon-gateway:latest
-            ghcr.io/reckon-db-org/reckon-gateway:${{ steps.tag.outputs.tag }}
+          tags: ${{ steps.tag.outputs.tags }}
+
+  # SIGNED BY DIGEST, SBOM AND PROVENANCE ATTESTED, keyless (reckon-gateway#13): a box
+  # can refuse any reckon-gateway digest that did not come from this workflow on a
+  # commit of this repository. Pinned by FULL COMMIT SHA: the signing identity is that
+  # file at that ref, and a moving ref would let a later change to it sign in our name.
+  # The job ends by verifying what it wrote, so a green run means a verifier accepts
+  # the digest, not only that three commands exited 0.
+  attest:
+    needs: build-and-push
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: macula-io/macula-ci-images/.github/workflows/attest-image.yml@601c719b7cfbd8ed15852281d87c652d776a6ae7
+    with:
+      image: ghcr.io/reckon-db-org/reckon-gateway
+      digest: ${{ needs.build-and-push.outputs.digest }}

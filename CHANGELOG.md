@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Every published image is signed, with its SBOM and provenance attested
+  (reckon-gateway#13).** `build-push.yml` pushed `:latest` and the version tag
+  in one build with nothing to show where either came from: no signature, no
+  attestation, and a moved tag indistinguishable from our own bytes. A box on
+  the fleet that enforces signatures would refuse all of it. The build now
+  reports the digest it pushed, and a separate `attest` job signs that digest
+  keyless through `macula-ci-images`' shared workflow, pinned by full commit
+  sha, which also attaches an SPDX SBOM and SLSA v1 provenance and verifies
+  what it wrote.
+- **`:latest` is no longer published.** A moving tag cannot be signed once and
+  stay signed. A `v*` tag publishes `:<semver>`, `main` publishes `:main` and
+  `:<sha>`, and the README says to pin `<semver>@sha256:<digest>` and gives the
+  `cosign verify` invocation that checks it.
+- **One image build in flight per ref.** Two builds finishing out of order left
+  `:main` pointing at whichever finished last, not whichever was pushed last.
+- **A dispatch can build a branch (for proving the signing path).** A push from
+  a branch still publishes nothing (reckon-gateway#12); a `workflow_dispatch` on
+  a branch publishes a tag named after that branch and nothing else, which is how
+  the signing was exercised before a release depended on it.
+
 ## 0.30.2 - 2026-10-23
 
 ### Changed
