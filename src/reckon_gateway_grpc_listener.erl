@@ -10,7 +10,12 @@
 
 -spec start_server(atom(), inet:port_number(), map()) -> {ok, pid()} | {error, term()}.
 start_server(Name, Port, Services) ->
-    grpc:start_server(Name,
-                      reckon_gateway_listen_opts:grpc_listen_on(Port),
-                      Services,
-                      reckon_gateway_listen_opts:grpc_options()).
+    case reckon_gateway_listen_opts:bind() of
+        {ok, #{address := Address, family_opts := FamilyOpts}} ->
+            grpc:start_server(Name,
+                              {Address, Port},
+                              Services,
+                              reckon_gateway_listen_opts:grpc_options(FamilyOpts));
+        {error, Reason} ->
+            {error, Reason}
+    end.

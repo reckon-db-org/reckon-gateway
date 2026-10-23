@@ -20,12 +20,16 @@
   the app env and the sys.config and was never read. The default (unset, or
   the legacy `{0,0,0,0}`) is now served as the IPv6 any-address with
   `ipv6_v6only` off, so one socket carries both families; an operator who names
-  an address gets exactly that address, IPv4 or IPv6. The vendored runtime now
+  an address gets exactly that address, IPv4 or IPv6. On a host without the
+  IPv6 family the default falls back to the IPv4 any-address with a warning,
+  so a kernel with `ipv6.disable=1` still boots; a `listen_ip` that parses as
+  no address at all stops the gateway with an error naming the value rather
+  than quietly binding every interface. The vendored runtime now
   appends `socket_opts` from `ranch_opts` instead of silently dropping them.
   `reckon_gateway_listener_bind_tests` starts the real HTTP listener and the
   real gRPC listener and dials `127.0.0.1` and `::1`; it was red first on the
-  old child spec and option list, and it also pins that an explicit IPv4
-  `listen_ip` refuses `::1`.
+  old child spec and option list, and it also pins the IPv4 fallback through
+  the family seam and that an explicit IPv4 `listen_ip` refuses `::1`.
 - **The docs name the current release.** README badge, Versioning table and image examples, and the embedded-mode, store-config and HTTP API examples said 0.6.2 to 0.18.0; they now say 0.30.1, and the table names the requirements rebar.config declares (reckon_gater ~> 3.7, reckon_db ~> 5.5) instead of ~> 3.6 / ~> 5.4.
 - **The release's version is the app's version again (reckon-gateway#2).**
   `rebar.config` named the relx release `{reckon_gateway, "0.27.0"}` while

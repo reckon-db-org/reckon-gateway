@@ -62,6 +62,25 @@ http_listener_honours_an_ipv4_listen_ip_test_() ->
          end)
      end}.
 
+%% A host without the IPv6 family (a kernel booted ipv6.disable=1, a container
+%% with the family removed) must still boot: the default falls back to the IPv4
+%% any-address. The family probe is the seam, so this runs without such a host.
+http_listener_falls_back_to_ipv4_without_ipv6_test_() ->
+    {timeout, 60,
+     fun() ->
+         with_inet6(false, fun() ->
+             with_listen_ip(unset, fun() ->
+                 {Sup, Port} = start_http_listener(),
+                 try
+                     ?assertMatch({ok, _}, dial(inet, Port)),
+                     ?assertMatch({error, econnrefused}, dial(inet6, Port))
+                 after
+                     stop_supervisor(Sup)
+                 end
+             end)
+         end)
+     end}.
+
 %%====================================================================
 %% gRPC listener
 %%====================================================================
@@ -129,3 +148,9 @@ with_listen_ip(Ip, Fun) ->
 
 restore({ok, Ip}) -> application:set_env(reckon_gateway, listen_ip, Ip);
 restore(undefined) -> application:unset_env(reckon_gateway, listen_ip).
+
+%% The family probe is the seam: stand a no-IPv6 kernel in for the real one.
+with_inet6(Available, Fun) ->
+    meck:new(reckon_gateway_listen_family, [passthrough]),
+    meck:expect(reckon_gateway_listen_family, inet6_available, fun() -> Available end),
+    try Fun() after meck:unload(reckon_gateway_listen_family) end.

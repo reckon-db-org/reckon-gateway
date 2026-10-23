@@ -48,7 +48,7 @@ init([]) ->
         }
     },
 
-    {ok, _} = reckon_gateway_grpc_listener:start_server(reckon_gateway_grpc, Port, Services),
+    start_grpc_listener(Port, Services),
 
     SupFlags = #{
         strategy => one_for_one,
@@ -84,3 +84,12 @@ init([]) ->
           modules  => [reckon_gateway_clusters_sup]}
     ] ++ StoreChildren,
     {ok, {SupFlags, Children}}.
+
+%% A listener that cannot bind stops the gateway with the reason it was given
+%% — `{invalid_listen_ip, Value}' or `{ipv6_unavailable, Address}' — rather
+%% than a badmatch on `{error, Reason}' (reckon-gateway#11).
+start_grpc_listener(Port, Services) ->
+    case reckon_gateway_grpc_listener:start_server(reckon_gateway_grpc, Port, Services) of
+        {ok, _} -> ok;
+        {error, Reason} -> error(Reason)
+    end.
