@@ -13,7 +13,7 @@
   <a href="https://github.com/reckon-db-org/reckon-gateway/releases"><img src="https://img.shields.io/badge/release-v0.30.2-1e40af" alt="release"/></a>
   <a href="https://github.com/reckon-db-org/reckon-gateway/pkgs/container/reckon-gateway"><img src="https://img.shields.io/badge/ghcr.io-image-0c4a6e" alt="image"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-475569" alt="license"/></a>
-  <img src="https://img.shields.io/badge/erlang-OTP%2028%2B-92400e" alt="erlang"/>
+  <img src="https://img.shields.io/badge/erlang-OTP%2028-92400e" alt="erlang"/>
   <a href="https://buymeacoffee.com/rlefever"><img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg" alt="sponsor"/></a>
 </p>
 
@@ -167,7 +167,7 @@ Quick jumps:
 | `reckon_gater` (deps) | ~> 3.7 |
 | `reckon_db` (deps, opt) | ~> 5.5 |
 | `reckon_proto` (deps) | v0.8.0 |
-| Erlang/OTP | 28+ |
+| Erlang/OTP | 28 |
 
 Pin to the semver tag (`:0.30.2`) for reproducible deploys; `:latest` tracks `main`.
 
