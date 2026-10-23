@@ -4,7 +4,7 @@ You only need this if you're hacking on the gateway or building a custom image. 
 
 ## Prerequisites
 
-- Erlang/OTP 27 or 28
+- Erlang/OTP 28
 - rebar3
 - Rust 1.90+ (required at build time , `reckon_db`'s NIFs compile to `priv/*.so` via cargo)
 - git + ca-certificates (rebar3 fetches deps from git)
@@ -38,7 +38,7 @@ podman build -t reckon-gateway:dev .
 podman run --rm -p 50051:50051 reckon-gateway:dev
 ```
 
-The Dockerfile is multi-stage: builder (`erlang:27-slim` + Rust toolchain) produces a release tar; runtime (`debian:bookworm-slim`) ships only the release. The Rust toolchain is **not** in the runtime image.
+The Dockerfile is multi-stage: builder (`erlang:28-slim` + Rust toolchain) produces a release tar; runtime (`debian:trixie-slim`) ships only the release. The Rust toolchain is **not** in the runtime image.
 
 ## Tests
 

@@ -47,7 +47,7 @@
 <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0 0L10 5L0 10z"/></marker></defs>
 <rect class="bg" x="0" y="0" width="1000" height="1200"/>
 <rect class="bound" x="16" y="40" width="968" height="948" rx="12"/>
-<text class="t-bound" x="32" y="62">reckon_gateway release [Container: OTP 27 relx release 0.30.1, ports 50051 and 8080]</text>
+<text class="t-bound" x="32" y="62">reckon_gateway release [Container: OTP 28 relx release 0.30.2, ports 50051 and 8080]</text>
 <rect class="b-cmp" x="32" y="70" width="624" height="122" rx="10"/>
 <text class="t-code" x="48" y="98">reckon_gateway_app, reckon_gateway_sup</text>
 <text class="t-type" x="48" y="116">[application and top supervisor]</text>

@@ -141,7 +141,7 @@ def context():
           ["reckon-go and the generated", "stubs, over HTTP/2 in the clear.",
            "Stream, Subscription, Snapshot,", "Health, Temporal, Schema,",
            "Admin, Stores and DCB services"])
-    d.box("b-sys", 375, 210, 250, "reckon-gateway", "[In scope: OTP release 0.30.1, OCI image]",
+    d.box("b-sys", 375, 210, 250, "reckon-gateway", "[In scope: OTP 28 release 0.30.2, OCI image]",
           ["One release serving the ReckonDB", "API over gRPC and HTTP/JSON at",
            "once. In catalogue mode it holds", "no data: each call is dispatched",
            "to the cluster owning the store"])
@@ -177,7 +177,7 @@ def context():
 
 def components():
     d = Diagram("c4-components.svg", "reckon-gateway components", 1000, 1200)
-    d.bound(16, 40, 968, 948, "reckon_gateway release [Container: OTP 27 relx release 0.30.1, ports 50051 and 8080]")
+    d.bound(16, 40, 968, 948, "reckon_gateway release [Container: OTP 28 relx release 0.30.2, ports 50051 and 8080]")
     d.box("b-cmp", 32, 70, 624, "reckon_gateway_app, reckon_gateway_sup", "[application and top supervisor]",
           ["Attaches the telemetry handlers, starts the gRPC server inline in init/1, then its children:",
            "catalogue, metrics, fleet ingest, HTTP listener and cluster supervisor. The embedded store",

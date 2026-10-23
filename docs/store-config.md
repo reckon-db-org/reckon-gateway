@@ -117,7 +117,7 @@ podman run -d -p 50051:50051 -p 8080:8080 \
   -v ./store.eterm:/etc/reckon-gateway/store.eterm:ro \
   -e RECKON_GATEWAY_STORE_ENABLED=true \
   -e RECKON_GATEWAY_STORE_ID=lab \
-  ghcr.io/reckon-db-org/reckon-gateway:0.30.1
+  ghcr.io/reckon-db-org/reckon-gateway:0.30.2
 
 curl -s localhost:8080/v1/stores/lab/dcb/payload-indexes
 # => {"payload":["account_id"],"payload_hash":[["flight_id","seat_no"]]}

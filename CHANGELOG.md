@@ -2,6 +2,19 @@
 
 ## 0.30.2 - 2026-10-23
 
+### Changed
+
+- **The image builds and runs on OTP 28.** `Dockerfile` built on
+  `erlang:27-slim` while the rest of the platform targets OTP 28 (Raf,
+  2026-10-23). The builder is now `erlang:28-slim`, pinned by digest
+  (`sha256:01e65e69…`, the manifest list, so amd64 and arm64 each resolve to
+  their own manifest), and the runtime moves from `debian:bookworm-slim` to
+  `debian:trixie-slim`, pinned by digest too. The runtime move is not
+  cosmetic: `erlang:28-slim` is Debian 13, so the ERTS relx copies into the
+  runtime is linked against trixie's glibc and will not load on bookworm.
+  `docs/building.md` states the same pair, and the C4 container diagram names
+  OTP 28 instead of OTP 27.
+
 ### Fixed
 
 - **A branch or a pull request runs the test gate (reckon-gateway#12).**

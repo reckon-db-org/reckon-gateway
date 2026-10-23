@@ -2,7 +2,13 @@
 # Multi-stage build: compile + release, then slim runtime
 
 # ── Builder ──
-FROM erlang:27-slim AS builder
+#
+# OTP 28, pinned by digest (Raf, 2026-10-23: builds, CI images and docs target
+# OTP 28). `erlang:28-slim' is Debian 13 (trixie), so the runtime below is
+# trixie too: the release carries an ERTS built against trixie's glibc, which a
+# bookworm image cannot load. 28-slim is a multi-arch tag; the digest is the
+# manifest list, so the amd64 and arm64 builds resolve to their own manifests.
+FROM erlang:28-slim@sha256:01e65e69c06801826b1c8e353c6b3c1e49951c3362b718f2a588348fb31829ad AS builder
 
 # git/curl/ca-certificates: rebar3 deps fetching
 # build-essential: required by `cargo build` to link the NIF .so files
@@ -60,7 +66,11 @@ RUN rebar3 grpc gen && \
     rebar3 as prod release
 
 # ── Runtime ──
-FROM debian:bookworm-slim AS runtime
+#
+# Debian 13 (trixie), the builder's own base, so the ERTS copied out of it runs:
+# an OTP 28 ERTS links trixie's glibc (2.41) and the bookworm image this used to
+# be (2.36) cannot load it. Pinned by digest, like the builder.
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses6 openssl ca-certificates && \

@@ -18,7 +18,7 @@ A diagram that still names a component the release lost is drift, and the
 
 | Element | What it is | Why it is there |
 |---|---|---|
-| **reckon-gateway** | One Erlang/OTP release (0.30.1) in one OCI image: gRPC on 50051, HTTP/JSON on 8080, the admin UI and SSE | The system this repository builds |
+| **reckon-gateway** | One Erlang/OTP release (0.30.2) in one OCI image: gRPC on 50051, HTTP/JSON on 8080, the admin UI and SSE | The system this repository builds |
 | Application developer | Person | Writes a polyglot client from the stubs `reckon-proto` generates |
 | Operator | Person | Pulls the image, writes `clusters.eterm` or `store.eterm`, watches the admin UI |
 | Cluster owner | Person | Runs the ReckonDB clusters a catalogue federates, and supplies their Erlang cookies |
