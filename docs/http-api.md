@@ -33,7 +33,7 @@ Reads return events as:
 {
   "event_id": "018f...",
   "event_type": "user_registered_v1",
-  "stream_id": "user-7c4b9",
+  "stream_id": "user-7c4b9f1e2a8d4c3b9f7e5d1a2b3c4d5e",
   "version": 0,
   "data": { "name": "Alice" },
   "metadata": { "correlation_id": "..." },
@@ -134,7 +134,7 @@ Same shape, filtered to one store id.
 ### `GET /v1/stores/:store_id/streams`
 List stream ids in the store.
 ```json
-{ "stream_ids": ["user-7c4b9", "order-1a2b"] }
+{ "stream_ids": ["user-7c4b9f1e2a8d4c3b9f7e5d1a2b3c4d5e", "order-1a2b3c4d5e6f708192a3b4c5d6e7f809"] }
 ```
 
 ### `POST /v1/stores/:store_id/streams/:stream_id/events`

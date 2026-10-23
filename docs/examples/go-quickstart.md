@@ -118,7 +118,7 @@ func streamID(prefix string) string {
 subClient := subpb.NewSubscriptionServiceClient(conn)
 stream, _ := subClient.SubscribeToStream(ctx, &subpb.SubscribeRequest{
     StoreId:  "my_store",
-    StreamId: "user-7c4b9f...",
+    StreamId: "user-7c4b9f1e2a8d4c3b9f7e5d1a2b3c4d5e",
     FromVersion: 0,
 })
 for {

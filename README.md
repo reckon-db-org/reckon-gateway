@@ -72,13 +72,18 @@ See [docs/clusters-eterm.md](docs/clusters-eterm.md) for the `clusters.eterm` sc
 
 ### Call from a client
 
+A stream id is `<prefix>-<32 hex>` (1 to 32 lowercase letters, one hyphen, 32
+lowercase hex digits); the store refuses any other shape with
+`invalid_stream_id`. The rule and how to make one:
+[Stream Ids](https://hexdocs.pm/reckon_gater/stream_ids.html).
+
 ```go
 conn, _ := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 client := streampb.NewStreamServiceClient(conn)
 
 resp, _ := client.AppendEvents(ctx, &streampb.AppendEventsRequest{
     StoreId:         "my_store",
-    StreamId:        "user-7c4b9...",
+    StreamId:        "user-7c4b9f1e2a8d4c3b9f7e5d1a2b3c4d5e",
     ExpectedVersion: -1,
     Events: []*streampb.ProposedEvent{{
         EventType: "user_registered_v1",
@@ -93,13 +98,13 @@ Full example: [docs/examples/go-quickstart.md](docs/examples/go-quickstart.md).
 
 ```bash
 # append
-curl -sX POST localhost:8080/v1/stores/my_store/streams/user-7c4b9/events \
+curl -sX POST localhost:8080/v1/stores/my_store/streams/user-7c4b9f1e2a8d4c3b9f7e5d1a2b3c4d5e/events \
   -H 'content-type: application/json' \
   -d '{"expected_version":"any","events":[{"event_type":"user_registered_v1","data":{"name":"Alice"}}]}'
 # → {"version":0,"count":1}
 
 # read back
-curl -s "localhost:8080/v1/stores/my_store/streams/user-7c4b9/events?from=0&limit=100"
+curl -s "localhost:8080/v1/stores/my_store/streams/user-7c4b9f1e2a8d4c3b9f7e5d1a2b3c4d5e/events?from=0&limit=100"
 ```
 
 Full HTTP reference: [docs/http-api.md](docs/http-api.md). Browser admin UI: [docs/admin-ui.md](docs/admin-ui.md).
